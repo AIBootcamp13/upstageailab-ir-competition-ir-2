@@ -1,0 +1,9 @@
+# Auto-detect text files and normalize to LF on commit
+* text=auto
+
+# Force LF for common scripts and configs
+*.sh     eol=lf
+*.py     eol=lf
+*.yml    eol=lf
+*.yaml   eol=lf
+*.md     eol=lf
