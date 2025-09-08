@@ -274,27 +274,8 @@ poetry run python scripts/smoke_test.py
 
 
 ## 참고사항
-- 이 프로젝트는 원래 Windows 빌드 Elasticsearch 번들을 포함했으나 제거되었습니다; 프로덕션 패리티를 위해 공식 Linux tarball 또는 Docker 이미지를 선호하세요.
 
 ## 프로젝트 개요 (대회별 세부 사항)
 
 `docs/notes/project-overview.md`에서 데이터셋 통계(인덱싱용 4,272개 문서; 220개 평가 메시지), 평가 방법(MAP) 및 RAG 아키텍처 노트를 포함한 전체 대회 작성본을 참조하세요.
 
-## 권장 임포트 경로 (중요)
-
-이 저장소는 리팩터링을 거쳐 구현을 하위 패키지로 이동시켰습니다. 혼란을 줄이기 위해 아래 권장 경로를 사용하세요.
-
-- 전체 페사드(추천):
-  - `from ir_core.api import index_documents_from_jsonl, encode_texts, sparse_retrieve`
-- 임베딩 직접 사용:
-  - `from ir_core.embeddings.core import encode_texts, encode_query`
-- 검색/재랭크:
-  - `from ir_core.retrieval.core import sparse_retrieve, dense_retrieve, hybrid_retrieve`
-- 유틸/IO:
-  - `from ir_core.utils.core import read_jsonl, write_jsonl`
-- 인프라(Elasticsearch):
-  - `from ir_core.infra import get_es, count_docs_with_embeddings`
-- 설정:
-  - `from ir_core.config import settings`
-
-참고: 일부 오래된(레거시) 모듈 및 호환성 셈(예: `ir_core.embeddings`, `ir_core.retrieval`, `ir_core.utils`, `ir_core.es_client`, `ir_core.eval`, `ir_core.config`(모듈형))은 제거되었거나 더 이상 권장되지 않습니다. 기존 코드를 사용하는 경우 위 권장 경로로 임포트 경로를 업데이트하세요.
