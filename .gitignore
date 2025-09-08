@@ -22,7 +22,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
+poetry.lock
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -68,9 +68,14 @@ Thumbs.db
 elasticsearch-*/
 !elasticsearch-*/README.asciidoc
 
+# Redis runtime artifacts
+redis-*/
+
 # Misc
 *.swp
 *~
+deprecated/
 
 # Data
 data/
+

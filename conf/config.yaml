@@ -1,0 +1,9 @@
+defaults:
+  - _self_
+
+es_host: ${env:ES_HOST}
+index_name: ${env:INDEX_NAME}
+embedding_model: ${env:EMBEDDING_MODEL}
+bm25_k: 200
+rerank_k: 10
+alpha: 0.0

@@ -86,7 +86,7 @@ else
       fi
     else
       # try a minimal TCP PING using python
-      if python3 - <<PY > /dev/null 2>&1
+  if python3 - <<'PY' > /dev/null 2>&1
 import socket
 try:
     s=socket.create_connection(('127.0.0.1',6379),1)
@@ -111,7 +111,7 @@ PY
     fi
   else
     # final python check
-    if ! python3 - <<PY > /dev/null 2>&1
+  if ! python3 - <<'PY' > /dev/null 2>&1
 import socket
 try:
     s=socket.create_connection(('127.0.0.1',6379),1)
