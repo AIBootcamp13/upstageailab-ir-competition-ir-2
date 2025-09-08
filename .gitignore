@@ -57,7 +57,7 @@ venv.bak/
 
 # Jupyter
 .ipynb_checkpoints
-
+*.ipynb
 # macOS
 .DS_Store
 
@@ -65,12 +65,12 @@ venv.bak/
 Thumbs.db
 
 # Elasticsearch runtime artifacts
-elasticsearch-*/data/
-elasticsearch-*/logs/
-elasticsearch-*/modules/
-elasticsearch-*/plugins/
+elasticsearch-*/
+!elasticsearch-*/README.asciidoc
 
 # Misc
 *.swp
 *~
 
+# Data
+data/
