@@ -6,11 +6,16 @@ set -euo pipefail
 # Defaults to version 8.9.0
 
 FOREGROUND=0
+PREBUILT=0
 ES_VERSION_ARG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --foreground|--systemd)
       FOREGROUND=1
+      shift
+      ;;
+    --prebuilt)
+      PREBUILT=1
       shift
       ;;
     *)
@@ -26,15 +31,41 @@ ES_VERSION="${ES_VERSION_ARG:-8.9.0}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
 
-if [ -d "$DIST_DIR" ]; then
-  echo "Using existing $DIST_DIR"
+# If prebuilt requested, prefer system package or distro-managed service
+if [ "$PREBUILT" -eq 1 ]; then
+  if command -v elasticsearch >/dev/null 2>&1; then
+    echo "Using system 'elasticsearch' binary"
+    ES_BIN="$(command -v elasticsearch)"
+  else
+    echo "Trying to install Elasticsearch via package manager (requires sudo)"
+    if command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y elasticsearch || true
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y elasticsearch || true
+    fi
+    if command -v elasticsearch >/dev/null 2>&1; then
+      ES_BIN="$(command -v elasticsearch)"
+    fi
+  fi
+fi
+
+# If no system binary available, fall back to local tarball distribution
+if [ -z "${ES_BIN:-}" ]; then
+  if [ -d "$DIST_DIR" ]; then
+    echo "Using existing $DIST_DIR"
+  else
+    TAR_NAME="elasticsearch-${ES_VERSION}-linux-x86_64.tar.gz"
+    URL="https://artifacts.elastic.co/downloads/elasticsearch/${TAR_NAME}"
+    echo "Downloading Elasticsearch $ES_VERSION from $URL"
+    curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+    tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR"
+    rm "/tmp/$TAR_NAME"
+  fi
+  cd "$DIST_DIR"
+  ES_BIN="$DIST_DIR/bin/elasticsearch"
 else
-  TAR_NAME="elasticsearch-${ES_VERSION}-linux-x86_64.tar.gz"
-  URL="https://artifacts.elastic.co/downloads/elasticsearch/${TAR_NAME}"
-  echo "Downloading Elasticsearch $ES_VERSION from $URL"
-  curl -fSL "$URL" -o "/tmp/$TAR_NAME"
-  tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR"
-  rm "/tmp/$TAR_NAME"
+  # system binary may expect to be run as a service; assume systemd managed
+  echo "System Elasticsearch binary detected at $ES_BIN"
 fi
 
 cd "$DIST_DIR"
@@ -59,12 +90,14 @@ fi
 
 mkdir -p "$DIST_DIR/logs" "$DIST_DIR/run"
 
+mkdir -p "$DIST_DIR/logs" "$DIST_DIR/run"
+
 if [ "$FOREGROUND" -eq 1 ]; then
   echo "Starting Elasticsearch in foreground (suitable for systemd)"
-  exec ./bin/elasticsearch
+  exec "$ES_BIN"
 else
   echo "Starting Elasticsearch in background (logs -> $DIST_DIR/logs)"
-  nohup bash -c "exec ./bin/elasticsearch" > "$DIST_DIR/logs/es.stdout.log" 2> "$DIST_DIR/logs/es.stderr.log" &
+  nohup bash -c "exec $ES_BIN" > "$DIST_DIR/logs/es.stdout.log" 2> "$DIST_DIR/logs/es.stderr.log" &
   ES_PID=$!
   echo "$ES_PID" > "$DIST_DIR/run/elasticsearch.pid"
   echo "Elasticsearch started with PID $ES_PID"
