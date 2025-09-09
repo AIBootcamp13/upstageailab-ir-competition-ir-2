@@ -1,281 +1,446 @@
-# Information Retrieval — 프로젝트 템플릿
+# Information Retrieval
 
-팀, 환경, 데이터 및 실행 방법을 담은 템플릿 README입니다.
+> 과학적 상식 검색을 위한 모듈형 RAG 파이프라인
 
-## 팀
+---
+## 👥 팀 소개
+<table>
+    <tr>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+    </tr>
+    <tr>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_김효석</a></td>
+        <td align="center"><a href="https://github.com/Wchoi189">AI13_최용비</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_강연경</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_정재훈</a></td>
+    </tr>
+    <tr>
+        <td align="center">검색 알고리즘 최적화</td>
+        <td align="center">툴 연동, 평가 검증</td>
+        <td align="center">베이스라인 제작, readme 작성</td>
+        <td align="center">모델 최적화, 프롬트 엔지니어링</td>
+        <td align="center">API 개발, Steamlit UI</td>
+    </tr>
+</table>
 
-| ![박패캠](https://avatars.githubusercontent.com/u/156163982?v=4) | ![이패캠](https://avatars.githubusercontent.com/u/156163982?v=4) | ![최패캠](https://avatars.githubusercontent.com/u/156163982?v=4) | ![김패캠](https://avatars.githubusercontent.com/u/156163982?v=4) | ![오패캠](https://avatars.githubusercontent.com/u/156163982?v=4) |
-| :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: | :--------------------------------------------------------------: |
-|            [박패캠](https://github.com/UpstageAILab)             |            [이패캠](https://github.com/UpstageAILab)             |            [최패캠](https://github.com/UpstageAILab)             |            [김패캠](https://github.com/UpstageAILab)             |            [오패캠](https://github.com/UpstageAILab)             |
-|                            팀장, 담당 역할                             |                            담당 역할                             |                            담당 역할                             |                            담당 역할                             |                            담당 역할                             |
+---
 
-## 0. 개요
-### 환경
-- 개발 OS: Ubuntu 20.04 (권장)
-- Python: 3.10 (Poetry를 사용한 의존성 관리)
-- 필수 도구: curl, tar, make, gcc (Redis 빌드 대체용)
+## 📋 목차
 
-### 요구사항
-- Python 의존성은 `pyproject.toml`을 참조하세요. 다음 명령으로 설치하세요:
+- [개요](#-개요)
+- [대회 정보](#-대회-정보)
+- [프로젝트 구조](#-프로젝트-구조)
+- [아키텍처](#-아키텍처)
+- [설치 및 실행](#-설치-및-실행)
+- [사용법](#-사용법)
+- [결과](#-결과)
 
-```bash
-poetry install
+---
+
+## 🎯 개요
+
+### 환경 요구사항
+
+| 구분 | 사양 |
+|------|------|
+| **OS** | Ubuntu 20.04 (권장) |
+| **Python** | 3.10 |
+| **의존성 관리** | Poetry |
+| **필수 도구** | curl, tar, make, gcc |
+
+### 주요 기능
+
+- ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
+- ✅ 모듈형 RAG 파이프라인
+- ✅ 임베딩, 검색, 평가 유틸리티 제공
+- ✅ Docker 없는 로컬 개발 환경 지원
+
+---
+
+## 🏆 대회 정보
+
+### 📊 개요
+과학적 상식 검색 작업을 위한 Information Retrieval 시스템 구축
+
+### 📅 일정
+- **시작 날짜**: 2025-09-08
+- **최종 제출**: 2025-09-18 (19:00)
+
+### 📈 평가 지표
+- **주요 지표**: MAP (Mean Average Precision)
+- **데이터셋**: 인덱싱용 4,272개 문서, 평가용 220개 쿼리
+
+---
+
+## 📁 프로젝트 구조
+
+```
+📦 프로젝트 루트
+├── 📄 README.md
+├── 📄 SMOKE_TEST.md
+├── 📄 pyproject.toml
+├── 📄 poetry.lock
+│
+├── 📂 conf/
+│   ├── 📄 config.yaml
+│   ├── 📄 elasticsearch.yml
+│   └── 📄 redis.conf
+│
+├── 📂 data/
+│   ├── 📄 documents.jsonl
+│   ├── 📄 eval.jsonl
+│   ├── 📂 raw/
+│   └── 📂 processed/
+│
+├── 📂 docs/
+│   ├── 📂 assets/
+│   │   ├── 📂 images/
+│   │   └── 📂 diagrams/
+│   ├── 📂 notes/
+│   │   ├── 📄 project-overview.md
+│   │   ├── 📄 architecture.md
+│   │   └── 📄 evaluation.md
+│   └── 📂 usage/
+│       ├── 📄 installation.md
+│       ├── 📄 quickstart.md
+│       └── 📄 troubleshooting.md
+│
+├── 📂 notebooks/
+│   ├── 📄 01_data_exploration.ipynb
+│   ├── 📄 02_embedding_analysis.ipynb
+│   ├── 📄 03_retrieval_experiments.ipynb
+│   └── 📄 04_evaluation_results.ipynb
+│
+├── 📂 scripts/
+│   ├── 🔧 cleanup-distros.sh
+│   ├── 🔧 manage-services.sh
+│   ├── 🔧 smoke-test.sh
+│   ├── 🔧 smoke_test.py
+│   ├── 🔧 start-elasticsearch.sh
+│   └── 🔧 start-redis.sh
+│
+└── 📂 src/
+    └── 📂 ir_core/
+        ├── 📄 __init__.py
+        ├── 📂 api/
+        │    └──📄 __init__.py
+        ├── 📂 config/
+        │   ├── 📄 __init__.py
+        │   └── 📄 settings.py
+        ├── 📂 embeddings/
+        │   ├── 📄 __init__.py
+        │   └── 📄 core.py
+        ├── 📂 evaluation/
+        │   ├── 📄 __init__.py
+        │   └── 📄 core.py
+        ├── 📂 infra/
+        │   ├── 📄 __init__.py
+        │   ├── 📄 elasticsearch.py
+        │   └── 📄 redis.py
+        ├── 📂 retrieval/
+        │   ├── 📄 __init__.py
+        │   └── 📄 core.py
+        └── 📂 utils/
+            ├── 📄 __init__.py
+            ├── 📄 core.py
+            └── 📄 logging.py
 ```
 
-## 1. 대회 정보
+### 🔧 주요 컴포넌트
 
-### 개요
+| 모듈 | 기능 | 주요 함수 |
+|------|------|-----------|
+| **api** | 메인 인터페이스 | `index_documents_from_jsonl()` |
+| **embeddings** | 임베딩 처리 | `encode_texts()`, `encode_query()` |
+| **retrieval** | 검색 엔진 | `sparse_retrieve()`, `dense_retrieve()`, `hybrid_retrieve()` |
+| **infra** | 인프라 관리 | `get_es()`, `count_docs_with_embeddings()` |
+| **utils** | 유틸리티 | `read_jsonl()`, `write_jsonl()`, `configure_logging()` |
+| **evaluation** | 평가 메트릭 | `precision_at_k()`, `mrr()` |
 
-이 저장소는 과학적 상식 검색 작업을 위한 모듈형 RAG 파이프라인 골격을 제공합니다. Elasticsearch + Redis를 인덱싱 및 캐싱에 지원하며, 임베딩, 인덱싱, 검색 및 평가를 위한 유틸리티를 포함합니다.
+---
 
-### 일정
+## 🏗️ 아키텍처
 
-- 시작 날짜: YYYY-MM-DD
-- 최종 제출: YYYY-MM-DD
-
-## 2. 구성 요소
-
-### 디렉터리
-
-```
-.
-├── README.md
-├── pyproject.toml
-├── poetry.lock
-├── data/
-│   ├── documents.jsonl
-│   └── eval.jsonl
-├── src/
-│   └── ir_core/
-│       ├── __init__.py
-│       ├── api.py
-│       ├── config/
-│       │   └── __init__.py
-│       ├── embeddings/
-│       │   ├── __init__.py
-│       │   └── core.py
-│       ├── retrieval/
-│       │   ├── __init__.py
-│       │   └── core.py
-│       ├── infra/
-│       │   └── __init__.py
-│       ├── utils/
-│       │   ├── __init__.py
-│       │   └── core.py
-│       └── evaluation/
-│           ├── __init__.py
-│           └── core.py
-├── scripts/
-│   ├── start-elasticsearch.sh
-│   ├── start-redis.sh
-│   └── smoke_test.py
-|
-├── docs/
-│   └── notes/
-└── SMOKE_TEST.md
-```
-## 3. 데이터 설명
-
-## 프로젝트 구조
-
-아래는 주요 디렉터리와 컴포넌트의 개요입니다.
+### 시스펨 플로우
 
 ```mermaid
 ---
 config:
-  theme: "forest"
+  theme: "base"
+  themeVariables:
+    background: "#ffffff"
+    primaryColor: "#4CAF50"
+    primaryTextColor: "#000000"
+    primaryBorderColor: "#2E7D32"
+    lineColor: "#424242"
+    secondaryColor: "#FFC107"
+    tertiaryColor: "#FF5722"
 ---
-flowchart TB
-  IR["src/ir_core"]
-  API["api (페이스)"]
-  EMB["embeddings (임베딩 구현)"]
-  RET["retrieval (검색/재랭크)"]
-  INF["infra (ES/Redis 헬퍼)"]
-  UT["utils (IO, 로깅)"]
-  EV["evaluation (metrics)"]
-  S1["scripts/start-elasticsearch.sh"]
-  S2["scripts/start-redis.sh"]
-  S3["scripts/smoke_test.py"]
-  DATA["data/"]
-  DOCS["docs/"]
+flowchart TD
+    A[👤 User Query] --> B[🔌 API Layer]
+    B --> C[🧠 Encode Query]
+    C --> D{🔍 Search Strategy}
 
-  IR --> API
-  IR --> EMB
-  IR --> RET
-  IR --> INF
-  IR --> UT
-  IR --> EV
+    D -->|Sparse| E[📝 BM25 Search]
+    D -->|Dense| F[🎯 Vector Search]
 
-  API_FN["index_documents_from_jsonl()"]
-  EMB_FN["encode_texts(), encode_query()"]
-  RET_FN["sparse_retrieve(), dense_retrieve(), hybrid_retrieve()"]
-  INF_FN["get_es(), count_docs_with_embeddings()"]
-  UT_FN["read_jsonl(), write_jsonl(), configure_logging()"]
-  EV_FN["precision_at_k(), mrr()"]
+    E --> G[🔀 Hybrid Reranking]
+    F --> G
 
-  API --> API_FN
-  EMB --> EMB_FN
-  RET --> RET_FN
-  INF --> INF_FN
-  UT --> UT_FN
-  EV --> EV_FN
+    G --> H{⚡ Cache Check}
+    H -->|Hit| I[📊 Return Results]
+    H -->|Miss| J[💾 Store & Return]
 
-  S1 --> IR
-  S2 --> IR
-  S3 --> IR
-  DATA --> IR
-  DOCS --> IR
+    I --> K[📈 Evaluation]
+    J --> K
+
+    style A fill:#e1f5fe
+    style K fill:#f3e5f5
+    style G fill:#fff3e0
 ```
 
-위 다이어그램은 프로젝트의 논리적 연결을 단순히 보여줍니다: `src/ir_core`의 `api`가 핵심 페사드 역할을 하고, 하위 패키지들이 실제 구현을 제공합니다. `scripts/`는 로컬 서비스 시작 및 스모크 테스트를 담당합니다.
 
-`data/documents.jsonl` 및 `data/eval.jsonl`의 예시를 참조하세요. `docs/notes/project-overview.md`의 프로젝트 개요에는 데이터셋, EDA 및 평가 메트릭(MAP)에 대한 자세한 내용이 포함되어 있습니다.
-
-## 프로젝트 아키텍처 — RAG 파이프라인
-
-```mermaid
 ---
-config:
-  theme: "forest"
----
-flowchart LR
-  subgraph "Data"
-    docs["Documents (JSONL / raw)"]
-    preprocess["Preprocess / metadata extraction"]
-  end
 
-  subgraph "Indexing"
-    nori["analysis-nori (optional plugin)"]
-    es["Elasticsearch 8.9.0<br/>Index: test<br/>mappings: embeddings (dense_vector 768)"]
-  end
+## 🚀 설치 및 실행
 
-  subgraph "Embedding"
-    hf["HF Embedding implementation<br/>(src/ir_core/embeddings/core.py)"]
-    compat["Compatibility re-exports (optional)<br/>(src/ir_core/*/__init__.py)"]
-  end
-
-  subgraph "Retrieval"
-    bm25["Sparse: BM25<br/>(sparse_retrieve)"]
-    dense["Dense: vector script_score<br/>(dense_retrieve)"]
-    hybrid["Hybrid: BM25 -> rerank<br/>(hybrid_retrieve, alpha)"]
-  end
-
-  subgraph "Tools & Docs"
-    smoke["scripts/smoke_test.py<br/>(embedding-only runs without ES; full smoke requires ES + index)"]
-    eval["Evaluation & diagnostics<br/>(src/ir_core/evaluation/core.py)"]
-    config["pyproject.toml / deps<br/>(transformers, sentencepiece, scikit-learn, pydantic)"]
-    docs_md["SMOKE_TEST.md (project root)"]
-  end
-
-  docs --> preprocess
-  preprocess --> es
-  preprocess --> nori
-  nori --> es
-
-  preprocess --> hf
-  hf --> es
-
-  es --> bm25
-  es --> dense
-  hf --> dense
-  bm25 --> hybrid
-  dense --> hybrid
-  hf --> hybrid
-
-  smoke --> hf
-  eval --> hybrid
-  config --> hf
-  docs_md --> smoke
-
-  hybrid --> eval
-  eval --> results["Results / submissions"]
-```
-
-## 4. 모델링
-
-모델링 세부 사항(임베딩 모델, 밀집/희소 검색 선택, 재순위화)은 `docs/` 및 `notebooks/`의 해당 노트북에 문서화되어야 합니다.
-
-## 5. 결과
-
-리더보드 스크린샷, 모델 성능 및 프레젠테이션 파일을 여기에 포함하세요.
-
-## Docker 없이 서비스 실행 (로컬 개발)
-
-이 저장소에는 로컬 개발을 위한 Elasticsearch 및 Redis를 Docker 없이 실행하는 도우미 스크립트가 `scripts/`에 포함되어 있습니다. 자세한 내용은 `docs/docker-less.md`를 참조하세요. 빠른 명령:
+### 1️⃣ 저장소 클론
 
 ```bash
-# 백그라운드 서비스 시작 (필요 시 다운로드)
-./scripts/start-elasticsearch.sh
-./scripts/start-redis.sh --prebuilt
-
-# 스모크 테스트 실행 (서비스 시작, 엔드포인트 확인 후 중지)
-./scripts/smoke-test.sh
-
-# 다운로드된 배포판 정리
-./scripts/cleanup-distros.sh
-
-# systemd 사용자 서비스 설치
-./scripts/manage-services.sh install
-./scripts/manage-services.sh status
-./scripts/manage-services.sh uninstall
+git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
+cd upstageailab-ir-competition-upstageailab-information-retrieval_2
 ```
 
-## 사용법 (한국어)
-
-간단한 로컬 개발 워크플로우입니다. 이 프로젝트는 Elasticsearch와 Redis를 서비스로 사용합니다. 아래 순서대로 진행하세요.
-
-1) 의존성 설치 (Poetry 사용)
+### 2️⃣ 의존성 설치
 
 ```bash
+# Poetry를 사용한 의존성 설치
 poetry install
+
+# 또는 pip 사용 시
+pip install -r requirements.txt
 ```
 
-2) Elasticsearch 시작
+### 3️⃣ 서비스 시작
 
+#### Elasticsearch 시작
 ```bash
+# 자동 다운로드 및 시작
 ./scripts/start-elasticsearch.sh
-# 또는 시스템에 이미 elasticsearch가 설치되어 있으면 --prebuilt 옵션 사용
+
+# 기존 설치된 버전 사용
+./scripts/start-elasticsearch.sh --prebuilt
 ```
 
-3) Redis 시작
-
+#### Redis 시작
 ```bash
+# 자동 다운로드 및 시작
 ./scripts/start-redis.sh
-# 또는 시스템 바이너리 사용
+
+# 기존 설치된 버전 사용
 ./scripts/start-redis.sh --prebuilt
 ```
 
-4) 인덱스 생성 / 문서 색인
-
-스모크 테스트는 기본적으로 `settings.INDEX_NAME` (기본값: `test`) 인덱스를 사용합니다. 만약 인덱스가 없어서 `index_not_found_exception`이 발생하면, 먼저 인덱스를 생성하거나 예제 문서를 색인하세요. 예를 들어 `data/documents.jsonl`을 사용해 색인하려면:
+### 4️⃣ 초기 데이터 인덱싱
 
 ```bash
-poetry run python - <<'PY'
+poetry run python - <<'EOF'
 from ir_core import api
 api.index_documents_from_jsonl('data/documents.jsonl', index_name='test')
-print('Indexed sample documents into index: test')
-PY
+print('✅ 샘플 문서 인덱싱 완료')
+EOF
 ```
 
-위 방법은 아주 작은 편의 스크립트입니다. 프로덕션 환경에서는 매핑, 분석기, 템플릿을 주의해서 설정하세요.
-
-5) 스모크 테스트 실행
+### 5️⃣ 스모크 테스트
 
 ```bash
 poetry run python scripts/smoke_test.py
 ```
 
-실행 중 모델 가중치를 처음 다운로드하면 시간이 걸립니다. 만약 `ConnectionRefusedError` 또는 `index_not_found_exception`이 발생하면 서비스가 제대로 실행 중인지 (`./scripts/start-elasticsearch.sh`, `./scripts/start-redis.sh`)와 인덱스가 생성/색인되었는지 확인하세요.
+---
 
-문제가 계속되면 로그를 확인하세요:
+## 💡 사용법
 
-- Elasticsearch 로그: `elasticsearch-*/logs/`
-- Redis 로그: `redis-*/logs/`
+### 기본 검색 예제
 
+```python
+from ir_core import api
+from ir_core.retrieval.core import sparse_retrieve, dense_retrieve, hybrid_retrieve
 
-## 참고사항
+# 1. 희소 검색 (BM25)
+results = sparse_retrieve(
+    query="과학적 상식 질문",
+    index_name="test",
+    size=10
+)
 
-## 프로젝트 개요 (대회별 세부 사항)
+# 2. 밀집 검색 (Vector)
+results = dense_retrieve(
+    query="과학적 상식 질문",
+    index_name="test",
+    size=10
+)
 
-`docs/notes/project-overview.md`에서 데이터셋 통계(인덱싱용 4,272개 문서; 220개 평가 메시지), 평가 방법(MAP) 및 RAG 아키텍처 노트를 포함한 전체 대회 작성본을 참조하세요.
+# 3. 하이브리드 검색 (추천)
+results = hybrid_retrieve(
+    query="과학적 상식 질문",
+    index_name="test",
+    size=10,
+    alpha=0.7  # BM25와 Dense의 가중치 조절
+)
+```
 
+### 평가 실행
+
+```python
+from ir_core.evaluation.core import precision_at_k, mrr
+
+# 평가 메트릭 계산
+precision = precision_at_k(predictions, ground_truth, k=10)
+mrr_score = mrr(predictions, ground_truth)
+
+print(f"Precision@10: {precision:.4f}")
+print(f"MRR: {mrr_score:.4f}")
+```
+
+---
+
+## 🛠️ 고급 설정
+
+### systemd 서비스 관리
+
+```bash
+# 서비스 설치
+./scripts/manage-services.sh install
+
+# 서비스 상태 확인
+./scripts/manage-services.sh status
+
+# 서비스 제거
+./scripts/manage-services.sh uninstall
+```
+
+### 정리 작업
+
+```bash
+# 다운로드된 배포판 정리
+./scripts/cleanup-distros.sh
+
+# 전체 스모크 테스트 (서비스 시작 → 테스트 → 종료)
+./scripts/smoke-test.sh
+```
+
+---
+
+## 📊 결과
+
+### 🏅 성능 지표
+
+| 메트릭 | 점수 | 비고 |
+|--------|------|------|
+| **MAP** | 0.XXX | Mean Average Precision |
+| **MRR** | 0.XXX | Mean Reciprocal Rank |
+| **Precision@10** | 0.XXX | 상위 10개 결과 정확도 |
+
+### 📈 리더보드
+
+> 리더보드 스크린샷 및 순위 정보를 여기에 추가하세요.
+
+### 🎯 주요 성과
+
+- ✅ **모듈형 아키텍처**: 각 컴포넌트의 독립적 개발 및 테스트 가능
+- ✅ **하이브리드 검색**: BM25와 Dense Vector의 효과적 결합
+- ✅ **캐싱 최적화**: Redis를 통한 응답 속도 개선
+- ✅ **확장 가능성**: 새로운 임베딩 모델 및 검색 전략 쉽게 추가 가능
+
+---
+
+## 🔧 트러블슈팅
+
+### 자주 발생하는 문제
+
+<details>
+<summary><strong>ConnectionRefusedError 발생 시</strong></summary>
+
+```bash
+# 서비스 상태 확인
+curl -X GET "localhost:9200/_cluster/health"
+redis-cli ping
+
+# 서비스 재시작
+./scripts/start-elasticsearch.sh
+./scripts/start-redis.sh
+```
+</details>
+
+<details>
+<summary><strong>index_not_found_exception 발생 시</strong></summary>
+
+```bash
+# 인덱스 생성 및 문서 인덱싱
+poetry run python -c "
+from ir_core import api
+api.index_documents_from_jsonl('data/documents.jsonl', index_name='test')
+"
+```
+</details>
+
+<details>
+<summary><strong>메모리 부족 시</strong></summary>
+
+```bash
+# Elasticsearch 힙 메모리 조정
+export ES_JAVA_OPTS="-Xms1g -Xmx2g"
+./scripts/start-elasticsearch.sh
+```
+</details>
+
+### 로그 확인
+
+```bash
+# Elasticsearch 로그
+tail -f elasticsearch-*/logs/elasticsearch.log
+
+# Redis 로그
+tail -f redis-*/logs/redis-server.log
+```
+
+---
+
+## 📚 참고 자료
+
+### 📖 문서
+
+- [프로젝트 상세 개요](docs/notes/project-overview.md)
+- [Docker 없는 개발 환경](docs/docker-less.md)
+- [스모크 테스트 가이드](SMOKE_TEST.md)
+
+### 🔗 유용한 링크
+
+- [Elasticsearch 공식 문서](https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index.html)
+- [Redis 공식 문서](https://redis.io/documentation)
+- [HuggingFace Transformers](https://huggingface.co/docs/transformers/index)
+
+---
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+
+---
+
+<div align="center">
+
+<!-- **🚀 Made with ❤️ by Team Information Retrieval** -->
+
+[![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://python.org)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.9.0-yellow.svg)](https://elastic.co)
+[![Redis](https://img.shields.io/badge/Redis-Latest-red.svg)](https://redis.io)
+[![Poetry](https://img.shields.io/badge/Poetry-Dependency%20Management-green.svg)](https://python-poetry.org)
+
+</div>
