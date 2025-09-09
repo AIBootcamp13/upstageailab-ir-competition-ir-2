@@ -7,6 +7,7 @@ set -euo pipefail
 
 FOREGROUND=0
 PREBUILT=0
+NO_INSTALL=0
 VER=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -14,6 +15,8 @@ while [[ $# -gt 0 ]]; do
       FOREGROUND=1; shift ;;
     --prebuilt)
       PREBUILT=1; shift ;;
+    --no-install)
+      NO_INSTALL=1; shift ;;
     *)
       if [ -z "$VER" ]; then VER="$1"; fi
       shift
@@ -25,19 +28,43 @@ REDIS_VERSION="${VER:-7.2.0}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/redis-$REDIS_VERSION"
 
+# If a Redis instance is already responding on localhost:6379, skip start/download.
+if python3 - <<'PY' > /dev/null 2>&1
+import socket
+try:
+  s=socket.create_connection(('127.0.0.1',6379),1)
+  s.sendall(b'*1\r\n$4\r\nPING\r\n')
+  resp=s.recv(1024)
+  if b'PONG' in resp:
+    print('PONG')
+    raise SystemExit(0)
+except SystemExit:
+  raise
+except:
+  raise SystemExit(1)
+PY
+then
+  echo "Redis already responding on 127.0.0.1:6379 — skipping start/download"
+  exit 0
+fi
+
 # If prebuilt requested, prefer system redis-server binary or package manager
 if [ "$PREBUILT" -eq 1 ]; then
   if command -v redis-server >/dev/null 2>&1; then
     echo "Using system provided redis-server binary"
     REDIS_BIN="$(command -v redis-server)"
   else
-    echo "redis-server not found on PATH; attempting to install via package manager (requires sudo)"
-    if command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y redis-server || true
-    elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y redis || true
+    if [ "$NO_INSTALL" -eq 1 ]; then
+      echo "--no-install set; not attempting to install redis packages and falling back to build-from-source if available"
     else
-      echo "No supported package manager found; falling back to building from source"
+      echo "redis-server not found on PATH; attempting to install via package manager (requires sudo)"
+      if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update && sudo apt-get install -y redis-server || true
+      elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y redis || true
+      else
+        echo "No supported package manager found; falling back to building from source"
+      fi
     fi
     if command -v redis-server >/dev/null 2>&1; then
       REDIS_BIN="$(command -v redis-server)"

@@ -262,11 +262,53 @@ print('✅ 샘플 문서 인덱싱 완료')
 EOF
 ```
 
+#### 대안: 제공된 CLI 사용 및 환경 팁
+
+프로젝트에 포함된 `scripts/reindex.py` 는 간단한 CLI 포맷을 제공합니다.
+
+```bash
+# using the project's src/ on PYTHONPATH (recommended when running scripts directly)
+PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+```
+
+환경 관련 팁:
+- 항상 `poetry run` 또는 `poetry shell` 로 가상환경을 활성화하세요. 에디터가 가상환경을 사용하지 않으면 `pydantic`/`tqdm` 등이 "탐지되지 않음"으로 표시될 수 있습니다.
+- VSCode 사용 시, 왼쪽 하단 또는 Command Palette에서 Poetry 가상환경을 선택해 인터프리터를 맞추면 편리합니다.
+
+### 재인덱싱(재구축) 사용법 — CLI
+
+프로젝트에 포함된 `scripts/reindex.py` 는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
+
+예시:
+
+```bash
+# 권장: Poetry 환경에서 실행 (src를 PYTHONPATH에 추가)
+PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+
+# 또는 패키지를 편집 모드로 설치한 경우
+poetry run python scripts/reindex.py data/documents.jsonl --index test
+```
+
+팁:
+- 배치 사이즈(`--batch-size`)를 늘리면 네트워크 왕복 횟수가 줄어들어 전체 속도가 빨라질 수 있지만, 메모리/ES 부하를 고려하세요.
+- ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
+- 에디터에서 `elasticsearch` 나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
+
 ### 5️⃣ 스모크 테스트
 
 ```bash
 poetry run python scripts/smoke_test.py
 ```
+
+Note: The `scripts/smoke-test.sh` wrapper now verifies PID files and
+checks that processes are still running before attempting to `kill` them.
+This avoids noisy "No such process" messages during cleanup when services
+have already exited.
+
+Flags for the wrapper:
+- `--no-install`: do not attempt to install packages using apt/yum. Useful on
+    machines where elevated installs are undesirable.
+- `--no-cleanup`: skip stopping services after the test (leave them running).
 
 ---
 
@@ -318,7 +360,7 @@ print(f"MRR: {mrr_score:.4f}")
 
 ## 🛠️ 고급 설정
 
-### systemd 서비스 관리
+<!-- ### systemd 서비스 관리
 
 ```bash
 # 서비스 설치
@@ -329,7 +371,7 @@ print(f"MRR: {mrr_score:.4f}")
 
 # 서비스 제거
 ./scripts/manage-services.sh uninstall
-```
+``` -->
 
 ### 정리 작업
 

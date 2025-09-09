@@ -7,6 +7,7 @@ set -euo pipefail
 
 FOREGROUND=0
 PREBUILT=0
+NO_INSTALL=0
 ES_VERSION_ARG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -16,6 +17,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --prebuilt)
       PREBUILT=1
+      shift
+      ;;
+    --no-install)
+      NO_INSTALL=1
       shift
       ;;
     *)
@@ -31,17 +36,27 @@ ES_VERSION="${ES_VERSION_ARG:-8.9.0}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
 
+# If an Elasticsearch instance is already responding on localhost:9200, skip start/download.
+if curl -sS --fail http://127.0.0.1:9200 >/dev/null 2>&1; then
+  echo "Elasticsearch already responding on 127.0.0.1:9200 — skipping start/download"
+  exit 0
+fi
+
 # If prebuilt requested, prefer system package or distro-managed service
 if [ "$PREBUILT" -eq 1 ]; then
   if command -v elasticsearch >/dev/null 2>&1; then
     echo "Using system 'elasticsearch' binary"
     ES_BIN="$(command -v elasticsearch)"
   else
-    echo "Trying to install Elasticsearch via package manager (requires sudo)"
-    if command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y elasticsearch || true
-    elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y elasticsearch || true
+    if [ "$NO_INSTALL" -eq 1 ]; then
+      echo "--no-install set; not attempting to install Elasticsearch packages and falling back to local distro if available"
+    else
+      echo "Trying to install Elasticsearch via package manager (requires sudo)"
+      if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update && sudo apt-get install -y elasticsearch || true
+      elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y elasticsearch || true
+      fi
     fi
     if command -v elasticsearch >/dev/null 2>&1; then
       ES_BIN="$(command -v elasticsearch)"

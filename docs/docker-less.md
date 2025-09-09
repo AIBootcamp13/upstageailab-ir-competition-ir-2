@@ -25,6 +25,7 @@ curl http://127.0.0.1:9200
 
 ## Redis
 
+
 스크립트: `scripts/start-redis.sh [version]` (기본값: 7.2.0)
 
 동작:
@@ -96,11 +97,20 @@ redis-cli -p 6379 ping
 - 서비스를 시작하고 연결을 테스트한 후 자동으로 중지합니다.
 - 전체 파이프라인의 기본 기능을 검증합니다.
 
+참고: `scripts/smoke-test.sh`의 정리(cleanup) 단계는 이제 PID 파일을 확인하고
+프로세스가 실제로 실행 중인지 확인한 뒤에 신호를 보냅니다. 따라서 서비스가
+자발적으로 종료된 경우 "No such process"와 같은 불필요한 메시지가 표시되지
+않습니다.
+
 예시:
 
 ```bash
 ./scripts/smoke-test.sh
 ```
+
+Flags:
+- `--no-install`: do not invoke package managers; prefer local distros or existing binaries.
+- `--no-cleanup`: skip stopping services after the test.
 
 ## 문제 해결
 
