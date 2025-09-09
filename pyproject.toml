@@ -26,10 +26,12 @@ icecream = "^2.1.2"
 fire = "^0.5.0"
 pytest = "^7.4"
 pydantic = "^1.10"
+Jinja2 = "^3.1.4"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"
 ruff = "^0.7"
+tqdm = "^4.66.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

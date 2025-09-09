@@ -24,6 +24,10 @@ class Settings(BaseSettings):
 	USE_WANDB: bool = False
 	WANDB_PROJECT: str = "ir-rag"
 
+	# --- New Settings for the Generation Layer ---
+	GENERATOR_TYPE: str = "openai"  # Can be "openai" or "ollama"
+	GENERATOR_MODEL_NAME: str = "gpt-3.5-turbo" # e.g., "gpt-3.5-turbo", "llama3"
+
 	class Config:
 		env_file = ".env"
 

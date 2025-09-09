@@ -48,10 +48,14 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
     except Exception:
         total = None
 
+    # Keep a typed reference for linters: tqdm may be unavailable at import time
+    from typing import Optional, Callable, Iterable
+    tqdm: Optional[Callable[..., Iterable]] = None
     use_tqdm = False
     try:
-        from tqdm import tqdm
-
+        # import into a temporary name then assign so the type is clear
+        from tqdm import tqdm as _tqdm
+        tqdm = _tqdm
         use_tqdm = True
     except Exception:
         tqdm = None
@@ -78,6 +82,8 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
     iterator = read_jsonl(jsonl_path)
 
     if use_tqdm:
+        # Help static type-checkers: ensure tqdm is not None here
+        assert tqdm is not None
         iterator = tqdm(iterator, total=total, desc=f"Indexing -> {idx}")
 
     import time
@@ -107,7 +113,9 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
                             except Exception as exc:
                                 print(f"Failed to index doc id={a.get('_id')}: {exc}", flush=True)
                     else:
-                        success, _ = bulk(es, batch, request_timeout=30)
+                        # Use Elasticsearch.options() to pass transport options per the new API
+                        client_with_opts = es.options(request_timeout=30)
+                        success, _ = bulk(client_with_opts, batch)
                         indexed += success
                 batch_end = time.time()
                 last_batch_time = batch_end - batch_start
@@ -144,7 +152,8 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
                         except Exception as exc:
                             print(f"Failed to index doc id={a.get('_id')}: {exc}", flush=True)
                 else:
-                    success, _ = bulk(es, batch, request_timeout=30)
+                    client_with_opts = es.options(request_timeout=30)
+                    success, _ = bulk(client_with_opts, batch)
                     indexed += success
             batch_end = time.time()
             last_batch_time = batch_end - batch_start

@@ -115,13 +115,44 @@ status(){
   if [ -f "$PIDFILE_ES" ] && kill -0 "$(cat "$PIDFILE_ES")" >/dev/null 2>&1; then
     echo "  running pid $(cat $PIDFILE_ES)"
   else
-    echo "  not running (no pid or process dead)"
+    # Try to detect Elasticsearch by process name or listening port as a fallback
+    es_pid=$(pgrep -f "$ES_DIR" | head -n1 || true)
+    if [ -n "$es_pid" ]; then
+      echo "  running pid $es_pid (no pidfile)"
+    else
+      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':9200'; then
+        # attempt to extract pid from ss output
+        listener_pid=$(ss -ltnp 2>/dev/null | grep ':9200' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
+        if [ -n "$listener_pid" ]; then
+          echo "  running pid $listener_pid (listening on 9200)"
+        else
+          echo "  running (listening on 9200)"
+        fi
+      else
+        echo "  not running (no pid or process dead)"
+      fi
+    fi
   fi
   echo "Redis:"
   if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
     echo "  running pid $(cat $PIDFILE_REDIS)"
   else
-    echo "  not running (no pid or process dead)"
+    # Try to detect redis by process name or listening port as a fallback
+    redis_pid=$(pgrep -x redis-server | head -n1 || true)
+    if [ -n "$redis_pid" ]; then
+      echo "  running pid $redis_pid (process exists)"
+    else
+      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':6379'; then
+        listener_pid=$(ss -ltnp 2>/dev/null | grep ':6379' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
+        if [ -n "$listener_pid" ]; then
+          echo "  running pid $listener_pid (listening on 6379)"
+        else
+          echo "  running (listening on 6379)"
+        fi
+      else
+        echo "  not running (no pid or process dead)"
+      fi
+    fi
   fi
 }
 

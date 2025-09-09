@@ -17,9 +17,12 @@ def get_es():
 	"""
 	return Elasticsearch(
 		settings.ES_HOST,
-		request_timeout=10,
-		max_retries=3,
-		retry_on_timeout=True,
+		# Fail fast on connection problems in test runs. Keeping retries very low
+		# and disabling retry_on_timeout prevents the underlying transport from
+		# emitting thousands of repeated attempts when ES is down.
+		request_timeout=5,
+		max_retries=0,
+		retry_on_timeout=False,
 	)
 
 

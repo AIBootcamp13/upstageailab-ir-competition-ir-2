@@ -16,7 +16,6 @@ scripts/run-local.sh start
 scripts/run-local.sh status
 
 # 중지
-scripts/run-local.sh stop
 ```
 
 시스템 패키지를 사용하는 것을 선호한다면, 패키지 매니저를 사용하여 Elasticsearch와 Redis를 설치한 다음 시스템 바이너리를 선호하는 `scripts/smoke-test.sh`를 실행하세요. `scripts/smoke-test.sh`는 서비스가 없을 때 서비스를 시작하려고 시도합니다(현재 시스템 바이너리를 선호하거나, 비루트 로컬 실행을 위해 `scripts/run-local.sh start`를 실행할 수 있습니다).
@@ -27,6 +26,34 @@ scripts/run-local.sh stop
 - Elasticsearch를 위한 PATH의 Java 11+
 - 소스에서 Redis 빌드를 위한 make & gcc (첫 번째 실행 시에만)
 - 호스트에서 루트로 한 번 실행해야 할 수 있습니다:
+
+
+Integration tests
+-----------------
+
+Integration tests require Elasticsearch and Redis and are marked with the `integration` pytest marker.
+They are skipped by default to avoid unexpected long-running or side-effectful test runs. To run them:
+
+Run a single integration test (one-off):
+
+```bash
+RUN_INTEGRATION=1 poetry run pytest -k integration -q -s
+```
+
+Or run all integration tests explicitly with pytest's marker selection:
+
+```bash
+# Use pytest -m integration to run only integration-marked tests
+poetry run pytest -m integration -s
+```
+
+If you prefer to keep services running yourself for fast iteration, start the local services first:
+
+```bash
+./scripts/run-local.sh start
+export RUN_INTEGRATION=1
+poetry run pytest tests/test_integration_pipeline.py::test_full_retrieval_pipeline -s
+```
 
 ```bash
 sudo sysctl -w vm.max_map_count=262144

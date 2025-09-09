@@ -1,4 +1,3 @@
-```markdown
 # Elasticsearch와 Redis를 위한 Docker 없는 해결책
 
 이 문서는 Docker 없이 Linux 호스트에서 Elasticsearch와 Redis를 실행하기 위한 `scripts/` 내의 작은 스크립트들을 설명합니다. 이는 로컬 개발 전용입니다.
@@ -217,4 +216,3 @@ done
 ```
 
 이러한 도구들을 통해 Docker 없이도 효율적인 로컬 개발 환경을 구축할 수 있습니다.
-```

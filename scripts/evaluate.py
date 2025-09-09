@@ -3,7 +3,7 @@
 """
 import fire
 from src.ir_core.config import settings
-from src.ir_core import retrieval, eval as ir_eval, utils
+from src.ir_core import retrieval, evaluation as ir_eval, utils
 
 
 def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.csv'):

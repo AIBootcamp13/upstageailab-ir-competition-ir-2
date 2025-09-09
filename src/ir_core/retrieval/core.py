@@ -6,6 +6,7 @@ Contains sparse, dense and hybrid retrieval helpers moved from the legacy
 from ..infra import get_es
 from ..config import settings
 import numpy as np
+from ..embeddings.core import encode_texts
 
 
 def sparse_retrieve(query: str, size: int = 10, index: str = None):
@@ -36,8 +37,6 @@ def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: str = None):
 
 
 def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha: float = None):
-    from ..embeddings.core import encode_texts
-
     bm25_k = bm25_k or settings.BM25_K
     rerank_k = rerank_k or settings.RERANK_K
     alpha = settings.ALPHA if alpha is None else alpha
