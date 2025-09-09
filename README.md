@@ -358,11 +358,12 @@ print(f"MRR: {mrr_score:.4f}")
 
 ### 대회 제출용 테스트 데이터 인프런스
 ```bash
+# 기본 설정
 PYTHONPATH=src poetry run python scripts/evaluate.py
 
 또는
-
-PYTHONPATH=src poetry run python scripts/evaluate.py run data/eval.jsonl outputs/submission.csv
+# 명시적 설정 사용
+PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/submission.csv
 ```
 ---
 

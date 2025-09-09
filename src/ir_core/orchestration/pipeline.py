@@ -1,5 +1,5 @@
 # src/ir_core/orchestration/pipeline.py
-from typing import List, Dict, Any, cast
+from typing import List, Dict, Any, Optional, cast
 import os
 import openai
 from openai.types.chat import ChatCompletionMessageToolCall
@@ -36,74 +36,70 @@ class RAGPipeline:
             print("Warning: OPENAI_API_KEY environment variable not set. Tool calling will fail.")
         self.client = openai.OpenAI()
 
-    def run(self, query: str) -> str:
+    def run_retrieval_only(self, query: str) -> List[Dict[str, Any]]:
         """
-        Executes the full RAG pipeline for a given user query.
+        Executes only the retrieval part of the pipeline for evaluation purposes.
 
-        The process is as follows:
-        1.  Make an initial call to the LLM with the query and available tools.
-        2.  If the LLM decides to use a tool, parse its response.
-        3.  Use the ToolDispatcher to execute the requested tool.
-        4.  Take the tool's output (e.g., retrieved documents) as context.
-        5.  Call the generator a second time with the original query and the new context
-            to produce the final answer.
-        6.  If the LLM decides not to use a tool, generate a direct response.
+        This method asks the LLM to decide if a tool is needed. If so, it
+        executes the tool and returns the results. If not, it returns an
+        empty list. This aligns with the competition's evaluation logic.
+
+        Args:
+            query: The user query.
 
         Returns:
-            The final generated answer as a string.
+            A list of retrieved document dictionaries, or an empty list.
         """
-        print(f"\n--- Running RAG Pipeline for query: '{query}' ---")
-
-        # For now, we only have one tool. In the future, this could be a list of tools.
-        # get_tool_definition returns a plain dict describing the tool; the OpenAI SDK
-        # typings are strict so cast to Any to avoid type errors at runtime.
         tools = [cast(Any, get_tool_definition())]
 
         try:
-            # First call: The LLM decides whether to use a tool or answer directly.
-            print("Step 1: Making decision call to LLM...")
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo", # A cost-effective model for tool-use decisions
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": query}],
                 tools=tools,
                 tool_choice="auto"
             )
-
             response_message = response.choices[0].message
             tool_calls = response_message.tool_calls
 
-            # Step 2: Check if the LLM requested a tool.
             if tool_calls:
-                # For this implementation, we'll only handle the first tool call.
                 tool_call = cast(ChatCompletionMessageToolCall, tool_calls[0])
-                # Directly access the function attribute assuming SDK object structure
                 tool_name = tool_call.function.name
                 tool_args_json = tool_call.function.arguments or "{}"
-                tool_args_json = tool_call.function.arguments or "{}"
 
-                # Step 3: Execute the tool using the dispatcher.
-                print(f"Step 3: Executing tool '{tool_name}' via dispatcher...")
                 tool_result = self.dispatcher.execute_tool(
                     tool_name=tool_name,
                     tool_args_json=tool_args_json
                 )
+                # Ensure the result is a list for consistent return type
+                return tool_result if isinstance(tool_result, list) else []
+            else:
+                # No tool call was made, so return no documents.
+                return []
+        except Exception as e:
+            print(f"An error occurred during retrieval for query '{query}': {e}")
+            return []
 
-                # The tool result (retrieved docs) needs to be a list of strings for the prompt.
-                if isinstance(tool_result, list) and all(isinstance(item, dict) and 'content' in item for item in tool_result):
-                        context_docs = [item['content'] for item in tool_result]
-                else:
-                    # Handle cases where the tool returns an error string or unexpected format.
-                    context_docs = [str(tool_result)]
+    def run(self, query: str) -> str:
+        """
+        Executes the full RAG pipeline for a given user query.
+        """
+        print(f"\n--- Running RAG Pipeline for query: '{query}' ---")
 
-                print(f"Step 4: Received context from tool. Number of documents: {len(context_docs)}")
+        try:
+            # Step 1 & 2: Decide if a tool is needed and get the results.
+            # We now use our dedicated retrieval method for this.
+            retrieved_docs_list = self.run_retrieval_only(query)
 
-                # Step 5: Call the generator with the context to get the final answer.
+            # Step 3: Generate the final answer based on the retrieval result.
+            if retrieved_docs_list:
+                print(f"Step 4: Received context from tool. Number of documents: {len(retrieved_docs_list)}")
+                context_docs = [item.get('content', '') for item in retrieved_docs_list]
+
                 print("Step 5: Generating final answer with context...")
                 final_answer = self.generator.generate(query=query, context_docs=context_docs)
-
             else:
-                # Step 6: No tool was called. Generate a direct response.
-                print("Step 2: LLM decided to answer directly.")
+                print("Step 2: LLM decided to answer directly or retrieval failed.")
                 final_answer = self.generator.generate(query=query, context_docs=[])
 
             print("--- Pipeline finished ---")
@@ -112,3 +108,4 @@ class RAGPipeline:
         except Exception as e:
             print(f"An error occurred during the RAG pipeline execution: {e}")
             return "Error: Could not complete the request due to an internal error."
+

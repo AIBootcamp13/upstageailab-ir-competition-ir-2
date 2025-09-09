@@ -1,8 +1,4 @@
-"""Embeddings implementation moved into subpackage.
-
-This file contains the concrete implementations previously in
-`src/ir_core/embeddings.py`.
-"""
+# src/ir_core/embeddings/core.py
 from typing import List, Optional
 
 import numpy as np
@@ -64,7 +60,21 @@ def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] =
     with torch.no_grad():
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
-            encoded = tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
+
+            # --- FIX ---
+            # Added max_length=512 to the tokenizer call.
+            # This ensures that any input text longer than the model's maximum
+            # supported sequence length (512 tokens for this SBERT model)
+            # is automatically truncated. This resolves both the warning and
+            # the RuntimeError.
+            encoded = tokenizer(
+                batch,
+                padding=True,
+                truncation=True,
+                max_length=512, # Explicitly set the max length
+                return_tensors="pt"
+            )
+
             for k, v in encoded.items():
                 encoded[k] = v.to(dev)
             out = model(**encoded)

@@ -1,3 +1,4 @@
+# src/ir_core/tools/retrieval_tool.py
 from typing import List, Dict, Any
 from ..retrieval import hybrid_retrieve
 
@@ -13,19 +14,24 @@ def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         top_k: The number of documents to return.
 
     Returns:
-        A list of the top_k most relevant document chunks.
+        A list of the top_k most relevant document chunks, including their ID and content.
     """
     print(f"Executing scientific_search with query: '{query}'")
 
     # Use the existing hybrid_retrieve function as the tool's core logic
     retrieved_hits = hybrid_retrieve(query=query, rerank_k=top_k)
 
-    # Format the results for the LLM
+    # --- FIX ---
+    # The previous version only returned the content. This updated version
+    # returns both the document ID and the content, which is necessary for
+    # the evaluation script to generate a correct submission file.
     formatted_results = []
     for hit in retrieved_hits:
         source_doc = hit.get("hit", {}).get("_source", {})
+        doc_id = hit.get("hit", {}).get("_id")
         content = source_doc.get("content", "No content available.")
-        formatted_results.append({"content": content})
+        if doc_id:
+            formatted_results.append({"id": doc_id, "content": content})
 
     return formatted_results
 
@@ -56,3 +62,4 @@ def get_tool_definition():
             },
         }
     }
+

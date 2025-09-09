@@ -1,29 +1,32 @@
+# src/ir_core/generation/base.py
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 class BaseGenerator(ABC):
     """
     Abstract Base Class for a generation model.
-
-    This class defines the standard interface for all generation models,
-    ensuring they can be used interchangeably throughout the application.
-    Any concrete generator (e.g., for OpenAI, Ollama) must implement
-    the `generate` method.
     """
 
     @abstractmethod
-    def generate(self, query: str, context_docs: List[str]) -> str:
+    def generate(
+        self,
+        query: str,
+        context_docs: List[str],
+        prompt_template_path: Optional[str] = None
+    ) -> str:
         """
-        Generates a final answer based on a user's query and a list of
-        retrieved context documents.
+        Generates a final answer based on a query, context, and an optional
+        prompt template.
 
         Args:
             query: The original user question.
-            context_docs: A list of strings, where each string is the
-                          content of a relevant document retrieved from
-                          the search pipeline.
+            context_docs: A list of strings of relevant document content.
+            prompt_template_path: An optional path to a specific Jinja2 template
+                                  to use for this generation call. If None, the
+                                  generator's default template is used.
 
         Returns:
             A string containing the final, synthesized answer.
         """
         pass
+
