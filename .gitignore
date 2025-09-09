@@ -75,7 +75,7 @@ redis-*/
 *.swp
 *~
 deprecated/
-
+*en.md
 # Data
 data/
 

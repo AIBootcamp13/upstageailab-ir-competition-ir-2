@@ -1,69 +1,70 @@
-# Information Retrieval Project Overview
+# Information Retrieval 프로젝트 개요
 
-## 1. Competition Overview
+## 1. 대회 개요
 
-This project focuses on implementing **Retrieval Augmented Generation (RAG)**. The core task is to process multi-turn questions about scientific common sense, extract relevant reference documents using retrieval technology, and then generate appropriate answers based on these references.
+이 프로젝트는 **검색 증강 생성(RAG, Retrieval Augmented Generation)** 구현에 중점을 둡니다. 핵심 과제는 과학적 상식에 관한 다중 턴 질문을 처리하고, 검색 기술을 사용하여 관련 참조 문서를 추출한 다음, 이러한 참조를 바탕으로 적절한 답변을 생성하는 것입니다.
 
-### 1.1 Key Aspects
+### 1.1 주요 특징
 
-*   **Dialogue Style**: The system should handle colloquial, conversational dialogue formats.
-*   **Dialogue Topic**: The scope of conversations is limited to scientific common sense topics.
-*   **LLM Used**: The project utilizes the **GPT-3.5** version, with the baseline specifically employing **GPT-3.5 Turbo 1106**.
-*   **Search Engine**: **Elastic Search** is used for building the search engine component to extract references.
+*   **대화 스타일**: 시스템은 구어체의 대화형 대화 형식을 처리해야 합니다.
+*   **대화 주제**: 대화 범위는 과학적 상식 주제로 제한됩니다.
+*   **사용 LLM**: 프로젝트는 **GPT-3.5** 버전을 활용하며, 베이스라인은 특히 **GPT-3.5 Turbo 1106**을 사용합니다.
+*   **검색 엔진**: 참조 문서 추출을 위한 검색 엔진 구성 요소 구축에 **Elasticsearch**를 사용합니다.
 
-### 1.2 Competition Goals
+### 1.2 대회 목표
 
-The competition aims to provide participants with experience in:
+이 대회는 참가자들에게 다음과 같은 경험을 제공하는 것을 목표로 합니다:
 
-*   **Document Extraction**: Implementing components that can extract suitable documents using commercial vector encoders, vector databases, or search engines.
-*   **Query Analysis and Answer Generation**: Utilizing LLM features like **prompt engineering** and **function calling** to analyze queries and produce accurate answers based on the retrieved references.
-*   **RAG Pipeline Construction**: Building a complete RAG pipeline to develop a backend system for a conversational interface.
+*   **문서 추출**: 상용 벡터 인코더, 벡터 데이터베이스 또는 검색 엔진을 사용하여 적합한 문서를 추출할 수 있는 구성 요소 구현.
+*   **쿼리 분석 및 답변 생성**: **프롬프트 엔지니어링** 및 **함수 호출**과 같은 LLM 기능을 활용하여 쿼리를 분석하고 검색된 참조를 바탕으로 정확한 답변 생성.
+*   **RAG 파이프라인 구축**: 대화형 인터페이스를 위한 백엔드 시스템 개발을 위한 완전한 RAG 파이프라인 구축.
 
-### 1.3 RAG System Architecture Example
+### 1.3 RAG 시스템 아키텍처 예시
 
-A typical RAG system, as exemplified in this project, consists of two main flows:
+이 프로젝트에서 예시로 든 일반적인 RAG 시스템은 두 가지 주요 플로우로 구성됩니다:
 
-*   **Ingest Flow**: This pipeline handles document indexing. For this competition, it's a one-time indexing process. It involves preprocessing documents, generating embeddings using a vector encoder, and storing them in a vector database or search engine. The choice of search engine (sparse or dense retrieval) is flexible, prioritizing performance.
-*   **Query Flow**: This flow processes user queries and generates responses.
-    *   When a user inputs a query, the LLM first determines if it's a scientific common sense question requiring document retrieval.
-    *   If not, the LLM generates a direct response without consulting the search engine (e.g., for general small talk).
-    *   If it is a scientific question, the LLM creates a **standalone query** suitable for searching.
-    *   This standalone query is then used by the search engine to extract relevant documents.
-    *   (Optional) The extracted documents may undergo post-processing or reranking.
-    *   Finally, the LLM uses these retrieved documents as references, along with the original query, to generate the final answer.
+*   **수집 플로우(Ingest Flow)**: 문서 인덱싱을 처리하는 파이프라인입니다. 이 대회에서는 일회성 인덱싱 프로세스입니다. 문서 전처리, 벡터 인코더를 사용한 임베딩 생성, 벡터 데이터베이스나 검색 엔진에 저장하는 과정을 포함합니다. 검색 엔진 선택(희소 또는 밀집 검색)은 유연하며, 성능을 우선시합니다.
+*   **쿼리 플로우(Query Flow)**: 사용자 쿼리를 처리하고 응답을 생성하는 플로우입니다.
+    *   사용자가 쿼리를 입력하면, LLM은 먼저 문서 검색이 필요한 과학적 상식 질문인지 판단합니다.
+    *   그렇지 않다면, LLM은 검색 엔진을 참조하지 않고 직접 응답을 생성합니다(예: 일반적인 잡담).
+    *   과학적 질문이라면, LLM은 검색에 적합한 **독립형 쿼리(standalone query)**를 생성합니다.
+    *   이 독립형 쿼리는 검색 엔진에서 관련 문서를 추출하는 데 사용됩니다.
+    *   (선택사항) 추출된 문서는 후처리나 재순위화를 거칠 수 있습니다.
+    *   마지막으로, LLM은 이러한 검색된 문서를 참조로 사용하여 원래 쿼리와 함께 최종 답변을 생성합니다.
 
-### 1.4 Evaluation Method
+### 1.4 평가 방법
 
-The primary evaluation metric for this competition is **Mean Average Precision (MAP)**.
+이 대회의 주요 평가 지표는 **평균 정밀도(MAP, Mean Average Precision)**입니다.
 
-*   **MAP Definition**: MAP is the average of Average Precision (AP) across multiple queries. AP, in turn, represents the area under the Precision-Recall curve.
-*   **Reasons for MAP Selection**:
-    *   It effectively assigns higher weight to errors in top-ranked results, enhancing evaluation precision.
-    *   Relevance in the project's evaluation set is predominantly binary (a document is either relevant or not).
-    *   It considers scores for all relevant documents within the top N results and accounts for their position, making it suitable when there might be multiple relevant documents for a single query.
-*   **Special Consideration for Query Analysis Performance**:
-    *   Since the final output is an answer, not just extracted documents, the MAP calculation logic is slightly modified to assess the LLM's query intent understanding.
-    *   For questions outside the scientific common sense domain, document extraction is unnecessary. If the LLM correctly identifies such a query and the search result list is empty (matching an empty ground truth), it receives full points (1 point); otherwise, 0 points. This encourages accurate classification of query intent.
+*   **MAP 정의**: MAP는 여러 쿼리에 대한 평균 정밀도(AP)의 평균입니다. AP는 정밀도-재현율 곡선 아래의 면적을 나타냅니다.
+*   **MAP 선택 이유**:
+    *   상위 순위 결과의 오류에 더 높은 가중치를 효과적으로 부여하여 평가 정밀도를 향상시킵니다.
+    *   프로젝트의 평가 세트에서 관련성은 주로 이진적입니다(문서가 관련이 있거나 없거나).
+    *   상위 N개 결과 내의 모든 관련 문서에 대한 점수를 고려하고 그 위치를 고려하므로, 단일 쿼리에 대해 여러 관련 문서가 있을 수 있는 경우에 적합합니다.
+*   **쿼리 분석 성능에 대한 특별 고려사항**:
+    *   최종 출력이 추출된 문서가 아닌 답변이므로, LLM의 쿼리 의도 이해를 평가하기 위해 MAP 계산 로직이 약간 수정됩니다.
+    *   과학적 상식 영역 밖의 질문에 대해서는 문서 추출이 불필요합니다. LLM이 그러한 쿼리를 올바르게 식별하고 검색 결과 목록이 비어있다면(빈 정답과 일치), 만점(1점)을 받습니다. 그렇지 않으면 0점입니다. 이는 쿼리 의도의 정확한 분류를 장려합니다.
 
-## 2. Data Context
+## 2. 데이터 컨텍스트
 
-The project utilizes two main datasets: one for indexing and another for evaluation.
+프로젝트는 두 가지 주요 데이터셋을 활용합니다: 인덱싱용과 평가용입니다.
 
-### 2.1 Indexing Target Documents
+### 2.1 인덱싱 대상 문서
 
-*   **Quantity**: **4,272** documents.
-*   **Content**: These documents cover educational and scientific common sense topics.
-*   **Fields**:
-    *   `docid`: A unique identifier for each document, in UUID format.
-    *   `src`: The original source or origin of the document.
-    *   `content`: The actual text content of the document.
-*   **Origin**: The `content` is derived from **MMLU** and **ARC** datasets, which are part of the Ko-H4 data available on Hugging Face's Open Ko LLM Leaderboard.
-    *   **MMLU**: Developed by Facebook AI Research, this dataset includes diverse knowledge from humanities, social sciences, and professional fields, featuring multiple-choice questions to measure reasoning and knowledge comprehension.
-    *   **ARC**: Developed by the Allen Institute for AI, this dataset comprises multiple-choice questions based on science education content, designed to measure multi-stage reasoning abilities.
-*   **Preprocessing**: Originally structured as question-and-answer pairs, these were transformed into single, combined documents using **GPT-4** for this competition, effectively paraphrasing the Q&A into a coherent text.
+*   **수량**: **4,272**개 문서.
+*   **내용**: 이 문서들은 교육 및 과학적 상식 주제를 다룹니다.
+*   **필드**:
+    *   `docid`: 각 문서의 고유 식별자, UUID 형식.
+    *   `src`: 문서의 원본 소스 또는 출처.
+    *   `content`: 문서의 실제 텍스트 내용.
+*   **출처**: `content`는 Hugging Face의 Open Ko LLM Leaderboard에서 제공하는 Ko-H4 데이터의 일부인 **MMLU** 및 **ARC** 데이터셋에서 파생되었습니다.
+    *   **MMLU**: Facebook AI Research에서 개발한 이 데이터셋은 인문학, 사회과학, 전문 분야의 다양한 지식을 포함하며, 추론과 지식 이해를 측정하는 객관식 문제를 특징으로 합니다.
+    *   **ARC**: Allen Institute for AI에서 개발한 이 데이터셋은 과학 교육 내용을 기반으로 한 객관식 문제로 구성되어 있으며, 다단계 추론 능력을 측정하도록 설계되었습니다.
+*   **전처리**: 원래 질문-답변 쌍으로 구성되어 있던 것을 이 대회를 위해 **GPT-4**를 사용하여 단일 통합 문서로 변환했으며, 효과적으로 Q&A를 일관된 텍스트로 의역했습니다.
 
-### 2.11 Sample Data
+### 2.11 샘플 데이터
 
+```json
 ```json
 documents.jsonl
 
@@ -75,51 +76,72 @@ eval.jsonl
 ...
 ```
 
-### 2.2 Evaluation Data
+### 2.2 평가 데이터
 
-*   **Quantity**: **220** conversational natural language messages.
-*   **Fields**:
-    *   `eval_id`: A unique identifier for each evaluation item.
-    *   `msg`: A list representing the conversation history between the user and the assistant.
-*   **Types of Queries**:
-    *   **20 multi-turn conversational questions**: These involve multiple exchanges to arrive at the core query.
-    *   **20 everyday conversational messages**: These are non-scientific questions or general small talk (e.g., "Who are you?" or "I'm excited you answered well") for which document retrieval is not expected.
-    *   The remaining messages are general natural language questions primarily related to scientific common sense.
+*   **수량**: **220**개의 대화형 자연어 메시지.
+*   **필드**:
+    *   `eval_id`: 각 평가 항목의 고유 식별자.
+    *   `msg`: 사용자와 어시스턴트 간의 대화 기록을 나타내는 목록.
+*   **쿼리 유형**:
+    *   **20개의 다중 턴 대화 질문**: 핵심 쿼리에 도달하기 위해 여러 번의 교환을 포함합니다.
+    *   **20개의 일상 대화 메시지**: 문서 검색이 예상되지 않는 비과학적 질문이나 일반적인 잡담(예: "당신은 누구인가요?" 또는 "잘 답변해주셔서 기뻐요").
+    *   나머지 메시지는 주로 과학적 상식과 관련된 일반적인 자연어 질문입니다.
 
-## 3. Other Useful Information (Major Approach Methods)
+## 3. 기타 유용한 정보 (주요 접근 방법)
 
-To enhance performance in the information retrieval project, three main approaches are suggested:
+정보 검색 프로젝트의 성능을 향상시키기 위해 세 가지 주요 접근 방법이 제안됩니다:
 
-### 3.1 Prompt Engineering
+### 3.1 프롬프트 엔지니어링
 
-This approach focuses on **optimizing the queries** sent to the search engine by improving the LLM's ability to analyze query intent and extract a standalone query.
+이 접근법은 LLM의 쿼리 의도 분석 및 독립형 쿼리 추출 능력을 개선하여 **검색 엔진에 전송되는 쿼리를 최적화**하는 데 중점을 둡니다.
 
-*   **Refining Instructions**: The initial instructions and function calling definitions in the baseline code are basic. Significant improvements can be made by creating more precise and effective definitions.
-*   **Language Considerations**: While English often shows strong LLM performance, considering that the target documents are in Korean, converting the function calling descriptions (especially for the `standalone_query` parameter) to Korean might yield better results.
-*   **Search Engine Specific Optimization**: The definition of function calling, particularly for generating the standalone query, should be tailored to the specific search engine being used. For instance, if a sparse retrieval (inverse index-based) engine is used, a standalone query that is more keyword-centric might be more effective than a natural language sentence.
+*   **지시사항 개선**: 베이스라인 코드의 초기 지시사항과 함수 호출 정의는 기본적입니다. 더 정확하고 효과적인 정의를 만들어 상당한 개선을 이룰 수 있습니다.
+*   **언어 고려사항**: 영어가 종종 강력한 LLM 성능을 보이지만, 대상 문서가 한국어라는 점을 고려하여 함수 호출 설명(특히 `standalone_query` 매개변수)을 한국어로 변환하면 더 나은 결과를 얻을 수 있습니다.
+*   **검색 엔진별 최적화**: 함수 호출 정의, 특히 독립형 쿼리 생성은 사용되는 특정 검색 엔진에 맞춰져야 합니다. 예를 들어, 희소 검색(역색인 기반) 엔진을 사용하는 경우, 자연어 문장보다는 키워드 중심의 독립형 쿼리가 더 효과적일 수 있습니다.
 
-### 3.2 Retrieval Model Enhancement
+### 3.2 검색 모델 향상
 
-This involves **optimizing document extraction performance** by improving the search engine itself or the models it uses.
+이는 검색 엔진 자체나 그것이 사용하는 모델을 개선하여 **문서 추출 성능을 최적화**하는 것을 포함합니다.
 
-*   **Dense Retrieval**: Explore using **dense retrieval** (e.g., embedding-based search) as an alternative to the baseline's sparse retrieval. Although sparse retrieval performed better with the provided baseline data, a more advanced or higher-performing embedding generation model (vector encoder) could change this outcome.
-*   **High-Performance Embedding Models**: Implement and utilize state-of-the-art embedding generation models (vector encoders) for both indexing and searching.
-*   **ColBERT for Domain Optimization**:
-    *   Consider using the **ColBERT model** to optimize performance specifically for the scientific common sense domain.
-    *   This involves constructing a **pseudo-train dataset** from the provided document collection and then training the ColBERT model. While this incurs additional model training costs and time, successful training can lead to a highly performant search engine.
+*   **밀집 검색**: 베이스라인의 희소 검색 대안으로 **밀집 검색**(예: 임베딩 기반 검색) 사용을 탐색합니다. 제공된 베이스라인 데이터에서는 희소 검색이 더 나은 성능을 보였지만, 더 고급이거나 고성능의 임베딩 생성 모델(벡터 인코더)이 이 결과를 바꿀 수 있습니다.
+*   **고성능 임베딩 모델**: 인덱싱과 검색 모두에 최신 임베딩 생성 모델(벡터 인코더)을 구현하고 활용합니다.
+*   **도메인 최적화를 위한 ColBERT**:
+    *   과학적 상식 도메인에 특화된 성능 최적화를 위해 **ColBERT 모델** 사용을 고려합니다.
+    *   이는 제공된 문서 컬렉션에서 **의사 훈련 데이터셋**을 구성한 다음 ColBERT 모델을 훈련하는 것을 포함합니다. 추가적인 모델 훈련 비용과 시간이 발생하지만, 성공적인 훈련은 고성능 검색 엔진으로 이어질 수 있습니다.
 
-### 3.3 Reranking and Post-processing
+### 3.3 재순위화 및 후처리
 
-This method aims to **optimize search results** by applying post-processing logic to the initially retrieved candidates.
+이 방법은 초기에 검색된 후보들에 후처리 로직을 적용하여 **검색 결과를 최적화**하는 것을 목표로 합니다.
 
-*   **Extracting Ample Candidates**:
-    *   **Increasing Top-K**: Instead of directly extracting the final required number of documents (e.g., 3), initially retrieve a larger pool of candidates (e.g., 5, 10, or 20 documents).
-    *   **Multiple Search Engines**: Utilize multiple search engines simultaneously, such as combining **sparse and dense retrieval**, to leverage the strengths of each.
-    *   **Generating Multiple Queries**: Create several variations of a query and send them to the search engine in parallel, then consolidate and filter the results.
-*   **LLM for Reranking or Filtering**:
-    *   **Limitations of Search Engines**: Standard search engines rank documents primarily based on similarity, which might not perfectly capture the contextual relevance to the query.
-    *   **LLM Advantage**: An LLM, with its strong semantic understanding, can be used to **rerank** the initial set of candidates or **filter out** irrelevant documents.
-    *   **Cost-Benefit Analysis**: While effective, using an LLM for reranking can be computationally intensive and time-consuming if the candidate pool is too large. It's crucial to select an appropriate size for the candidate set (e.g., 5 to 10 documents) to manage time and cost efficiently.
+*   **충분한 후보 추출**:
+    *   **Top-K 증가**: 최종 필요한 문서 수(예: 3개)를 직접 추출하는 대신, 처음에는 더 큰 후보 풀(예: 5개, 10개 또는 20개 문서)을 검색합니다.
+    *   **다중 검색 엔진**: **희소 및 밀집 검색**을 결합하는 등 여러 검색 엔진을 동시에 활용하여 각각의 장점을 활용합니다.
+    *   **다중 쿼리 생성**: 쿼리의 여러 변형을 생성하여 병렬로 검색 엔진에 전송한 다음 결과를 통합하고 필터링합니다.
+*   **재순위화 또는 필터링을 위한 LLM**:
+    *   **검색 엔진의 한계**: 표준 검색 엔진은 주로 유사성을 기반으로 문서 순위를 매기므로, 쿼리에 대한 맥락적 관련성을 완벽하게 포착하지 못할 수 있습니다.
+    *   **LLM의 장점**: 강력한 의미 이해 능력을 가진 LLM은 초기 후보 세트를 **재순위화**하거나 관련 없는 문서를 **필터링**하는 데 사용할 수 있습니다.
+    *   **비용-효과 분석**: 효과적이지만, 재순위화를 위해 LLM을 사용하는 것은 후보 풀이 너무 클 경우 계산 집약적이고 시간이 많이 소요될 수 있습니다. 시간과 비용을 효율적으로 관리하기 위해 후보 세트의 적절한 크기(예: 5~10개 문서)를 선택하는 것이 중요합니다.
 
-By exploring these advanced approaches, participants can further enhance the performance and accuracy of their RAG pipelines for the information retrieval project.
+이러한 고급 접근법을 탐색함으로써 참가자들은 정보 검색 프로젝트를 위한 RAG 파이프라인의 성능과 정확도를 더욱 향상시킬 수 있습니다.
 
+## 4. 추가 고려사항
+
+### 4.1 성능 최적화 전략
+
+*   **하이브리드 접근법**: 희소 검색과 밀집 검색의 장점을 결합하여 더 나은 검색 성능을 달성할 수 있습니다.
+*   **캐싱 전략**: Redis와 같은 캐싱 시스템을 활용하여 반복적인 쿼리에 대한 응답 시간을 단축할 수 있습니다.
+*   **배치 처리**: 대량의 문서 처리 시 배치 처리를 통해 효율성을 높일 수 있습니다.
+
+### 4.2 품질 보증
+
+*   **A/B 테스팅**: 다양한 검색 전략과 모델을 비교하여 최적의 성능을 찾을 수 있습니다.
+*   **오류 분석**: 실패 사례를 분석하여 시스템의 약점을 파악하고 개선할 수 있습니다.
+*   **사용자 피드백**: 실제 사용자의 피드백을 통해 시스템의 실용성을 평가할 수 있습니다.
+
+### 4.3 확장성 고려사항
+
+*   **모듈화**: 각 구성 요소를 독립적으로 개발하고 테스트할 수 있도록 모듈화된 아키텍처를 유지합니다.
+*   **API 설계**: RESTful API를 통해 다양한 클라이언트에서 시스템을 활용할 수 있도록 합니다.
+*   **모니터링**: 시스템 성능과 상태를 실시간으로 모니터링할 수 있는 도구를 구축합니다.
+
+이러한 종합적인 접근법을 통해 참가자들은 견고하고 효율적인 RAG 시스템을 구축할 수 있으며, 과학적 상식 질문에 대한 정확하고 유용한 답변을 제공할 수 있습니다.
