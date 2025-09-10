@@ -21,7 +21,7 @@
     <tr>
         <td align="center">검색 알고리즘 최적화</td>
         <td align="center">툴 연동, 평가 검증</td>
-        <td align="center">베이스라인 제작, readme 작성</td>
+        <td align="center">베이스라인, readme 작성</td>
         <td align="center">모델 최적화, 프롬트 엔지니어링</td>
         <td align="center">API 개발, Steamlit UI</td>
     </tr>

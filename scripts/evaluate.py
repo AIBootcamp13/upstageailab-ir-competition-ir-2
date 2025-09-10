@@ -1,17 +1,11 @@
 # scripts/evaluate.py
-"""
-Runs the evaluation process for the RAG pipeline.
-
-This script iterates through an evaluation file (e.g., data/eval.jsonl),
-runs the retrieval part of the RAG pipeline for each query, and generates
-a submission file in the format required by the competition.
-"""
 import os
 import sys
 from tqdm import tqdm
 import fire
+import wandb # --- Phase 1: W&B 임포트 ---
+from typing import Optional
 
-# Add the src directory to the path to allow for project imports
 def _add_src_to_path():
     scripts_dir = os.path.dirname(__file__)
     repo_dir = os.path.dirname(scripts_dir)
@@ -19,20 +13,9 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-from typing import Optional
-
-
-def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.jsonl', limit: Optional[int] = None, topk: int = 3):
-    """
-    Executes the evaluation against the RAG pipeline.
-
-    Args:
-        eval_path: Path to the evaluation JSONL file.
-        out: Path to write the final CSV submission file.
-    """
+def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.csv', limit: Optional[int] = None, topk: int = 3):
     _add_src_to_path()
-
-    # Lazy imports after path is set
+    from ir_core.config import settings
     from ir_core.orchestration.pipeline import RAGPipeline
     from ir_core.generation import get_generator
     from ir_core.utils import read_jsonl
@@ -40,74 +23,80 @@ def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.jsonl
 
     print(f"Starting evaluation run with file: {eval_path}")
 
-    # 1. Initialize the RAG pipeline.
-    # We only need the pipeline for its retrieval logic, but it requires a generator.
+    # --- Phase 1: W&B 연동 ---
+    wandb.init(
+        project=settings.WANDB_PROJECT,
+        config={
+            "eval_path": eval_path,
+            "limit": limit,
+            "topk": topk,
+            "embedding_model": settings.EMBEDDING_MODEL,
+            "rewriter_model": settings.PIPELINE_REWRITER_MODEL,
+            "tool_calling_model": settings.PIPELINE_TOOL_CALLING_MODEL,
+        }
+    )
+
     try:
-        # The generator type is read from settings (.env file or environment)
         generator = get_generator()
         pipeline = RAGPipeline(generator)
         print("RAG pipeline initialized successfully.")
     except Exception as e:
         print(f"Failed to initialize RAG pipeline: {e}")
+        wandb.finish()
         return
 
-    # Ensure the output directory exists
     output_dir = os.path.dirname(out)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 2. Process each item in the evaluation file
+    # 이전 실행 결과 파일이 있다면 삭제
+    if os.path.exists(out):
+        os.remove(out)
+
     eval_items = list(read_jsonl(eval_path))
-    # Allow quick testing by limiting the number of evaluation items processed
     if limit is not None:
-        try:
-            limit = int(limit)
-            eval_items = eval_items[:limit]
-            print(f"Limiting evaluation to first {limit} items for testing.")
-        except Exception:
-            print("Warning: Could not parse 'limit' into int; ignoring limit.")
-    submission_rows = []
+        eval_items = eval_items[:int(limit)]
+        print(f"Limiting evaluation to first {limit} items.")
 
     print(f"Processing {len(eval_items)} evaluation queries...")
     for item in tqdm(eval_items, desc="Evaluating Queries"):
-        # The last message in the list is the user's query
-        query = item.get('msg', [{'content': ''}])[-1].get('content', '')
+        # --- Phase 2: 파이프라인 입력 변경 ---
+        messages = item.get('msg', [])
         eval_id = item.get('eval_id')
 
-        if not query or eval_id is None:
+        if not messages or eval_id is None:
             continue
 
-        # 3. Use the pipeline's dedicated retrieval method to get tool results.
-        # The updated pipeline returns a list containing a dict with
-        # 'standalone_query' and 'docs' keys when a tool is called.
-        retrieval_out = pipeline.run_retrieval_only(query)
+        retrieval_out = pipeline.run_retrieval_only(messages)
 
-        standalone_query = query
+        standalone_query = ""
         docs = []
         if retrieval_out:
-            # We expect retrieval_out like: [{"standalone_query":..., "docs": [...] }]
             entry = retrieval_out[0]
-            standalone_query = entry.get('standalone_query', query)
+            standalone_query = entry.get('standalone_query', "")
             docs = entry.get('docs', [])
 
-        # topk ids for submission
         topk_ids = [d.get('id') for d in docs[:topk]]
 
-        # Generate an answer using the generator (pass the content as context)
+        query_for_generation = standalone_query or (messages[-1].get("content") if messages else "")
         context_texts = [d.get('content', '') for d in docs[:topk]]
+
         try:
-            answer_text = pipeline.generator.generate(query=standalone_query, context_docs=context_texts)
+            # 잡담 케이스를 위해 분기 처리
+            if not standalone_query:
+                 answer_text = pipeline.generator.generate(
+                    query=query_for_generation,
+                    context_docs=[],
+                    prompt_template_path="prompts/conversational_v1.jinja2"
+                )
+            else:
+                answer_text = pipeline.generator.generate(query=query_for_generation, context_docs=context_texts)
+
         except Exception as e:
             print(f"Warning: generator failed for eval_id {eval_id}: {e}")
-            answer_text = ""
+            answer_text = "답변을 생성하는 중 오류가 발생했습니다."
 
-        # Build references list with score and content where available
-        references = []
-        for d in docs[:topk]:
-            references.append({
-                "score": d.get('score'),
-                "content": d.get('content', '')
-            })
+        references = [{"score": d.get("score"), "content": d.get("content", '')} for d in docs[:topk]]
 
         record = {
             "eval_id": eval_id,
@@ -117,18 +106,19 @@ def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.jsonl
             "references": references,
         }
 
-        # Write a JSONL line immediately to avoid keeping everything in memory
         with open(out, 'a', encoding='utf-8') as outf:
-            outf.write(json.dumps(record, ensure_ascii=False) + "\n")
+            outf.write(json.dumps(record, ensure_ascii=False) + '\n')
 
-    # 5. Final message
+    # --- Phase 1: W&B Artifact로 결과 저장 ---
     print(f"\nEvaluation complete. Submission records written to: {out}")
+    artifact = wandb.Artifact('submission', type='dataset', description=f"Submission file from {eval_path}")
+    artifact.add_file(out)
+    wandb.log_artifact(artifact)
+    wandb.finish()
 
 
 if __name__ == '__main__':
-    # Ensure OPENAI_API_KEY is available as the pipeline needs it for decisions.
     if not os.getenv("OPENAI_API_KEY"):
-        # Attempt to load from .env file for convenience
         try:
             from dotenv import load_dotenv
             load_dotenv()
@@ -136,7 +126,6 @@ if __name__ == '__main__':
             pass
         if not os.getenv("OPENAI_API_KEY"):
             print("Error: OPENAI_API_KEY environment variable is not set.")
-            print("Please set it before running the evaluation script.")
             sys.exit(1)
 
     fire.Fire(run)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # scripts/create_validation_set.py
 """
 Generates a synthetic validation dataset by creating questions for existing documents.
@@ -71,8 +72,8 @@ def generate_question_for_document(client, document_content: str, model: str = N
 
 def run(
     input_file: str = "data/documents.jsonl",
-    output_file: str = "data/validation_220.jsonl",
-    sample_size: int = 220
+    output_file: str = "data/validation.jsonl",
+    sample_size: int = 10
 ):
     """
     Creates a validation dataset from a sample of documents.
@@ -137,3 +138,4 @@ def run(
 if __name__ == "__main__":
     fire.Fire(run)
 
+# poetry run scripts/create_validation_set.py

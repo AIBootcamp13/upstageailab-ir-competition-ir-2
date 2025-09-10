@@ -1,8 +1,10 @@
 # src/ir_core/tools/retrieval_tool.py
 from typing import List, Dict, Any
 from ..retrieval import hybrid_retrieve
+from ..config import settings # --- Phase 1: 중앙 설정 임포트 ---
 
-def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+# --- Phase 1: 기본 top_k 값을 중앙 설정에서 가져오도록 수정 ---
+def scientific_search(query: str, top_k: int = None) -> List[Dict[str, Any]]:
     """
     Searches for scientific documents related to a specific query.
 
@@ -16,30 +18,24 @@ def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     Returns:
         A list of the top_k most relevant document chunks, including their ID and content.
     """
-    print(f"Executing scientific_search with query: '{query}'")
+    # top_k가 명시적으로 주어지지 않으면 설정 파일의 기본값을 사용
+    final_top_k = top_k if top_k is not None else settings.PIPELINE_DEFAULT_TOP_K
+
+    print(f"Executing scientific_search with query: '{query}' and top_k: {final_top_k}")
 
     # Use the existing hybrid_retrieve function as the tool's core logic
-    retrieved_hits = hybrid_retrieve(query=query, rerank_k=top_k)
+    retrieved_hits = hybrid_retrieve(query=query, rerank_k=final_top_k)
 
-    # --- FIX ---
-    # The previous version only returned the content. This updated version
-    # returns both the document ID and the content, which is necessary for
-    # the evaluation script to generate a correct submission file.
     formatted_results = []
     for hit in retrieved_hits:
-        # hit has shape: {"hit": <es hit>, "cosine": ..., "score": ...}
         inner = hit.get("hit", {})
         source_doc = inner.get("_source", {}) if isinstance(inner, dict) else {}
-        # Prefer stable document id in _source['docid'] if available
         doc_id = source_doc.get("docid") or inner.get("_id")
         content = source_doc.get("content", "No content available.")
         score = hit.get("score") if isinstance(hit, dict) else None
         if doc_id:
             formatted_results.append({"id": doc_id, "content": content, "score": float(score) if score is not None else None})
 
-    # Deduplicate by id while preserving order. If duplicates exist, keep
-    # the entry with the highest score but preserve the order of first
-    # appearance among unique ids.
     seen = {}
     order = []
     for item in formatted_results:
@@ -48,18 +44,15 @@ def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
             seen[_id] = item
             order.append(_id)
         else:
-            # keep the one with the higher score
             existing = seen[_id]
             existing_score = existing.get("score")
             new_score = item.get("score")
-            # If new_score is higher (or existing score is None), replace
             try:
                 if existing_score is None:
                     seen[_id] = item
                 elif new_score is not None and new_score > existing_score:
                     seen[_id] = item
             except Exception:
-                # If comparison fails for any reason, prefer existing
                 pass
 
     deduped = [seen[k] for k in order]
@@ -75,9 +68,8 @@ def get_tool_definition():
         "function": {
             "name": "scientific_search",
             "description": (
-                "검색 도구입니다. 도구를 호출할 때 반드시 '독립형(standalone) 질의문'을 한국어로만 작성하세요. "
-                "질의문에는 추가 문맥, 지시문, 혹은 번역 지시를 포함하지 마시고 오직 검색어(질의)만 포함해야 합니다. "
-                "절대로 영어로 작성하지 마세요. 모델이 도구를 호출할 때 이 규칙을 준수해야 합니다."
+                "과학적 사실, 개념, 현상에 대한 질문에 답하기 위해 관련 문서를 검색하는 도구입니다. "
+                "사용자의 질문이 과학과 관련 있을 때만 사용해야 합니다."
             ),
             "parameters": {
                 "type": "object",
@@ -85,19 +77,17 @@ def get_tool_definition():
                     "query": {
                         "type": "string",
                         "description": (
-                            "검색에 사용될 완전한 형태의 독립형 질의문입니다. 반드시 한국어로 작성하세요. "
-                            "예시: '나무의 분류에 대한 방법' — 문장부호와 불필요한 설명 없이 질의만 적어주세요."
+                            "검색에 사용할 명확하고 완전한 형태의 한국어 질의문. "
+                            "예: '달이 항상 같은 면만 보이는 이유'"
                         ),
-                        "examples": ["나무의 분류에 대한 방법", "헬륨이 다른 원소와 반응하지 않는 이유"]
                     },
                     "top_k": {
                         "type": "integer",
-                        "description": "검색할 문서 수 (예: 3 또는 5)",
-                        "default": 5,
+                        "description": f"반환할 문서의 수. (기본값: {settings.PIPELINE_DEFAULT_TOP_K})",
+                        "default": settings.PIPELINE_DEFAULT_TOP_K,
                     }
                 },
                 "required": ["query"],
             },
         }
     }
-

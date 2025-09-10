@@ -7,3 +7,26 @@ embedding_model: ${env:EMBEDDING_MODEL}
 bm25_k: 200
 rerank_k: 10
 alpha: 0.0
+
+# --- Phase 1: 중앙 설정 추가 ---
+# 파이프라인 및 LLM 관련 설정
+pipeline:
+  # RAG 파이프라인의 Tool Calling 및 질의 재구성에 사용할 모델
+  tool_calling_model: "gpt-3.5-turbo-1106"
+  # 질의 재구성에 사용할 모델 (더 강력한 모델을 사용할 수 있음)
+  rewriter_model: "gpt-4o-mini"
+  # 검색 도구(scientific_search)에서 반환할 문서의 기본 개수
+  default_top_k: 5
+
+# 프롬프트 경로 설정
+prompts:
+  # 답변 생성에 사용될 기본 프롬프트
+  generation_qa: "prompts/scientific_qa_v1.jinja2"
+  # 페르소나/시스템 메시지 파일 경로
+  persona: "prompts/persona_qa.txt"
+  # 대화형 답변 생성 프롬프트
+  conversational: "prompts/conversational_v1.jinja2"
+  # 잡담(chit-chat) 상황에서 사용자가 요청한 예시와 같은 답변을 생성하도록 지시하는 프롬프트
+  conversational_redirect: "prompts/conversational_redirect_v1.jinja2"
+  # 질의 재구성 프롬프트 (새로 추가)
+  rephrase_query: "prompts/rephrase_query_v1.jinja2"

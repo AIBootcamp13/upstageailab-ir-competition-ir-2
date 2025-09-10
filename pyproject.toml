@@ -30,6 +30,8 @@ fire = "^0.5.0"
 pytest = "^7.4"
 pydantic = "^1.10"
 Jinja2 = "^3.1.4"
+streamlit = "^1.49.1"
+pandas = "^2.3.2"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"
