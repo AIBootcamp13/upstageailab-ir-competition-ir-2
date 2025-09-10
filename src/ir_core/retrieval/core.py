@@ -14,7 +14,7 @@ try:
     redis_client = redis.from_url(settings.REDIS_URL, decode_responses=False)
     redis_client.ping()
     print("Redis client connected successfully for caching.")
-except redis.exceptions.ConnectionError as e:
+except redis.ConnectionError as e:
     print(f"Warning: Could not connect to Redis for caching. Performance will be degraded. Error: {e}")
     redis_client = None
 
@@ -57,7 +57,7 @@ def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha:
     if not bm25_hits:
         return []
 
-    # --- NEW: Caching Logic ---
+    # --- Caching Logic ---
     doc_embs = []
     texts_to_encode = []
     indices_to_encode = [] # Keep track of which documents need encoding
@@ -117,5 +117,39 @@ def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha:
             score = alpha * (bm25_score / (bm25_score + 1.0)) + (1 - alpha) * cos
         results.append({"hit": hit, "cosine": float(cos), "score": float(score)})
 
-    results = sorted(results, key=lambda x: x["score"], reverse=True)[:rerank_k]
-    return results
+    # Sort by combined score (descending)
+    results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
+
+    # Deduplicate by stable doc id (prefer _source.docid if present,
+    # otherwise fall back to ES internal _id). Since results_sorted is
+    # ordered by score descending, keeping the first occurrence ensures
+    # we preserve the highest-scored hit for each document.
+    seen_ids = set()
+    deduped = []
+    for r in results_sorted:
+        hit = r.get("hit", {})
+        src = hit.get("_source", {}) if isinstance(hit, dict) else {}
+        docid = None
+        try:
+            docid = src.get("docid") if isinstance(src, dict) else None
+        except Exception:
+            docid = None
+        if not docid:
+            # fallback to ES internal id
+            try:
+                docid = hit.get("_id")
+            except Exception:
+                docid = None
+
+        if docid is None:
+            # If no id can be determined, include the item (unique by position)
+            deduped.append(r)
+            continue
+
+        if docid in seen_ids:
+            continue
+        seen_ids.add(docid)
+        deduped.append(r)
+
+    # Return top-k after deduplication
+    return deduped[:rerank_k]

@@ -71,8 +71,20 @@ class RAGPipeline:
                     tool_name=tool_name,
                     tool_args_json=tool_args_json
                 )
-                # Ensure the result is a list for consistent return type
-                return tool_result if isinstance(tool_result, list) else []
+                # The tool returns a list of dicts with id/content/score
+                # For evaluation we also want to surface the standalone query
+                # (the query sent to the tool). The tool arguments are in JSON
+                try:
+                    import json as _json
+                    tool_args = _json.loads(tool_args_json)
+                    standalone_query = tool_args.get("query", query)
+                except Exception:
+                    standalone_query = query
+
+                if isinstance(tool_result, list):
+                    return [{"standalone_query": standalone_query, "docs": tool_result}]
+                else:
+                    return []
             else:
                 # No tool call was made, so return no documents.
                 return []

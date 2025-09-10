@@ -27,8 +27,15 @@ class Settings(BaseSettings):
 	# --- New Settings for the Generation Layer ---
 	GENERATOR_TYPE: str = "openai"  # Can be "openai" or "ollama"
 	GENERATOR_MODEL_NAME: str = "gpt-3.5-turbo" # e.g., "gpt-3.5-turbo", "llama3"
+	# Prompt configuration
+	PROMPT_TEMPLATE_PATH: str = "prompts/scientific_qa_v1.jinja2"
+	# Optional file containing a system persona/message to prepend to generation calls.
+	# If the file exists it will be loaded; otherwise set GENERATOR_SYSTEM_MESSAGE env var.
+	GENERATOR_SYSTEM_MESSAGE_FILE: str = "prompts/persona_qa.txt"
+	# Fallback system message (can be overridden via env var GENERATOR_SYSTEM_MESSAGE)
+	GENERATOR_SYSTEM_MESSAGE: str = ""
 
-	class Config:
+	class Config(BaseSettings.Config):
 		env_file = ".env"
 
 

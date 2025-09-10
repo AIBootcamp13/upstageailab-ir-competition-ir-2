@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Any, cast
 import openai
 import jinja2
 from .base import BaseGenerator
@@ -14,7 +14,7 @@ class OpenAIGenerator(BaseGenerator):
     def __init__(
         self,
         model_name: str = "gpt-3.5-turbo",
-        prompt_template_path: str = "prompts/scientific_qa_v1.jinja2",
+        prompt_template_path: Optional[str] = None,
         client: Optional[openai.OpenAI] = None,
     ):
         """
@@ -25,9 +25,12 @@ class OpenAIGenerator(BaseGenerator):
             prompt_template_path: Path to the Jinja2 prompt template file.
             client: An optional pre-configured OpenAI client instance.
         """
+        from ..config import settings
+
         self.model_name = model_name
         self.client = client or openai.OpenAI()
-        self.prompt_template_path = prompt_template_path
+        # Prefer the prompt template path from settings if not provided
+        self.prompt_template_path = prompt_template_path or settings.PROMPT_TEMPLATE_PATH
 
         # Set up Jinja2 environment to load templates from the project root
         self.jinja_env = jinja2.Environment(
@@ -35,6 +38,22 @@ class OpenAIGenerator(BaseGenerator):
             trim_blocks=True,
             lstrip_blocks=True,
         )
+
+        # Load default system persona message from env or file or settings
+        self.default_persona = os.getenv("GENERATOR_SYSTEM_MESSAGE", "")
+        # If env var not set, try reading from configured file
+        if not self.default_persona:
+            try:
+                persona_file = getattr(settings, "GENERATOR_SYSTEM_MESSAGE_FILE", None)
+                if persona_file and os.path.exists(persona_file):
+                    with open(persona_file, "r", encoding="utf-8") as pf:
+                        self.default_persona = pf.read()
+            except Exception:
+                self.default_persona = ""
+
+        # Final fallback to settings.GENERATOR_SYSTEM_MESSAGE
+        if not self.default_persona:
+            self.default_persona = getattr(settings, "GENERATOR_SYSTEM_MESSAGE", "")
 
     def _render_prompt(self, query: str, context_docs: List[str]) -> str:
         """Loads and renders the Jinja2 prompt template."""
@@ -48,7 +67,12 @@ class OpenAIGenerator(BaseGenerator):
                 f"Ensure the path is correct relative to the project root."
             )
 
-    def generate(self, query: str, context_docs: List[str]) -> str:
+    def generate(
+        self,
+        query: str,
+        context_docs: List[str],
+        prompt_template_path: Optional[str] = None,
+    ) -> str:
         """
         Generates an answer using the OpenAI Chat Completions API with a templated prompt.
         """
@@ -59,14 +83,22 @@ class OpenAIGenerator(BaseGenerator):
             print(e)
             return "Error: Could not generate an answer due to a missing prompt template."
 
-        # 2. Call the OpenAI API
+        # 2. Call the OpenAI API. We include an explicit system message to enforce Korean
         try:
-            # We send the entire rendered prompt as a single "user" message
+            # If a different template path is provided at call time, use it
+            if prompt_template_path:
+                self.prompt_template_path = prompt_template_path
+
+            messages = [
+                {"role": "system", "content": self.default_persona},
+                {"role": "user", "content": full_prompt},
+            ]
+
+            # The OpenAI client expects specific message param types; to avoid
+            # strict typing issues with local stubs we cast to Any here.
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=[
-                    {"role": "user", "content": full_prompt},
-                ],
+                messages=cast(Any, messages),
                 temperature=0.2,
             )
             # 3. Extract and return the answer

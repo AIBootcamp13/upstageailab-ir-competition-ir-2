@@ -29,7 +29,7 @@ __all__ = [
 ]
 
 
-def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 500, *, dry_run: bool = False, verbose: bool = False):
+def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 500, *, dry_run: bool = False, verbose: bool = False, dedupe: bool = False):
     """Index documents from a JSONL file using the bulk API with progress."""
     # Resolve ES client at runtime so tests can patch `ir_core.infra.get_es`
     # before this module is imported.
@@ -63,6 +63,9 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
     batch = []
     iterator = read_jsonl(jsonl_path)
 
+    # If dedupe is requested, track seen docids and skip duplicates
+    seen_docids = set() if dedupe else None
+
     if use_tqdm:
         assert tqdm is not None
         iterator = tqdm(iterator, total=total, desc=f"Indexing -> {idx}")
@@ -76,6 +79,16 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
         # This updated line also checks for "docid", which matches the format
         # in your documents.jsonl file. This ensures the correct ID is used.
         doc_id = doc.get("docid") or doc.get("id") or doc.get("_id")
+
+        # If dedupe requested and we've already seen this docid, skip it
+        if dedupe and doc_id in seen_docids:
+            if verbose:
+                print(f"Skipping duplicate docid during ingest: {doc_id}")
+            continue
+
+        if dedupe and doc_id is not None and seen_docids is not None:
+            seen_docids.add(doc_id)
+
         action = {"_index": idx, "_id": doc_id, "_source": doc}
         batch.append(action)
 
@@ -92,6 +105,9 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
                     batch = []
                 else:
                     indexed += len(batch)
+                    # clear the batch after accounting for dry_run to avoid
+                    # double-counting in subsequent iterations
+                    batch = []
 
             except Exception as exc:
                 print(f"Bulk indexing failure (batch ending with id={doc_id}): {exc}", flush=True)
@@ -106,6 +122,7 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
                 batch = []
             else:
                 indexed += len(batch)
+                batch = []
         except Exception as exc:
             print(f"Final bulk indexing failure: {exc}", flush=True)
 
