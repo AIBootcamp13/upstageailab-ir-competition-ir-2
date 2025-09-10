@@ -46,8 +46,14 @@ QUESTION_GENERATION_PROMPT = """
 **생성된 한국어 질문:**
 """
 
-def generate_question_for_document(client, document_content: str, model: str = "gpt-3.5-turbo") -> str:
-    """Uses an LLM to generate a single question for a given document."""
+def generate_question_for_document(client, document_content: str, model: str = None) -> str:
+    """Uses an LLM to generate a single question for a given document.
+
+    Default model prefers a cheaper/faster option; override via `model` arg
+    or OPENAI_MODEL env var. Consider using an open-source local model
+    (Mistral, Llama 2) served via HuggingFace/replicate if you need much lower cost.
+    """
+    model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # cheaper/faster alternative to gpt-3.5-turbo (verify availability/pricing)
     try:
         response = client.chat.completions.create(
             model=model,
@@ -57,16 +63,16 @@ def generate_question_for_document(client, document_content: str, model: str = "
             temperature=0.3,
             max_tokens=100,
         )
-        if response.choices:
+        if getattr(response, "choices", None):
             return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"  - Error generating question: {e}")
+        print(f"  - Error generating question with model={model}: {e}")
     return None
 
 def run(
     input_file: str = "data/documents.jsonl",
-    output_file: str = "data/validation.jsonl",
-    sample_size: int = 50
+    output_file: str = "data/validation_220.jsonl",
+    sample_size: int = 220
 ):
     """
     Creates a validation dataset from a sample of documents.
