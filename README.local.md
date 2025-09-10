@@ -28,37 +28,6 @@ scripts/run-local.sh status
 - 호스트에서 루트로 한 번 실행해야 할 수 있습니다:
 
 
-Integration tests
------------------
-
-Integration tests require Elasticsearch and Redis and are marked with the `integration` pytest marker.
-They are skipped by default to avoid unexpected long-running or side-effectful test runs. To run them:
-
-Run a single integration test (one-off):
-
-```bash
-RUN_INTEGRATION=1 poetry run pytest -k integration -q -s
-```
-
-Or run all integration tests explicitly with pytest's marker selection:
-
-```bash
-# Use pytest -m integration to run only integration-marked tests
-poetry run pytest -m integration -s
-```
-
-If you prefer to keep services running yourself for fast iteration, start the local services first:
-
-```bash
-./scripts/run-local.sh start
-export RUN_INTEGRATION=1
-poetry run pytest tests/test_integration_pipeline.py::test_full_retrieval_pipeline -s
-```
-
-```bash
-sudo sysctl -w vm.max_map_count=262144
-```
-
 참고사항
 -----
 - 스크립트는 의도적으로 최소화되고 비루트입니다. 데이터는 저장소 내의 `elasticsearch-<version>/data`와 `redis-<version>/data` 아래에 저장됩니다.

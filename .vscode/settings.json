@@ -10,8 +10,10 @@
   },
 
   // Point to the Poetry virtualenv (portable by using the HOME env var)
-  "python.defaultInterpreterPath": "${env:HOME}/.cache/pypoetry/virtualenvs/information-retrieval-rag-Sdp3gFZr-py3.10/bin/python"
+  "python.defaultInterpreterPath": "${env:HOME}/.cache/pypoetry/virtualenvs/information-retrieval-rag-Sdp3gFZr-py3.10/bin/python",
+  "python.terminal.activateEnvironment": true
 
+  // "python.pythonPath": "${env:HOME}/.cache/pypoetry/virtual,envs/information-retrieval-rag-Sdp3gFZr-py3.10/bin/python",   // backward compat
   // Alternatives:
   // 1) Use an in-project venv (recommended for portability):
   //    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"

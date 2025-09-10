@@ -76,6 +76,7 @@ redis-*/
 *~
 deprecated/
 *en.md
+docs/notes/debug/
 # Data
 data/
 outputs/

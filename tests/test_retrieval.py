@@ -22,15 +22,19 @@ MOCK_EMBEDDINGS = {
         [0.0, 1.0],
         [0.707, 0.707],
         [1.0, 0.0],
-    ])
+    ], dtype=np.float32)
 }
 
 def test_hybrid_retrieve_reranking_logic(monkeypatch):
     """
     Tests the core scoring and sorting logic of hybrid_retrieve
-    by mocking its dependencies (sparse_retrieve and encode_texts).
+    by mocking its dependencies (sparse_retrieve, encode_texts, and redis_client).
     """
-    # 1. Define the fake functions
+    # 1. Mock the Redis client to ensure this is a true unit test
+    # This prevents the test from depending on an external Redis server.
+    monkeypatch.setattr(retrieval.core, "redis_client", None)
+
+    # 2. Define the fake functions for Elasticsearch and embeddings
     def mock_sparse_retrieve(query, size, index=None):
         return MOCK_BM25_HITS
 
@@ -41,11 +45,11 @@ def test_hybrid_retrieve_reranking_logic(monkeypatch):
         # Otherwise it's the batch of documents
         return MOCK_EMBEDDINGS["docs"]
 
-    # 2. Apply the mocks using pytest's monkeypatch fixture
+    # 3. Apply the mocks using pytest's monkeypatch fixture
     monkeypatch.setattr(retrieval.core, "sparse_retrieve", mock_sparse_retrieve)
     monkeypatch.setattr(retrieval.core, "encode_texts", mock_encode_texts)
 
-    # 3. Run tests with different alpha values
+    # 4. Run tests with different alpha values
 
     # Case A: Alpha = 0.0 (purely semantic search)
     # Reranking should be based only on cosine similarity.
@@ -79,3 +83,4 @@ def test_hybrid_retrieve_reranking_logic(monkeypatch):
     results_k_2 = retrieval.core.hybrid_retrieve("any query", alpha=0.5, rerank_k=2)
     assert len(results_k_2) == 2
     assert results_k_2[0]["hit"]["_id"] == "doc2"
+

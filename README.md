@@ -1,8 +1,7 @@
-# Information Retrieval
+# **Information Retrieval**
 
-> 과학적 상식 검색을 위한 모듈형 RAG 파이프라인
+과학적 상식 검색을 위한 모듈형 RAG 파이프라인
 
----
 ## 👥 팀 소개
 <table>
     <tr>
@@ -42,43 +41,71 @@
 
 ---
 
-## 🎯 개요
+## **🚀 5분 퀵스타트 (5-Minute Quickstart)**
 
-### 환경 요구사항
+저장소를 클론하고 의존성을 설치한 후, 아래 3가지 명령어를 실행하여 시스템을 빠르게 테스트할 수 있습니다.
+
+**1. 인프라 시작 (Elasticsearch & Redis)**
+
+```bash
+# Docker 없이 로컬에 서비스를 다운로드하고 시작합니다.
+./scripts/run-local.sh start
+```
+**2. 샘플 데이터 색인**
+
+```bash
+# data/documents.jsonl 파일을 'test' 인덱스로 색인합니다.
+PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test
+```
+
+**3. 샘플 쿼리 실행**
+```bash
+# "과학"이라는 단어에 대한 검색을 실행합니다.
+PYTHONPATH=src poetry run python scripts/run_query.py "과학"
+```
+
+**4. RAG 파이프라인 실행**
+```bash
+# "가장 큰 바다는 무엇인가요?" 라는 질문으로 전체 RAG 파이프라인을 실행합니다.
+# (이 명령을 실행하기 전에 .env 파일에 OPENAI_API_KEY를 설정해야 합니다.)
+PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇인가요?"
+```
+
+## **🎯 개요**
+
+### **환경 요구사항**
+
 
 | 구분 | 사양 |
-|------|------|
-| **OS** | Ubuntu 20.04 (권장) |
-| **Python** | 3.10 |
-| **의존성 관리** | Poetry |
-| **필수 도구** | curl, tar, make, gcc |
+| OS | Ubuntu 20.04 (권장) |
+| Python | 3.10 |
+| 의존성 관리 | Poetry |
+| 필수 도구 | curl, tar, make, gcc |
 
-### 주요 기능
+### **주요 기능**
 
-- ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
-- ✅ 모듈형 RAG 파이프라인
-- ✅ 임베딩, 검색, 평가 유틸리티 제공
-- ✅ Docker 없는 로컬 개발 환경 지원
+* ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
+* ✅ 모듈형 RAG 파이프라인
+* ✅ 임베딩, 검색, 평가 유틸리티 제공
+* ✅ Docker 없는 로컬 개발 환경 지원
 
----
+## **🏆 대회 정보**
 
-## 🏆 대회 정보
+### **📊 개요**
 
-### 📊 개요
 과학적 상식 검색 작업을 위한 Information Retrieval 시스템 구축
 
-### 📅 일정
-- **시작 날짜**: 2025-09-08
-- **최종 제출**: 2025-09-18 (19:00)
+### **📅 일정**
 
-### 📈 평가 지표
-- **주요 지표**: MAP (Mean Average Precision)
-- **데이터셋**: 인덱싱용 4,272개 문서, 평가용 220개 쿼리
+* **시작 날짜**: 2025-09-08
+* **최종 제출**: 2025-09-18 (19:00)
 
----
+### **📈 평가 지표**
 
-## 📁 프로젝트 구조
+* **주요 지표**: MAP (Mean Average Precision)
+* **데이터셋**: 인덱싱용 4,272개 문서, 평가용 220개 쿼리
 
+## **📁 프로젝트 구조**
 ```
 📦 프로젝트 루트
 ├── 📄 README.md
@@ -150,23 +177,19 @@
             ├── 📄 core.py
             └── 📄 logging.py
 ```
-
-### 🔧 주요 컴포넌트
+### **🔧 주요 컴포넌트**
 
 | 모듈 | 기능 | 주요 함수 |
-|------|------|-----------|
-| **api** | 메인 인터페이스 | `index_documents_from_jsonl()` |
-| **embeddings** | 임베딩 처리 | `encode_texts()`, `encode_query()` |
-| **retrieval** | 검색 엔진 | `sparse_retrieve()`, `dense_retrieve()`, `hybrid_retrieve()` |
-| **infra** | 인프라 관리 | `get_es()`, `count_docs_with_embeddings()` |
-| **utils** | 유틸리티 | `read_jsonl()`, `write_jsonl()`, `configure_logging()` |
-| **evaluation** | 평가 메트릭 | `precision_at_k()`, `mrr()` |
+| api | 메인 인터페이스 | index_documents_from_jsonl() |
+| embeddings | 임베딩 처리 | encode_texts(), encode_query() |
+| retrieval | 검색 엔진 | sparse_retrieve(), dense_retrieve(), hybrid_retrieve() |
+| infra | 인프라 관리 | get_es(), count_docs_with_embeddings() |
+| utils | 유틸리티 | read_jsonl(), write_jsonl(), configure_logging() |
+| evaluation | 평가 메트릭 | precision_at_k(), mrr() |
 
----
+## **🏗️ 아키텍처**
 
-## 🏗️ 아키텍처
-
-### 시스펨 플로우
+### **시스펨 플로우**
 
 ```mermaid
 ---
@@ -202,57 +225,60 @@ flowchart TD
     style A fill:#e1f5fe
     style K fill:#f3e5f5
     style G fill:#fff3e0
+
 ```
 
-- 데이터 플로우 (요약)
+* 데이터 플로우 (요약)
   1. 사용자 쿼리 → API 수신
   2. 쿼리 임베딩 생성(임베딩 엔진)
   3. 검색 전략 선택(BM25 / Vector / Hybrid)
   4. 검색 결과를 재랭킹 및 캐시 확인(Redis)
   5. 결과 반환 및 평가 저장
 
----
+## **🚀 설치 및 실행**
 
-## 🚀 설치 및 실행
-
-### 1️⃣ 저장소 클론
+### **1️⃣ 저장소 클론**
 
 ```bash
-git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
+git clone [https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git)
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
 ```
-
-### 2️⃣ 의존성 설치
+### **2️⃣ 의존성 설치**
 
 ```bash
 # Poetry를 사용한 의존성 설치
 poetry install
+```
 
+```bash
 # 또는 pip 사용 시
 pip install -r requirements.txt
 ```
+### **3️⃣ 서비스 시작**
 
-### 3️⃣ 서비스 시작
-
-#### Elasticsearch 시작
+#### **Elasticsearch 시작**
 ```bash
 # 자동 다운로드 및 시작
 ./scripts/start-elasticsearch.sh
+```
 
+```bash
 # 기존 설치된 버전 사용
 ./scripts/start-elasticsearch.sh --prebuilt
 ```
+#### **Redis 시작**
 
-#### Redis 시작
 ```bash
 # 자동 다운로드 및 시작
 ./scripts/start-redis.sh
 
+```
+```bash
 # 기존 설치된 버전 사용
 ./scripts/start-redis.sh --prebuilt
 ```
 
-### 4️⃣ 초기 데이터 인덱싱
+### **4️⃣ 초기 데이터 인덱싱**
 
 ```bash
 poetry run python - <<'EOF'
@@ -261,102 +287,53 @@ api.index_documents_from_jsonl('data/documents.jsonl', index_name='test')
 print('✅ 샘플 문서 인덱싱 완료')
 EOF
 ```
-
-#### 대안: 제공된 CLI 사용 및 환경 팁
-
-프로젝트에 포함된 `scripts/reindex.py` 는 간단한 CLI 포맷을 제공합니다.
-
+#### **대안: 제공된 CLI 사용 및 환경 팁**
+- 프로젝트에 포함된 scripts/reindex.py는 간단한 CLI 포맷을 제공합니다.
+- 프로젝트의 src/를 `PYTHONPATH에` 추가하여 사용 (스크립트를 직접 실행할 때 권장)
 ```bash
-# using the project's src/ on PYTHONPATH (recommended when running scripts directly)
 PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
 ```
 
 환경 관련 팁:
-- 항상 `poetry run` 또는 `poetry shell` 로 가상환경을 활성화하세요. 에디터가 가상환경을 사용하지 않으면 `pydantic`/`tqdm` 등이 "탐지되지 않음"으로 표시될 수 있습니다.
-- VSCode 사용 시, 왼쪽 하단 또는 Command Palette에서 Poetry 가상환경을 선택해 인터프리터를 맞추면 편리합니다.
+
+* 항상 `poetry run` 또는 `poetry shell`로 가상환경을 활성화하세요. 에디터가 가상환경을 사용하지 않으면 pydantic/tqdm 등이 "탐지되지 않음"으로 표시될 수 있습니다.
+* VSCode 사용 시, 왼쪽 하단 또는 Command Palette에서 Poetry 가상환경을 선택해 인터프리터를 맞추면 편리합니다.
 
 ### 재인덱싱(재구축) 사용법 — CLI
 
-프로젝트에 포함된 `scripts/reindex.py` 는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
+- 프로젝트에 포함된 `scripts/reindex.py`는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
 
 예시:
 
+권장: Poetry 환경에서 실행 (src를 PYTHONPATH에 추가)
 ```bash
-# 권장: Poetry 환경에서 실행 (src를 PYTHONPATH에 추가)
 PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+```
 
-# 또는 패키지를 편집 모드로 설치한 경우
+또는 패키지를 편집 모드로 설치한 경우:
+```bash
 poetry run python scripts/reindex.py data/documents.jsonl --index test
 ```
 
 팁:
-- 배치 사이즈(`--batch-size`)를 늘리면 네트워크 왕복 횟수가 줄어들어 전체 속도가 빨라질 수 있지만, 메모리/ES 부하를 고려하세요.
-- ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
-- 에디터에서 `elasticsearch` 나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
+
+* 배치 사이즈(`--batch-size`)를 늘리면 네트워크 왕복 횟수가 줄어들어 전체 속도가 빨라질 수 있지만, 메모리/ES 부하를 고려하세요.
+* ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
+* 에디터에서 `elasticsearch`나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
 
 ### 5️⃣ 스모크 테스트
 
 ```bash
 poetry run python scripts/smoke_test.py
 ```
+- 참고: `scripts/smoke-test.sh` 래퍼는 이제 PID 파일을 확인하고 프로세스가 아직 실행 중인지 확인한 후에만 종료를 시도합니다. 이렇게 하면 서비스가 이미 종료된 경우 정리 중에 시끄러운 "No such process" 메시지를 방지합니다.
 
-Note: The `scripts/smoke-test.sh` wrapper now verifies PID files and
-checks that processes are still running before attempting to `kill` them.
-This avoids noisy "No such process" messages during cleanup when services
-have already exited.
+래퍼의 플래그:
 
-Flags for the wrapper:
-- `--no-install`: do not attempt to install packages using apt/yum. Useful on
-    machines where elevated installs are undesirable.
-- `--no-cleanup`: skip stopping services after the test (leave them running).
+* `--no-install`: apt/yum을 사용하여 패키지를 설치하지 않습니다. 상승된 설치가 바람직하지 않은 머신에서 유용합니다.
+* `--no-cleanup`: 테스트 후 서비스 중지를 건너뜁니다 (실행 중인 상태로 둡니다).
 
----
-
-## 💡 사용법
-
-### 기본 검색 예제
-
-```python
-from ir_core import api
-from ir_core.retrieval.core import sparse_retrieve, dense_retrieve, hybrid_retrieve
-
-# 1. 희소 검색 (BM25)
-results = sparse_retrieve(
-    query="과학적 상식 질문",
-    index_name="test",
-    size=10
-)
-
-# 2. 밀집 검색 (Vector)
-results = dense_retrieve(
-    query="과학적 상식 질문",
-    index_name="test",
-    size=10
-)
-
-# 3. 하이브리드 검색 (추천)
-results = hybrid_retrieve(
-    query="과학적 상식 질문",
-    index_name="test",
-    size=10,
-    alpha=0.7  # BM25와 Dense의 가중치 조절
-)
-```
-
-### 평가 실행
-
-```python
-from ir_core.evaluation.core import precision_at_k, mrr
-
-# 평가 메트릭 계산
-precision = precision_at_k(predictions, ground_truth, k=10)
-mrr_score = mrr(predictions, ground_truth)
-
-print(f"Precision@10: {precision:.4f}")
-print(f"MRR: {mrr_score:.4f}")
-```
-
-### 대회 제출용 테스트 데이터 인프런스
+### 테스트 데이터 인프런스 (대회 제출용)
 ```bash
 # 기본 설정
 PYTHONPATH=src poetry run python scripts/evaluate.py
@@ -365,22 +342,8 @@ PYTHONPATH=src poetry run python scripts/evaluate.py
 # 명시적 설정 사용
 PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/submission.csv
 ```
----
 
 ## 🛠️ 고급 설정
-
-<!-- ### systemd 서비스 관리
-
-```bash
-# 서비스 설치
-./scripts/manage-services.sh install
-
-# 서비스 상태 확인
-./scripts/manage-services.sh status
-
-# 서비스 제거
-./scripts/manage-services.sh uninstall
-``` -->
 
 ### 정리 작업
 

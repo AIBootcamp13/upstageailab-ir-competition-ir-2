@@ -29,11 +29,27 @@ def live_services():
     project_root = os.path.dirname(os.path.dirname(__file__))
     start_script = os.path.join(project_root, "scripts", "run-local.sh")
 
-    # Start services
+    # If services are already running on localhost:9200, don't start them
+    # and don't stop them in teardown. This allows preserving a manually
+    # started ES instance across test runs.
+    already_running = False
     try:
-        subprocess.run([start_script, "start"], check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as exc:
-        pytest.fail(f"Failed to start infrastructure: {exc.stdout}\n{exc.stderr}")
+        # Quick ping to local ES to detect an existing running instance.
+        probe = Elasticsearch(["http://127.0.0.1:9200"], request_timeout=1)
+        if probe.ping():
+            already_running = True
+            print("Elasticsearch already running externally; fixture will not stop it.")
+    except Exception:
+        already_running = False
+
+    # Start services only if they are not already running.
+    started_services = False
+    if not already_running:
+        try:
+            subprocess.run([start_script, "start"], check=True, capture_output=True, text=True)
+            started_services = True
+        except subprocess.CalledProcessError as exc:
+            pytest.fail(f"Failed to start infrastructure: {exc.stdout}\n{exc.stderr}")
 
     # Wait for services to be ready using the project's ES helper which has
     # conservative retry/timeouts. Fail fast if ES never becomes reachable so
@@ -59,7 +75,10 @@ def live_services():
         # processes running and to prevent noisy client retry loops.
         try:
             stop_script = os.path.join(project_root, "scripts", "run-local.sh")
-            subprocess.run([stop_script, "stop"], check=False, capture_output=True, text=True)
+            # Only stop if we started the services here and the user did not
+            # request to keep services running via env var.
+            if started_services and os.environ.get("KEEP_LOCAL_SERVICES") != "1":
+                subprocess.run([stop_script, "stop"], check=False, capture_output=True, text=True)
         finally:
             pytest.skip("Elasticsearch did not become available after starting services; skipping integration test.")
 
@@ -67,10 +86,16 @@ def live_services():
     yield es_client
 
     # This code runs after all tests in the module are complete
-    print("\n--- Stopping infrastructure... ---")
+    print("\n--- Teardown: stopping infrastructure if appropriate... ---")
     stop_script = os.path.join(project_root, "scripts", "run-local.sh")
-    subprocess.run([stop_script, "stop"], check=True, capture_output=True, text=True)
-    print("--- Infrastructure stopped. ---")
+    # If we started the services in setup and the user did not request to
+    # keep services running, then stop them. Otherwise leave them running.
+    if started_services and os.environ.get("KEEP_LOCAL_SERVICES") != "1":
+        print("Stopping services started by fixture...")
+        subprocess.run([stop_script, "stop"], check=True, capture_output=True, text=True)
+        print("--- Infrastructure stopped. ---")
+    else:
+        print("Leaving existing services running (fixture did not start them or KEEP_LOCAL_SERVICES=1).")
 
 
 import pytest
