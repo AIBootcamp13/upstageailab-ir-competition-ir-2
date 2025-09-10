@@ -180,12 +180,14 @@ PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇
 ### **🔧 주요 컴포넌트**
 
 | 모듈 | 기능 | 주요 함수 |
-| api | 메인 인터페이스 | index_documents_from_jsonl() |
-| embeddings | 임베딩 처리 | encode_texts(), encode_query() |
-| retrieval | 검색 엔진 | sparse_retrieve(), dense_retrieve(), hybrid_retrieve() |
-| infra | 인프라 관리 | get_es(), count_docs_with_embeddings() |
-| utils | 유틸리티 | read_jsonl(), write_jsonl(), configure_logging() |
-| evaluation | 평가 메트릭 | precision_at_k(), mrr() |
+|------|------|-----------|
+| **api** | 메인 인터페이스 | `index_documents_from_jsonl()` |
+| **embeddings** | 임베딩 처리 | `encode_texts()`, `encode_query()` |
+| **retrieval** | 검색 엔진 | `sparse_retrieve()`, `dense_retrieve()`, `hybrid_retrieve()` |
+| **infra** | 인프라 관리 | `get_es()`, `count_docs_with_embeddings()` |
+| **utils** | 유틸리티 | `read_jsonl()`, `write_jsonl()`, `configure_logging()` |
+| **evaluation** | 평가 메트릭 | `precision_at_k()`, `mrr()` |
+
 
 ## **🏗️ 아키텍처**
 

@@ -80,3 +80,5 @@ docs/notes/debug/
 # Data
 data/
 outputs/
+notebooks/
+*.ipynb
