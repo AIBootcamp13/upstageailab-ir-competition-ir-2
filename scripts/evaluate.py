@@ -67,9 +67,20 @@ def run(cfg: DictConfig) -> None:
         wandb.finish()
         return
 
-    # RAG 파이프라인을 초기화할 때 로드한 설명을 전달합니다.
+    # 1. QueryRewriter 인스턴스를 생성합니다.
+    from ir_core.orchestration.rewriter import QueryRewriter
+    query_rewriter = QueryRewriter(
+        model_name=cfg.pipeline.rewriter_model,
+        prompt_template_path=cfg.prompts.rephrase_query
+    )
+
+    # 2. RAG 파이프라인을 초기화할 때 rewriter 인스턴스를 전달합니다.
     generator = get_generator(cfg)
-    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
+    pipeline = RAGPipeline(
+        generator=generator,
+        query_rewriter=query_rewriter,
+        tool_prompt_description=tool_desc
+    )
 
     # 출력 디렉토리가 존재하는지 확인
     output_path = cfg.data.output_path

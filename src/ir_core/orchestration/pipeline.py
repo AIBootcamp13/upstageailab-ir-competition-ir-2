@@ -8,45 +8,44 @@ from openai.types.chat import ChatCompletionMessageToolCall
 
 from ..generation.base import BaseGenerator
 from ..tools.dispatcher import default_dispatcher, ToolDispatcher
-from ..tools.retrieval_tool import get_tool_definition # get_tool_definition 임포트는 유지
+from ..tools.retrieval_tool import get_tool_definition
+from .rewriter import QueryRewriter # QueryRewriter를 임포트합니다.
 
 class RAGPipeline:
     """
-    전체 RAG 프로세스를 조율합니다.
+    QueryRewriter를 포함하여 전체 RAG 프로세스를 조율합니다.
     """
-    # --- __init__ 메소드 변경됨 ---
-    # 이제 'tool_prompt_description'을 인자로 받아 self.tool_prompt_description에 저장합니다.
     def __init__(
         self,
         generator: BaseGenerator,
+        query_rewriter: QueryRewriter, # QueryRewriter 인스턴스를 받도록 __init__ 수정
         tool_prompt_description: str,
         dispatcher: ToolDispatcher = default_dispatcher
     ):
         """
         RAG 파이프라인을 초기화합니다.
-
-        Args:
-            generator: 생성기 클래스의 인스턴스 (예: OpenAIGenerator).
-            tool_prompt_description: 도구 설명에 사용될 프롬프트 문자열.
-            dispatcher: 도구 실행을 위한 ToolDispatcher 인스턴스.
         """
         self.generator = generator
+        self.query_rewriter = query_rewriter # rewriter를 인스턴스 변수로 저장
         self.dispatcher = dispatcher
-        self.tool_prompt_description = tool_prompt_description # 도구 설명을 인스턴스 변수로 저장
+        self.tool_prompt_description = tool_prompt_description
         self.client = openai.OpenAI()
 
     def run_retrieval_only(self, query: str) -> List[Dict[str, Any]]:
         """
         평가 목적으로 파이프라인의 검색 부분만 실행합니다.
         """
-        # --- 도구 정의 호출 변경됨 ---
-        # 저장된 도구 설명을 get_tool_definition 함수에 전달합니다.
+        # --- 1단계: 쿼리 재작성 ---
+        rewritten_query = self.query_rewriter.rewrite_query(query)
+        print(f"원본 쿼리: '{query}' -> 재작성된 쿼리: '{rewritten_query}'")
+
         tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 
         try:
+            # --- 2단계: 재작성된 쿼리로 도구 호출 ---
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo", # Note: This could also be made configurable
-                messages=[{"role": "user", "content": query}],
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": rewritten_query}], # 재작성된 쿼리 사용
                 tools=tools,
                 tool_choice="auto"
             )
@@ -56,20 +55,20 @@ class RAGPipeline:
             if tool_calls:
                 tool_call = cast(ChatCompletionMessageToolCall, tool_calls[0])
                 tool_args_json = tool_call.function.arguments or "{}"
-                tool_args = json.loads(tool_args_json)
-                standalone_query = tool_args.get("query", query)
 
                 tool_result = self.dispatcher.execute_tool(
                     tool_name=tool_call.function.name,
                     tool_args_json=tool_args_json
                 )
 
-                return [{"standalone_query": standalone_query, "docs": tool_result}]
+                # standalone_query는 이제 LLM이 재작성한 쿼리가 됩니다.
+                return [{"standalone_query": rewritten_query, "docs": tool_result}]
             else:
-                return []
+                # 도구가 호출되지 않은 경우, 재작성된 쿼리를 포함하여 반환
+                return [{"standalone_query": rewritten_query, "docs": []}]
         except Exception as e:
             print(f"'{query}' 쿼리에 대한 검색 중 오류 발생: {e}")
-            return []
+            return [{"standalone_query": rewritten_query, "docs": []}]
 
     def run(self, query: str) -> str:
         """
@@ -77,10 +76,14 @@ class RAGPipeline:
         """
         retrieved_output = self.run_retrieval_only(query)
 
-        if retrieved_output:
-            docs = retrieved_output[0].get("docs", [])
+        # 검색 결과와 함께 재작성된 쿼리를 추출합니다.
+        docs = retrieved_output[0].get("docs", [])
+        standalone_query = retrieved_output[0].get("standalone_query", query)
+
+        if docs:
             context_docs_content = [item.get('content', '') for item in docs]
-            final_answer = self.generator.generate(query=query, context_docs=context_docs_content)
+            # 최종 답변 생성 시에도 명확성을 위해 재작성된 쿼리를 사용합니다.
+            final_answer = self.generator.generate(query=standalone_query, context_docs=context_docs_content)
         else:
             final_answer = self.generator.generate(query=query, context_docs=[])
 

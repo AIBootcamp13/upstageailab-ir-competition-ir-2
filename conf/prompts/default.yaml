@@ -14,7 +14,7 @@ persona: "prompts/persona_qa.txt"
 conversational: "prompts/conversational_v1.jinja2"
 
 # 질의 재구성 프롬프트
-rephrase_query: "prompts/rephrase_query_v1.jinja2" # File not present, but retained in config
+rephrase_query: "prompts/rewrite_query2.jinja2" # Updated to use existing file
 
 # 검증셋 질문 생성 프롬프트
 question_generation: "prompts/question_generation_v1.jinja2"

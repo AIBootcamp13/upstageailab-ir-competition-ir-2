@@ -13,10 +13,16 @@ def generate_run_name(cfg: DictConfig) -> str:
     Returns:
         str: 생성된 실행 이름 문자열.
     """
-    # 임베딩 모델 이름에서 주요 부분만 추출합니다 (예: 'snunlp/KR-SBERT-V40K-...' -> 'KR-SBERT-V40K')
+    # 임베딩 모델 이름에서 주요 부분만 추출합니다 (예: 'snunlp/KR-SBERT-V40K-...' -> 'KR-SBERT')
     try:
         model_name_full = cfg.model.embedding_model
         model_name_short = model_name_full.split("/")[-1]
+        # 모델 이름을 더 짧게 만들기 위해 '-'로 분리하고 처음 두 부분만 사용
+        model_parts = model_name_short.split("-")
+        if len(model_parts) >= 2:
+            model_name_short = "-".join(model_parts[:2])
+        elif len(model_parts) == 1:
+            model_name_short = model_parts[0][:10]  # 긴 이름일 경우 처음 10자만 사용
     except (AttributeError, IndexError):
         model_name_short = "unknown_model"
 

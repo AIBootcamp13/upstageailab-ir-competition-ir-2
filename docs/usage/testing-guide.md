@@ -129,7 +129,7 @@ PYTHONPATH=src poetry run python scripts/validate_retrieval.py
 
 # alpha 값을 0.5로 변경하고, 50개 샘플만 사용하여 테스트
 ```bash
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.5 limit=50
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.4 limit=50
 ```
 
 # 다른 모델 설정 파일을 사용하여 실행 (향후 conf/model/solar.yaml 등을 만들 경우)

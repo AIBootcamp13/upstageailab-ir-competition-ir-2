@@ -3,9 +3,8 @@
 import os
 import sys
 from tqdm import tqdm
+from ir_core.orchestration.rewriter import QueryRewriter
 
-# --- 새로운 임포트 (New Imports) ---
-# Hydra와 OmegaConf는 설정 관리를 위해, wandb는 실험 추적을 위해 사용됩니다.
 import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
@@ -98,9 +97,19 @@ def run(cfg: DictConfig) -> None:
         print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
         return
 
-    # RAG 파이프라인을 초기화할 때 로드한 설명을 전달합니다.
+    # 1. QueryRewriter 인스턴스를 생성합니다.
+    query_rewriter = QueryRewriter(
+        model_name=cfg.pipeline.rewriter_model,
+        prompt_template_path=cfg.prompts.rephrase_query
+    )
+
+    # 2. RAG 파이프라인을 초기화할 때 rewriter 인스턴스를 전달합니다.
     generator = get_generator(cfg)
-    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
+    pipeline = RAGPipeline(
+        generator=generator,
+        query_rewriter=query_rewriter,
+        tool_prompt_description=tool_desc
+    )
 
 
     # 검증 데이터를 읽어옵니다.
