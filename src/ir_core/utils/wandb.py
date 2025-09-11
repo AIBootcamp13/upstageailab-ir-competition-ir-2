@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 def generate_run_name(cfg: DictConfig) -> str:
     """
     Hydra 설정 객체를 기반으로 표준화된 WandB 실행 이름을 생성합니다.
-    예: val-KR-SBERT-V40K-alpha_0.5-rerank_10
+    예: val-KR-SBERT-V40K-alpha_0.5-rerank_10-exp_prompt_tuning
 
     Args:
         cfg (DictConfig): Hydra 설정 객체.
@@ -20,12 +20,26 @@ def generate_run_name(cfg: DictConfig) -> str:
     except (AttributeError, IndexError):
         model_name_short = "unknown_model"
 
+    # 실험 이름 추출 (experiment이 설정된 경우)
+    experiment_name = ""
+    if hasattr(cfg, 'experiment') and cfg.experiment:
+        # experiment이 dict인 경우 키를 사용
+        if isinstance(cfg.experiment, dict) and cfg.experiment:
+            experiment_name = list(cfg.experiment.keys())[0]
+        else:
+            experiment_name = str(cfg.experiment).replace('/', '_')
+
     # 설정값들을 조합하여 실행 이름을 만듭니다.
-    run_name = (
-        f"{cfg.wandb.run_name_prefix}-"
-        f"{model_name_short}-"
-        f"alpha_{cfg.model.alpha}-"
+    run_name_parts = [
+        cfg.wandb.run_name_prefix,
+        model_name_short,
+        f"alpha_{cfg.model.alpha}",
         f"rerank_{cfg.model.rerank_k}"
-    )
+    ]
+
+    if experiment_name:
+        run_name_parts.append(f"exp_{experiment_name}")
+
+    run_name = "-".join(run_name_parts)
 
     return run_name

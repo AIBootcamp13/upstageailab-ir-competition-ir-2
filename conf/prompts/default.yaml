@@ -18,3 +18,7 @@ rephrase_query: "prompts/rephrase_query_v1.jinja2" # File not present, but retai
 
 # 검증셋 질문 생성 프롬프트
 question_generation: "prompts/question_generation_v1.jinja2"
+
+# Tool-calling LLM에게 제공될 도구의 설명 파일 경로
+tool_description: "prompts/tool_desc_recall_v1.txt" # "prompts/tool_desc_baseline.txt"
+

@@ -41,36 +41,48 @@
 
 ---
 
-## **🚀 5분 퀵스타트 (5-Minute Quickstart)**
+## 🚀 빠른 시작
 
-저장소를 클론하고 의존성을 설치한 후, 아래 3가지 명령어를 실행하여 시스템을 빠르게 테스트할 수 있습니다.
+이 프로젝트는 [Hydra](https://hydra.cc/)를 사용하여 설정을 관리합니다. 모든 스크립트는 프로젝트의 루트 디렉토리에서 실행합니다.
 
-**1. 인프라 시작 (Elasticsearch & Redis)**
+**1. 초기 설정 (최초 1회)**
 
 ```bash
-# Docker 없이 로컬에 서비스를 다운로드하고 시작합니다.
+# 의존성 설치
+poetry install
+
+# 환경 변수 설정 (이 파일을 열어 API 키를 추가하세요)
+cp .env.example .env
+
+# 로컬 Elasticsearch & Redis 다운로드 및 실행
 ./scripts/run-local.sh start
-```
-**2. 샘플 데이터 색인**
+````
+
+**2. 데이터 색인**
 
 ```bash
-# data/documents.jsonl 파일을 'test' 인덱스로 색인합니다.
-PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test
+# Elasticsearch에 문서 데이터 색인
+PYTHONPATH=src poetry run python scripts/reindex.py
 ```
 
-**3. 샘플 쿼리 실행**
+**3. 검증 실험 실행**
+
 ```bash
-# "과학"이라는 단어에 대한 검색을 실행합니다.
-PYTHONPATH=src poetry run python scripts/run_query.py "과학"
+# 기본 설정값으로 검증 스크립트 실행 (conf/model/default.yaml에 정의됨)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+
+# 파라미터(예: alpha)를 변경하고, 50개 샘플로 제한하여 실행
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.7 limit=50
 ```
 
-**4. RAG 파이프라인 실행**
+**4. 제출 파일 생성**
+
 ```bash
-# "가장 큰 바다는 무엇인가요?" 라는 질문으로 전체 RAG 파이프라인을 실행합니다.
-# (이 명령을 실행하기 전에 .env 파일에 OPENAI_API_KEY를 설정해야 합니다.)
-PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇인가요?"
+# 공식 평가 데이터셋으로 평가 실행 후 outputs/ 디렉토리에 저장
+PYTHONPATH=src poetry run python scripts/evaluate.py
 ```
 
+> 실험 및 고급 사용법에 대한 더 자세한 안내는 \*\*[워크플로우 가이드](docs/usage/workflow-guide.md)\*\*를 참고하세요.
 ## **🎯 개요**
 
 ### **환경 요구사항**
@@ -114,15 +126,10 @@ PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇
 ├── 📄 poetry.lock
 │
 ├── 📂 conf/
-│   ├── 📄 config.yaml
-│   ├── 📄 elasticsearch.yml
-│   └── 📄 redis.conf
 │
 ├── 📂 data/
 │   ├── 📄 documents.jsonl
 │   ├── 📄 eval.jsonl
-│   ├── 📂 raw/
-│   └── 📂 processed/
 │
 ├── 📂 docs/
 │   ├── 📂 assets/
@@ -133,8 +140,8 @@ PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇
 │   │   ├── 📄 architecture.md
 │   │   └── 📄 evaluation.md
 │   └── 📂 usage/
-│       ├── 📄 installation.md
-│       ├── 📄 quickstart.md
+│       ├── 📄 workflow-guide.md
+│       ├── 📄 testing-guide.md
 │       └── 📄 troubleshooting.md
 │
 ├── 📂 notebooks/
@@ -153,29 +160,14 @@ PYTHONPATH=src poetry run python scripts/run_rag.py "가장 큰 바다는 무엇
 │
 └── 📂 src/
     └── 📂 ir_core/
-        ├── 📄 __init__.py
         ├── 📂 api/
-        │    └──📄 __init__.py
         ├── 📂 config/
-        │   ├── 📄 __init__.py
-        │   └── 📄 settings.py
         ├── 📂 embeddings/
-        │   ├── 📄 __init__.py
-        │   └── 📄 core.py
         ├── 📂 evaluation/
-        │   ├── 📄 __init__.py
-        │   └── 📄 core.py
         ├── 📂 infra/
-        │   ├── 📄 __init__.py
-        │   ├── 📄 elasticsearch.py
-        │   └── 📄 redis.py
         ├── 📂 retrieval/
-        │   ├── 📄 __init__.py
-        │   └── 📄 core.py
         └── 📂 utils/
-            ├── 📄 __init__.py
-            ├── 📄 core.py
-            └── 📄 logging.py
+
 ```
 ### **🔧 주요 컴포넌트**
 

@@ -10,6 +10,7 @@ defaults:
   - model: default      # conf/model/default.yaml 파일을 기본값으로 포함
   - pipeline: default  # 파이프라인 설정 추가
   - prompts: default   # 프롬프트 설정 추가
+  - optional experiment: ~ # "experiment" 그룹이 존재하지만, 기본적으로 아무것도 로드하지 않도록 설정
   - _self_              # 이 파일 자체의 설정을 마지막에 적용
 
 limit: null # 빠른 테스트를 위한 샘플 데이터 수 제한 (null일 경우 전체 데이터 사용)
@@ -29,6 +30,9 @@ wandb:
   run_name:
     validate: "val"      # 검증 스크립트용 접두사
     evaluate: "eval"     # 평가(제출) 스크립트용 접두사
+
+  # 설정 파일 경로 로깅 (Config File Path Logging)
+  log_config_path: true  # WandB에 병합된 설정 파일 경로를 로깅할지 여부
 
 # --- 스크립트별 설정 (Script-Specific Settings) ---
 reindex:

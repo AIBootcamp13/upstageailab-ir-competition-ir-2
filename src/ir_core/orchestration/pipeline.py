@@ -1,60 +1,51 @@
 # src/ir_core/orchestration/pipeline.py
-from typing import List, Dict, Any, Optional, cast
+
+from typing import List, Dict, Any, cast
 import os
+import json
 import openai
 from openai.types.chat import ChatCompletionMessageToolCall
 
-# Import the core components we've built
 from ..generation.base import BaseGenerator
 from ..tools.dispatcher import default_dispatcher, ToolDispatcher
-from ..tools.retrieval_tool import get_tool_definition
+from ..tools.retrieval_tool import get_tool_definition # get_tool_definition 임포트는 유지
 
 class RAGPipeline:
     """
-    Orchestrates the entire RAG process, from receiving a query to generating a final answer.
-
-    This pipeline uses a generator model (like OpenAI's GPT series) to decide
-    whether to answer directly or to first use a tool (like scientific_search).
-    If a tool is required, it uses the ToolDispatcher to execute it and then
-    feeds the result back to the generator to produce a final, context-aware answer.
+    전체 RAG 프로세스를 조율합니다.
     """
-    def __init__(self, generator: BaseGenerator, dispatcher: ToolDispatcher = default_dispatcher):
+    # --- __init__ 메소드 변경됨 ---
+    # 이제 'tool_prompt_description'을 인자로 받아 self.tool_prompt_description에 저장합니다.
+    def __init__(
+        self,
+        generator: BaseGenerator,
+        tool_prompt_description: str,
+        dispatcher: ToolDispatcher = default_dispatcher
+    ):
         """
-        Initializes the RAG Pipeline.
+        RAG 파이프라인을 초기화합니다.
 
         Args:
-            generator: An instance of a generator class (e.g., OpenAIGenerator).
-                       This is the primary LLM used for decision-making and generation.
-            dispatcher: An instance of the ToolDispatcher to execute tools.
+            generator: 생성기 클래스의 인스턴스 (예: OpenAIGenerator).
+            tool_prompt_description: 도구 설명에 사용될 프롬프트 문자열.
+            dispatcher: 도구 실행을 위한 ToolDispatcher 인스턴스.
         """
         self.generator = generator
         self.dispatcher = dispatcher
-
-        # This implementation is tightly coupled with the OpenAI client for tool calling.
-        # Ensure the API key is available in the environment.
-        if not os.getenv("OPENAI_API_KEY"):
-            print("Warning: OPENAI_API_KEY environment variable not set. Tool calling will fail.")
+        self.tool_prompt_description = tool_prompt_description # 도구 설명을 인스턴스 변수로 저장
         self.client = openai.OpenAI()
 
     def run_retrieval_only(self, query: str) -> List[Dict[str, Any]]:
         """
-        Executes only the retrieval part of the pipeline for evaluation purposes.
-
-        This method asks the LLM to decide if a tool is needed. If so, it
-        executes the tool and returns the results. If not, it returns an
-        empty list. This aligns with the competition's evaluation logic.
-
-        Args:
-            query: The user query.
-
-        Returns:
-            A list of retrieved document dictionaries, or an empty list.
+        평가 목적으로 파이프라인의 검색 부분만 실행합니다.
         """
-        tools = [cast(Any, get_tool_definition())]
+        # --- 도구 정의 호출 변경됨 ---
+        # 저장된 도구 설명을 get_tool_definition 함수에 전달합니다.
+        tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-3.5-turbo", # Note: This could also be made configurable
                 messages=[{"role": "user", "content": query}],
                 tools=tools,
                 tool_choice="auto"
@@ -64,60 +55,33 @@ class RAGPipeline:
 
             if tool_calls:
                 tool_call = cast(ChatCompletionMessageToolCall, tool_calls[0])
-                tool_name = tool_call.function.name
                 tool_args_json = tool_call.function.arguments or "{}"
+                tool_args = json.loads(tool_args_json)
+                standalone_query = tool_args.get("query", query)
 
                 tool_result = self.dispatcher.execute_tool(
-                    tool_name=tool_name,
+                    tool_name=tool_call.function.name,
                     tool_args_json=tool_args_json
                 )
-                # The tool returns a list of dicts with id/content/score
-                # For evaluation we also want to surface the standalone query
-                # (the query sent to the tool). The tool arguments are in JSON
-                try:
-                    import json as _json
-                    tool_args = _json.loads(tool_args_json)
-                    standalone_query = tool_args.get("query", query)
-                except Exception:
-                    standalone_query = query
 
-                if isinstance(tool_result, list):
-                    return [{"standalone_query": standalone_query, "docs": tool_result}]
-                else:
-                    return []
+                return [{"standalone_query": standalone_query, "docs": tool_result}]
             else:
-                # No tool call was made, so return no documents.
                 return []
         except Exception as e:
-            print(f"An error occurred during retrieval for query '{query}': {e}")
+            print(f"'{query}' 쿼리에 대한 검색 중 오류 발생: {e}")
             return []
 
     def run(self, query: str) -> str:
         """
-        Executes the full RAG pipeline for a given user query.
+        주어진 사용자 쿼리에 대해 전체 RAG 파이프라인을 실행합니다.
         """
-        print(f"\n--- Running RAG Pipeline for query: '{query}' ---")
+        retrieved_output = self.run_retrieval_only(query)
 
-        try:
-            # Step 1 & 2: Decide if a tool is needed and get the results.
-            # We now use our dedicated retrieval method for this.
-            retrieved_docs_list = self.run_retrieval_only(query)
+        if retrieved_output:
+            docs = retrieved_output[0].get("docs", [])
+            context_docs_content = [item.get('content', '') for item in docs]
+            final_answer = self.generator.generate(query=query, context_docs=context_docs_content)
+        else:
+            final_answer = self.generator.generate(query=query, context_docs=[])
 
-            # Step 3: Generate the final answer based on the retrieval result.
-            if retrieved_docs_list:
-                print(f"Step 4: Received context from tool. Number of documents: {len(retrieved_docs_list)}")
-                context_docs = [item.get('content', '') for item in retrieved_docs_list]
-
-                print("Step 5: Generating final answer with context...")
-                final_answer = self.generator.generate(query=query, context_docs=context_docs)
-            else:
-                print("Step 2: LLM decided to answer directly or retrieval failed.")
-                final_answer = self.generator.generate(query=query, context_docs=[])
-
-            print("--- Pipeline finished ---")
-            return final_answer
-
-        except Exception as e:
-            print(f"An error occurred during the RAG pipeline execution: {e}")
-            return "Error: Could not complete the request due to an internal error."
-
+        return final_answer

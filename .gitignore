@@ -78,10 +78,11 @@ deprecated/
 *en.md
 docs/notes/debug/
 # Data
-data/
+/data/
 outputs/
 notebooks/
 *.ipynb
 
 # WanDB
 wandb/
+multirun/

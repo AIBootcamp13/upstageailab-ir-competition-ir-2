@@ -1,6 +1,6 @@
 ## 테스트 실행 가이드
 
-아래는 이 저장소에서 사용 가능한 테스트들을 실행하는 방법과 자주 쓰는 옵션들입니다. 이 프로젝트는 `poetry`를 사용하여 의존성과 가상환경을 관리하므로, 모든 명령은 `poetry run`을 앞에 붙여 실행하세요.
+이 저장소에서 사용 가능한 테스트들을 실행하는 방법과 자주 사용하는 옵션들을 설명합니다. 이 프로젝트는 `poetry`를 사용하여 의존성과 가상환경을 관리하므로, 모든 명령어는 `poetry run`을 앞에 붙여 실행하세요.
 
 ### 전체 테스트 실행
 
@@ -10,7 +10,7 @@
 poetry run pytest -q
 ```
 
-설명: `-q`(quiet)는 pytest 출력을 간결하게 만들어 줍니다.
+설명: `-q`(quiet)는 pytest 출력을 간결하게 만듭니다.
 
 ### 특정 테스트 파일 또는 테스트 케이스 실행
 
@@ -66,31 +66,31 @@ poetry run pytest -m integration -q
 
 - 통합 테스트 실행(마커 기반):
 
-```bash
-# 마커로 걸러서 실행
-poetry run pytest -m integration -s
+	```bash
+	# 마커로 걸러서 실행
+	poetry run pytest -m integration -s
 
-# 또는 키워드로 단건 실행
-RUN_INTEGRATION=1 poetry run pytest -k integration -q -s
-```
+	# 또는 키워드로 단건 실행
+	RUN_INTEGRATION=1 poetry run pytest -k integration -q -s
+	```
 
 - 로컬 서비스를 미리 띄우고 특정 통합 테스트만 실행하려면:
 
-```bash
-./scripts/run-local.sh start
-export RUN_INTEGRATION=1
-poetry run pytest tests/test_integration_pipeline.py::test_full_retrieval_pipeline -s
-```
+	```bash
+	./scripts/run-local.sh start
+	export RUN_INTEGRATION=1
+	poetry run pytest tests/test_integration_pipeline.py::test_full_retrieval_pipeline -s
+	```
 
 - Elasticsearch를 로컬에서 실행할 때 호스트 커널 설정이 필요할 수 있습니다(예: Docker/호스트 설치 시):
 
-```bash
-sudo sysctl -w vm.max_map_count=262144
-```
+	```bash
+	sudo sysctl -w vm.max_map_count=262144
+	```
 
 - 로컬 헬퍼 스크립트 설명:
-	- `scripts/run-local.sh start` : 저장소 내에 포함된 Elasticsearch/Redis 바이너리를 내려받아 실행합니다(비루트, 재현 가능한 로컬 개발용).
-	- `scripts/start-elasticsearch.sh`, `scripts/start-redis.sh` : 개별 서비스 시작 헬퍼입니다.
+	- `scripts/run-local.sh start`: 저장소 내에 포함된 Elasticsearch/Redis 바이너리를 내려받아 실행합니다(비루트, 재현 가능한 로컬 개발용).
+	- `scripts/start-elasticsearch.sh`, `scripts/start-redis.sh`: 개별 서비스 시작 헬퍼입니다.
 
 - 참고: 통합 테스트는 외부 서비스에 의존하므로 CI에서 실행할 때 별도 워크플로/태그로 관리하는 것이 안전합니다.
 
@@ -103,12 +103,14 @@ poetry run python scripts/reindex.py data/documents.jsonl --index test
 ```
 
 ### 테스트 문제 해결 팁
+
 - 가상환경 확인: `poetry shell`로 가상환경에 진입하거나 `poetry run`으로 실행하세요.
 - 의존성 설치/갱신: `poetry install` 또는 `poetry update`를 사용하세요.
 - 로그/출력 보기: 실패하는 테스트에서 `-s` 옵션을 추가하면 stdout/stderr를 확인할 수 있습니다.
 - 외부 서비스: 일부 통합 테스트는 Elasticsearch나 Redis 같은 서비스가 필요합니다. 관련 스크립트(`scripts/start-elasticsearch.sh`, `scripts/start-redis.sh`)를 사용해 서비스를 기동하세요.
 
 ### CI/자동화 권장사항
+
 - 테스트는 `poetry run pytest -q`로 실행되도록 CI를 구성하세요.
 - 통합 테스트는 별도 태그로 관리하여 CI에서 선택적으로 실행하세요.
 
@@ -116,13 +118,21 @@ poetry run python scripts/reindex.py data/documents.jsonl --index test
 
 필요하시면 이 문서에 프로젝트 특화된 테스트 실행 예시(예: 환경변수, 테스트 데이터 준비, 자주 발생하는 실패와 해결법)를 추가해 드리겠습니다.
 
-
 ---
+
+### 검증 스크립트 실행 예시 (validate_retrieval.py)
+
 # 기본 설정으로 실행 (conf/model/default.yaml 사용)
+```bash
 PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+```
 
 # alpha 값을 0.5로 변경하고, 50개 샘플만 사용하여 테스트
+```bash
 PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.5 limit=50
+```
 
 # 다른 모델 설정 파일을 사용하여 실행 (향후 conf/model/solar.yaml 등을 만들 경우)
+```bash
 # PYTHONPATH=src poetry run python scripts/validate_retrieval.py model=solar
+```

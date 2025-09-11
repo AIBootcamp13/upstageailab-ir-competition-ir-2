@@ -7,6 +7,7 @@ from tqdm import tqdm
 # --- 새로운 임포트 (New Imports) ---
 # Hydra와 OmegaConf는 설정 관리를 위해, wandb는 실험 추적을 위해 사용됩니다.
 import hydra
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 import wandb
 # ------------------------------------
@@ -58,9 +59,24 @@ def run(cfg: DictConfig) -> None:
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         name=run_name,
-        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),
+        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),  # type: ignore
         job_type="validation" # 작업 유형을 'validation'으로 지정
     )
+
+    # 설정 파일 경로 로깅 (Log Config File Path)
+    if hasattr(cfg.wandb, 'log_config_path') and cfg.wandb.log_config_path:
+        try:
+            # Hydra가 저장한 설정 파일 경로를 가져옵니다
+            config_path = HydraConfig.get().runtime.output_dir
+            config_file = os.path.join(config_path, ".hydra", "config.yaml")
+            if os.path.exists(config_file):
+                print(f"Merged Config File: {config_file}")
+                wandb.log({"config_file_path": config_file})
+            else:
+                print(f"Config file not found at expected location: {config_file}")
+        except Exception as e:
+            print(f"Could not determine config file path: {e}")
+
     print("--- 검증 실행 시작 (Starting Validation Run) ---")
     print(f"사용할 검증 파일: {cfg.data.validation_path}")
     print(f"적용된 설정:\n{OmegaConf.to_yaml(cfg)}")
@@ -74,8 +90,18 @@ def run(cfg: DictConfig) -> None:
     print(f"Rerank_k 값을 {settings.RERANK_K}(으)로 오버라이드합니다.")
 
     # RAG 파이프라인을 초기화합니다.
+    # 설정에서 지정된 경로의 도구 설명 프롬프트를 읽어옵니다.
+    try:
+        with open(cfg.prompts.tool_description, 'r', encoding='utf-8') as f:
+            tool_desc = f.read()
+    except FileNotFoundError:
+        print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
+        return
+
+    # RAG 파이프라인을 초기화할 때 로드한 설명을 전달합니다.
     generator = get_generator(cfg)
-    pipeline = RAGPipeline(generator)
+    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
+
 
     # 검증 데이터를 읽어옵니다.
     try:
@@ -112,6 +138,8 @@ def run(cfg: DictConfig) -> None:
 
         # --- WandB 테이블 데이터 준비 (Preparing WandB Table Data) ---
         ap_score = average_precision(predicted_ids, relevant_ids)
+        if ap_score is None:
+            ap_score = 0.0
         # 테이블에는 쿼리, 정답 ID, 예측 ID 목록, AP 점수를 기록합니다.
         wandb_table_data.append([
             query,
@@ -122,6 +150,13 @@ def run(cfg: DictConfig) -> None:
 
     # 최종 MAP 점수를 계산합니다.
     map_score = mean_average_precision(all_results_for_map)
+
+    # MAP 점수를 포함하여 WandB 실행 이름 업데이트
+    if wandb.run is not None:
+        original_name = wandb.run.name
+        updated_name = f"{original_name}-map_{map_score:.4f}"
+        wandb.run.name = updated_name
+        print(f"WandB 실행 이름 업데이트: {original_name} -> {updated_name}")
 
     # --- WandB에 결과 로깅 (Logging Results to WandB) ---
     # 1. 상세 결과 테이블을 생성하고 로깅합니다.
@@ -139,7 +174,8 @@ def run(cfg: DictConfig) -> None:
     print(f"검증된 쿼리 수: {len(all_results_for_map)}")
     print(f"MAP Score: {map_score:.4f}")
     print("---------------------------")
-    print(f"WandB 실행 URL: {wandb.run.url}")
+    if wandb.run is not None:
+        print(f"WandB 실행 URL: {wandb.run.url}")
     wandb.finish()
 
 

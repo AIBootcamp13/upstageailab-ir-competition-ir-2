@@ -58,15 +58,18 @@ def run(cfg: DictConfig) -> None:
     from ir_core.generation import get_generator
     from ir_core.utils import read_jsonl
 
-    # 1. RAG 파이프라인 초기화
+    # 설정에서 지정된 경로의 도구 설명 프롬프트를 읽어옵니다.
     try:
-        generator = get_generator()
-        pipeline = RAGPipeline(generator)
-        print("RAG 파이프라인이 성공적으로 초기화되었습니다.")
-    except Exception as e:
-        print(f"RAG 파이프라인 초기화 실패: {e}")
+        with open(cfg.prompts.tool_description, 'r', encoding='utf-8') as f:
+            tool_desc = f.read()
+    except FileNotFoundError:
+        print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
         wandb.finish()
         return
+
+    # RAG 파이프라인을 초기화할 때 로드한 설명을 전달합니다.
+    generator = get_generator(cfg)
+    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
 
     # 출력 디렉토리가 존재하는지 확인
     output_path = cfg.data.output_path
@@ -109,6 +112,7 @@ def run(cfg: DictConfig) -> None:
 
         topk_ids = [d.get('id') for d in docs[:cfg.evaluate.topk]]
         context_texts = [d.get('content', '') for d in docs[:cfg.evaluate.topk]]
+        references = [{"score": d.get('score', 0.0), "content": d.get('content', '')} for d in docs[:cfg.evaluate.topk]]
 
         try:
             # 생성기는 재구성된 standalone_query를 사용해야 더 정확한 답변을 만듭니다.
@@ -124,6 +128,7 @@ def run(cfg: DictConfig) -> None:
             "standalone_query": standalone_query,
             "topk": topk_ids,
             "answer": answer_text,
+            "references": references,
         }
 
         with open(output_path, 'a', encoding='utf-8') as outf:

@@ -1,16 +1,12 @@
-# scripts/run_rag.py (top)
-from pathlib import Path
-try:
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
-except Exception:
-    pass
+# scripts/run_rag.py
 
-import fire
 import os
 import sys
 
-# Add the src directory to the Python path to allow for absolute imports
+# --- 새로운 임포트 (New Imports) ---
+import hydra
+from omegaconf import DictConfig
+
 def _add_src_to_path():
     scripts_dir = os.path.dirname(__file__)
     repo_dir = os.path.dirname(scripts_dir)
@@ -18,77 +14,63 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-def run_pipeline(query: str, generator_type: str = None):
-    """
-    Initializes and runs the full RAG pipeline for a given query.
+# --- 유틸리티 임포트 (Utility Imports) ---
+_add_src_to_path()
+# get_generator는 run_pipeline 함수 내부에서 임포트하여 순환 참조를 방지합니다.
 
-    This script demonstrates the end-to-end functionality of the RAG system,
-    including tool calling and final answer generation.
+@hydra.main(config_path="../conf", config_name="config", version_base=None)
+def run_pipeline(cfg: DictConfig) -> None:
+    """
+    Hydra 설정을 사용하여 주어진 쿼리에 대해 전체 RAG 파이프라인을 초기화하고 실행합니다.
 
     Args:
-        query: The question to ask the RAG system.
-        generator_type: The type of generator to use (e.g., 'openai' or 'ollama').
-                        Overrides the value in the config/environment.
+        cfg (DictConfig): Hydra에 의해 관리되는 설정 객체.
+                           'query'는 커맨드라인에서 오버라이드해야 합니다.
     """
-    _add_src_to_path()
-
-    # Import necessary components after setting up the path
-    from ir_core.config import settings
     from ir_core.generation import get_generator
     from ir_core.orchestration.pipeline import RAGPipeline
 
-    print("--- Initializing RAG System ---")
-
-    # If a generator_type is passed via CLI, it overrides the settings
-    if generator_type:
-        print(f"Using generator_type override from CLI: '{generator_type}'")
-        settings.GENERATOR_TYPE = generator_type
-
-    # 1. Initialize the appropriate generator using our factory
-    try:
-        generator = get_generator()
-        print(f"Successfully initialized generator of type: '{settings.GENERATOR_TYPE}'")
-    except ValueError as e:
-        print(f"Error initializing generator: {e}")
+    # Hydra 설정에서 쿼리를 가져옵니다.
+    query = cfg.get("query")
+    if not query:
+        print("오류: 쿼리가 제공되지 않았습니다. 커맨드라인에서 'query=\"질문 내용\"' 형식으로 전달하세요.")
         return
 
-    # 2. Initialize the main RAG pipeline with the chosen generator
-    pipeline = RAGPipeline(generator=generator)
+    print("--- RAG 시스템 초기화 ---")
 
-    # 3. Run the pipeline and print the final answer
+    # 1. 설정(cfg)을 전달하여 생성기를 초기화합니다. (오류 수정)
+    try:
+        generator = get_generator(cfg)
+        print(f"'{cfg.pipeline.generator_type}' 유형의 생성기가 성공적으로 초기화되었습니다.")
+    except ValueError as e:
+        print(f"생성기 초기화 오류: {e}")
+        return
+
+    # 2. RAG 파이프라인을 초기화하고, 설정에서 도구 설명을 읽어옵니다.
+    try:
+        with open(cfg.prompts.tool_description, 'r', encoding='utf-8') as f:
+            tool_desc = f.read()
+    except FileNotFoundError:
+        print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
+        return
+
+    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
+
+    # 3. 파이프라인을 실행하고 최종 답변을 출력합니다.
+    print(f"\n--- 쿼리 실행: '{query}' ---")
     final_answer = pipeline.run(query)
 
     print("\n===================================")
-    print("Final Answer:")
+    print("최종 답변:")
     print(final_answer)
     print("===================================")
 
 
 if __name__ == '__main__':
-    # Make sure src is on path so we can import the project's settings
-    _add_src_to_path()
-
-    # Try to load .env using python-dotenv if available; otherwise importing
-    # the project's pydantic settings will cause .env to be read as well.
     try:
         from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
 
-        # Load .env from the repo root
-        repo_root = os.path.dirname(os.path.dirname(__file__))
-        env_path = os.path.join(repo_root, ".env")
-        load_dotenv(env_path)
-    except Exception:
-        # Fallback: import settings to trigger pydantic's env_file mechanism
-        try:
-            from ir_core.config import settings  # type: ignore
-        except Exception:
-            pass
-
-    # Ensure OPENAI_API_KEY is set if using the openai generator
-    if (len(sys.argv) > 2 and 'openai' in sys.argv) or os.getenv("GENERATOR_TYPE", "openai") == "openai":
-         if not os.getenv("OPENAI_API_KEY"):
-              print("Error: OPENAI_API_KEY environment variable is not set.")
-              print("Please set it before running the pipeline with the OpenAI generator.")
-              sys.exit(1)
-
-    fire.Fire(run_pipeline)
+    run_pipeline()
