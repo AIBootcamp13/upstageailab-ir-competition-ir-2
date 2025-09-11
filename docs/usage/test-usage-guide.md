@@ -115,3 +115,14 @@ poetry run python scripts/reindex.py data/documents.jsonl --index test
 ---
 
 필요하시면 이 문서에 프로젝트 특화된 테스트 실행 예시(예: 환경변수, 테스트 데이터 준비, 자주 발생하는 실패와 해결법)를 추가해 드리겠습니다.
+
+
+---
+# 기본 설정으로 실행 (conf/model/default.yaml 사용)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+
+# alpha 값을 0.5로 변경하고, 50개 샘플만 사용하여 테스트
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.5 limit=50
+
+# 다른 모델 설정 파일을 사용하여 실행 (향후 conf/model/solar.yaml 등을 만들 경우)
+# PYTHONPATH=src poetry run python scripts/validate_retrieval.py model=solar

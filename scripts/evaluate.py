@@ -1,15 +1,18 @@
 # scripts/evaluate.py
-"""
-Runs the evaluation process for the RAG pipeline.
 
-This script iterates through an evaluation file (e.g., data/eval.jsonl),
-runs the retrieval part of the RAG pipeline for each query, and generates
-a submission file in the format required by the competition.
-"""
 import os
 import sys
+import json
 from tqdm import tqdm
-import fire
+
+# --- 새로운 임포트 (New Imports) ---
+import hydra
+from omegaconf import DictConfig, OmegaConf
+import wandb
+# ------------------------------------
+
+# OmegaConf가 ${env:VAR_NAME} 구문을 해석할 수 있도록 'env' 리졸버를 등록합니다.
+OmegaConf.register_new_resolver("env", os.getenv)
 
 # Add the src directory to the path to allow for project imports
 def _add_src_to_path():
@@ -19,124 +22,128 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-from typing import Optional
+# --- 유틸리티 임포트 (Utility Imports) ---
+_add_src_to_path()
+from ir_core.utils.wandb import generate_run_name
 
-
-def run(eval_path: str = 'data/eval.jsonl', out: str = 'outputs/submission.jsonl', limit: Optional[int] = None, topk: int = 3):
+@hydra.main(config_path="../conf", config_name="config", version_base=None)
+def run(cfg: DictConfig) -> None:
     """
-    Executes the evaluation against the RAG pipeline.
+    Hydra 설정을 사용하여 RAG 파이프라인에 대한 평가를 실행하고,
+    대회 제출 파일을 생성한 후 WandB에 아티팩트로 기록합니다.
 
     Args:
-        eval_path: Path to the evaluation JSONL file.
-        out: Path to write the final CSV submission file.
+        cfg (DictConfig): Hydra에 의해 관리되는 설정 객체.
     """
-    _add_src_to_path()
+    # --- WandB 초기화 (WandB Initialization) ---
+    # generate_run_name 유틸리티를 재사용하지만, 접두사를 'eval'로 설정합니다.
+    # OmegaConf.set_struct를 사용하여 cfg 객체를 임시로 수정 가능하게 만듭니다.
+    OmegaConf.set_struct(cfg, False)
+    cfg.wandb.run_name_prefix = cfg.wandb.run_name.evaluate
+    run_name = generate_run_name(cfg)
+    OmegaConf.set_struct(cfg, True) # 다시 읽기 전용으로 변경
+
+    wandb.init(
+        project=cfg.wandb.project,
+        entity=cfg.wandb.entity,
+        name=run_name,
+        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),
+        job_type="evaluation" # 작업 유형을 'evaluation'으로 지정
+    )
+    print(f"평가 실행 시작: {cfg.data.evaluation_path}")
+    print(f"적용된 설정:\n{OmegaConf.to_yaml(cfg)}")
 
     # Lazy imports after path is set
     from ir_core.orchestration.pipeline import RAGPipeline
     from ir_core.generation import get_generator
     from ir_core.utils import read_jsonl
-    import json
 
-    print(f"Starting evaluation run with file: {eval_path}")
-
-    # 1. Initialize the RAG pipeline.
-    # We only need the pipeline for its retrieval logic, but it requires a generator.
+    # 1. RAG 파이프라인 초기화
     try:
-        # The generator type is read from settings (.env file or environment)
         generator = get_generator()
         pipeline = RAGPipeline(generator)
-        print("RAG pipeline initialized successfully.")
+        print("RAG 파이프라인이 성공적으로 초기화되었습니다.")
     except Exception as e:
-        print(f"Failed to initialize RAG pipeline: {e}")
+        print(f"RAG 파이프라인 초기화 실패: {e}")
+        wandb.finish()
         return
 
-    # Ensure the output directory exists
-    output_dir = os.path.dirname(out)
+    # 출력 디렉토리가 존재하는지 확인
+    output_path = cfg.data.output_path
+    output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 2. Process each item in the evaluation file
-    eval_items = list(read_jsonl(eval_path))
-    # Allow quick testing by limiting the number of evaluation items processed
-    if limit is not None:
-        try:
-            limit = int(limit)
-            eval_items = eval_items[:limit]
-            print(f"Limiting evaluation to first {limit} items for testing.")
-        except Exception:
-            print("Warning: Could not parse 'limit' into int; ignoring limit.")
-    submission_rows = []
+    # 만약 이전에 생성된 제출 파일이 있다면 삭제하여 덮어쓰기를 방지합니다.
+    if os.path.exists(output_path):
+        os.remove(output_path)
+        print(f"기존 제출 파일 삭제: {output_path}")
 
-    print(f"Processing {len(eval_items)} evaluation queries...")
+    # 2. 평가 파일의 각 항목 처리
+    eval_items = list(read_jsonl(cfg.data.evaluation_path))
+
+    # 샘플 제한 로직 적용
+    if cfg.limit:
+        print(f"평가를 처음 {cfg.limit}개 항목으로 제한합니다.")
+        eval_items = eval_items[:cfg.limit]
+
+    print(f"{len(eval_items)}개의 평가 쿼리를 처리합니다...")
     for item in tqdm(eval_items, desc="Evaluating Queries"):
-        # The last message in the list is the user's query
-        query = item.get('msg', [{'content': ''}])[-1].get('content', '')
+        query = item.get('msg', [{}])[-1].get('content', '')
         eval_id = item.get('eval_id')
 
         if not query or eval_id is None:
             continue
 
-        # 3. Use the pipeline's dedicated retrieval method to get tool results.
-        # The updated pipeline returns a list containing a dict with
-        # 'standalone_query' and 'docs' keys when a tool is called.
         retrieval_out = pipeline.run_retrieval_only(query)
 
-        standalone_query = query
+        # --- 포맷 수정 로직 (Format Correction Logic) ---
+        # 파이프라인 출력에서 standalone_query와 docs를 안전하게 추출합니다.
+        standalone_query = query # 기본값은 원본 쿼리
         docs = []
-        if retrieval_out:
-            # We expect retrieval_out like: [{"standalone_query":..., "docs": [...] }]
-            entry = retrieval_out[0]
-            standalone_query = entry.get('standalone_query', query)
-            docs = entry.get('docs', [])
+        if retrieval_out and isinstance(retrieval_out, list) and retrieval_out[0]:
+            retrieval_result = retrieval_out[0]
+            standalone_query = retrieval_result.get('standalone_query', query)
+            docs = retrieval_result.get('docs', [])
+        # ----------------------------------------------------
 
-        # topk ids for submission
-        topk_ids = [d.get('id') for d in docs[:topk]]
+        topk_ids = [d.get('id') for d in docs[:cfg.evaluate.topk]]
+        context_texts = [d.get('content', '') for d in docs[:cfg.evaluate.topk]]
 
-        # Generate an answer using the generator (pass the content as context)
-        context_texts = [d.get('content', '') for d in docs[:topk]]
         try:
+            # 생성기는 재구성된 standalone_query를 사용해야 더 정확한 답변을 만듭니다.
             answer_text = pipeline.generator.generate(query=standalone_query, context_docs=context_texts)
         except Exception as e:
-            print(f"Warning: generator failed for eval_id {eval_id}: {e}")
+            print(f"경고: eval_id {eval_id}에 대한 답변 생성 실패: {e}")
             answer_text = ""
 
-        # Build references list with score and content where available
-        references = []
-        for d in docs[:topk]:
-            references.append({
-                "score": d.get('score'),
-                "content": d.get('content', '')
-            })
-
+        # --- 최종 레코드 생성 (수정됨) ---
+        # standalone_query 필드를 최종 제출 파일에 추가합니다.
         record = {
             "eval_id": eval_id,
             "standalone_query": standalone_query,
             "topk": topk_ids,
             "answer": answer_text,
-            "references": references,
         }
 
-        # Write a JSONL line immediately to avoid keeping everything in memory
-        with open(out, 'a', encoding='utf-8') as outf:
+        with open(output_path, 'a', encoding='utf-8') as outf:
             outf.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    # 5. Final message
-    print(f"\nEvaluation complete. Submission records written to: {out}")
+    print(f"\n평가 완료. 제출 기록이 다음 파일에 저장되었습니다: {output_path}")
+    submission_artifact = wandb.Artifact("submission", type="submission-file")
+    submission_artifact.add_file(output_path)
+    wandb.log_artifact(submission_artifact)
+    print("제출 파일이 WandB 아티팩트로 성공적으로 로깅되었습니다.")
+
+    wandb.finish()
 
 
 if __name__ == '__main__':
-    # Ensure OPENAI_API_KEY is available as the pipeline needs it for decisions.
-    if not os.getenv("OPENAI_API_KEY"):
-        # Attempt to load from .env file for convenience
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-        except ImportError:
-            pass
-        if not os.getenv("OPENAI_API_KEY"):
-            print("Error: OPENAI_API_KEY environment variable is not set.")
-            print("Please set it before running the evaluation script.")
-            sys.exit(1)
+    # .env 파일 로딩을 시도합니다 (OpenAI API 키 등을 위해).
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
 
-    fire.Fire(run)
+    run()

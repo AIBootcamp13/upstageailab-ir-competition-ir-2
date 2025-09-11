@@ -1,25 +1,17 @@
 # scripts/create_validation_set.py
-"""
-Generates a synthetic validation dataset by creating questions for existing documents.
 
-This script reads a sample of documents from the main document collection,
-uses an LLM to generate a relevant question for each, and saves the resulting
-(query, relevant_document_id) pairs to a new JSONL file.
-
-This validation set is invaluable for tuning hyperparameters (like the reranking
-alpha) and testing different prompt strategies without using the official
-evaluation set, preventing data leakage and providing a reliable way to
-measure performance improvements.
-"""
 import os
 import sys
 import json
 import random
-from tqdm import tqdm
-import openai
-import fire
+import asyncio
+from tqdm.asyncio import tqdm_asyncio
 
-# Add the src directory to the Python path to allow for absolute imports
+import hydra
+import openai
+import jinja2 # Jinja2 템플릿 렌더링을 위해 임포트
+from omegaconf import DictConfig
+
 def _add_src_to_path():
     scripts_dir = os.path.dirname(__file__)
     repo_dir = os.path.dirname(scripts_dir)
@@ -27,113 +19,88 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
-# --- FIX: Updated prompt to ensure Korean language output ---
-QUESTION_GENERATION_PROMPT = """
-당신은 과학 지식 검색 시스템 평가를 위한 고품질 질문을 만드는 전문가입니다.
-제공된 문서 내용을 바탕으로, 명확하고 관련성 높은 한국어 질문을 하나만 생성하는 것이 당신의 임무입니다.
+# --- 비동기 질문 생성 함수 (수정됨) ---
+# 이제 프롬프트 템플릿 문자열을 인자로 받습니다.
+async def generate_question_for_document(
+    client: openai.AsyncOpenAI,
+    document_content: str,
+    model: str,
+    prompt_template: str
+) -> str | None:
+    """주어진 문서와 프롬프트 템플릿으로 비동기적으로 LLM을 사용하여 단일 질문을 생성합니다."""
+    # Jinja2를 사용하여 문서 내용을 프롬프트 템플릿에 삽입합니다.
+    rendered_prompt = jinja2.Template(prompt_template).render(document_content=document_content)
 
-**지침:**
-- 질문은 반드시 주어진 문서의 정보만으로 답변할 수 있어야 합니다.
-- 자연스러운 사람의 질문처럼 작성해야 합니다.
-- **반드시 한국어로 질문을 생성해야 합니다.**
-- "생성된 질문:"과 같은 군더더기 없이, 질문 자체만 출력해야 합니다.
-
-**문서 내용:**
----
-{document_content}
----
-
-**생성된 한국어 질문:**
-"""
-
-def generate_question_for_document(client, document_content: str, model: str = None) -> str:
-    """Uses an LLM to generate a single question for a given document.
-
-    Default model prefers a cheaper/faster option; override via `model` arg
-    or OPENAI_MODEL env var. Consider using an open-source local model
-    (Mistral, Llama 2) served via HuggingFace/replicate if you need much lower cost.
-    """
-    model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # cheaper/faster alternative to gpt-3.5-turbo (verify availability/pricing)
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "user", "content": QUESTION_GENERATION_PROMPT.format(document_content=document_content)}
-            ],
+            messages=[{"role": "user", "content": rendered_prompt}],
             temperature=0.3,
             max_tokens=100,
         )
-        if getattr(response, "choices", None):
+        if response.choices:
             return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"  - Error generating question with model={model}: {e}")
+        print(f"  - 모델={model} 질문 생성 중 오류 발생: {e}")
     return None
 
-def run(
-    input_file: str = "data/documents.jsonl",
-    output_file: str = "data/validation_220.jsonl",
-    sample_size: int = 220
-):
-    """
-    Creates a validation dataset from a sample of documents.
-
-    Args:
-        input_file: Path to the input documents.jsonl file.
-        output_file: Path where the new validation.jsonl file will be saved.
-        sample_size: The number of documents to sample for question generation.
-    """
+@hydra.main(config_path="../conf", config_name="config", version_base=None)
+async def run(cfg: DictConfig) -> None:
+    """문서 샘플로부터 비동기적으로 검증 데이터셋을 생성합니다."""
     _add_src_to_path()
     from ir_core.utils import read_jsonl
 
-    print(f"Starting validation set creation from '{input_file}'...")
-    print(f"Will generate questions for {sample_size} random documents.")
+    # --- 설정에서 값 불러오기 (수정됨) ---
+    input_file = cfg.data.documents_path
+    output_file = cfg.data.validation_path
+    sample_size = cfg.create_validation_set.sample_size
+    model_name = cfg.create_validation_set.llm_model
+    prompt_path = cfg.create_validation_set.prompt_path # 설정에서 프롬프트 경로를 읽어옵니다.
+
+    print(f"'{input_file}' 파일로부터 검증 데이터셋 생성을 시작합니다...")
+    print(f"'{prompt_path}' 프롬프트를 사용하여 {sample_size}개의 질문을 생성합니다.")
 
     if not os.getenv("OPENAI_API_KEY"):
-        print("\nError: OPENAI_API_KEY environment variable is not set.")
-        print("Please set it before running this script.")
+        print("\n오류: OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
         return
 
-    client = openai.OpenAI()
+    # --- 프롬프트 파일 로드 (추가됨) ---
+    try:
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            prompt_template_content = f.read()
+    except FileNotFoundError:
+        print(f"오류: '{prompt_path}'에서 프롬프트 파일을 찾을 수 없습니다.")
+        return
 
-    # Read all documents into memory to sample from them
-    print("Reading all documents to create a random sample...")
+    client = openai.AsyncOpenAI()
     all_docs = list(read_jsonl(input_file))
 
-    if len(all_docs) < sample_size:
-        print(f"Warning: Sample size ({sample_size}) is larger than the number of documents ({len(all_docs)}). Using all documents.")
-        sample_docs = all_docs
-    else:
-        sample_docs = random.sample(all_docs, sample_size)
+    sample_docs = random.sample(all_docs, min(sample_size, len(all_docs)))
+
+    # --- 비동기 작업 생성 (수정됨) ---
+    # 이제 로드된 프롬프트 내용을 각 작업에 전달합니다.
+    tasks = [
+        generate_question_for_document(client, doc.get("content", ""), model_name, prompt_template_content)
+        for doc in sample_docs
+    ]
+
+    questions = await tqdm_asyncio.gather(*tasks)
 
     validation_set = []
-    print(f"Generating questions for {len(sample_docs)} documents...")
-    for doc in tqdm(sample_docs, desc="Generating Questions"):
-        doc_id = doc.get("docid")
-        content = doc.get("content")
-
-        if not doc_id or not content:
-            continue
-
-        question = generate_question_for_document(client, content)
-
+    for doc, question in zip(sample_docs, questions):
         if question:
-            validation_entry = {
+            doc_id = doc.get("docid")
+            validation_set.append({
                 "eval_id": f"val_{doc_id}",
                 "msg": [{"role": "user", "content": question}],
-                "ground_truth_doc_id": doc_id # Store the correct answer for evaluation
-            }
-            validation_set.append(validation_entry)
+                "ground_truth_doc_id": doc_id
+            })
 
-    print(f"\nSuccessfully generated {len(validation_set)} question-document pairs.")
-
-    # Save the new validation set to the output file
+    print(f"\n성공적으로 {len(validation_set)}개의 질문-문서 쌍을 생성했습니다.")
     with open(output_file, 'w', encoding='utf-8') as f:
         for entry in validation_set:
             f.write(json.dumps(entry, ensure_ascii=False) + '\n')
-
-    print(f"Validation dataset saved to '{output_file}'.")
-    print("\nYou can now use this file to test and tune your RAG pipeline's retrieval performance.")
+    print(f"검증 데이터셋이 '{output_file}'에 저장되었습니다.")
 
 if __name__ == "__main__":
-    fire.Fire(run)
-
+    run()

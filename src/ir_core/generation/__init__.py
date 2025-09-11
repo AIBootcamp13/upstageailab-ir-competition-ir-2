@@ -1,30 +1,45 @@
 # src/ir_core/generation/__init__.py
-from ..config import settings
+
+from typing import TYPE_CHECKING
 from .base import BaseGenerator
 from .openai import OpenAIGenerator
 from .ollama import OllamaGenerator
 
-def get_generator() -> BaseGenerator:
-    """
-    Factory function to get the appropriate generator based on settings.
-    This function reads the `GENERATOR_TYPE` from the settings and returns
-    an instantiated generator object.
+# TYPE_CHECKING 블록은 순환 참조 오류 없이 타입 힌트를 제공하기 위해 사용됩니다.
+if TYPE_CHECKING:
+    from omegaconf import DictConfig
 
-    Returns:
-        An instance of a class that inherits from BaseGenerator.
+def get_generator(cfg: "DictConfig") -> BaseGenerator:
+    """
+    Hydra 설정(cfg)을 기반으로 적절한 생성기 인스턴스를 생성하고 반환하는 팩토리 함수입니다.
+
+    Args:
+        cfg (DictConfig): Hydra에 의해 관리되는 전체 설정 객체.
 
     Raises:
-        ValueError: If the generator_type in settings is unknown.
+        ValueError: cfg.pipeline.generator_type이 알 수 없는 값일 경우 발생합니다.
+
+    Returns:
+        BaseGenerator: 설정에 따라 초기화된 OpenAIGenerator 또는 OllamaGenerator 인스턴스.
     """
-    generator_type = settings.GENERATOR_TYPE.lower()
+    # 설정에서 생성기 유형을 읽어옵니다.
+    generator_type = cfg.pipeline.generator_type.lower()
 
     if generator_type == "openai":
-        return OpenAIGenerator()
+        # OpenAI 생성기를 초기화할 때, 설정 파일의 상세 경로들을 전달합니다.
+        return OpenAIGenerator(
+            model_name=cfg.pipeline.generator_model_name,
+            prompt_template_path=cfg.prompts.generation_qa,
+            persona_path=cfg.prompts.persona
+        )
     elif generator_type == "ollama":
-        return OllamaGenerator()
+        # Ollama 생성기 또한 일관성을 위해 설정 객체로부터 초기화되도록 수정합니다.
+        return OllamaGenerator(
+            model_name=cfg.pipeline.generator_model_name,
+            prompt_template_path=cfg.prompts.generation_qa
+        )
     else:
-        raise ValueError(f"Unknown generator type: '{generator_type}'")
+        raise ValueError(f"알 수 없는 생성기 유형입니다: '{generator_type}'")
 
-# By adding __all__, we explicitly define the public API of this package.
-# This fixes the "unknown import symbol" error for linters and other tools.
+# 이 패키지의 공개 API를 명시적으로 정의합니다.
 __all__ = ["get_generator", "BaseGenerator"]

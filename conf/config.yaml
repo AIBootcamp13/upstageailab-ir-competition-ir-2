@@ -1,9 +1,41 @@
-defaults:
-  - _self_
+# conf/config.yaml
 
-es_host: ${env:ES_HOST}
-index_name: ${env:INDEX_NAME}
-embedding_model: ${env:EMBEDDING_MODEL}
-bm25_k: 200
-rerank_k: 10
-alpha: 0.0
+# =================================================================
+# 기본 설정 (Main Configuration)
+# =================================================================
+# 이 파일은 Hydra의 기본 진입점 역할을 하며, 다른 설정 파일들을 조합합니다.
+
+defaults:
+  - data: science_qa    # conf/data/science_qa.yaml 파일을 기본값으로 포함
+  - model: default      # conf/model/default.yaml 파일을 기본값으로 포함
+  - pipeline: default  # 파이프라인 설정 추가
+  - prompts: default   # 프롬프트 설정 추가
+  - _self_              # 이 파일 자체의 설정을 마지막에 적용
+
+limit: null # 빠른 테스트를 위한 샘플 데이터 수 제한 (null일 경우 전체 데이터 사용)
+
+# --- 인프라 설정 (Infrastructure Settings) ---
+# .env 파일 또는 환경 변수에서 값을 가져옵니다.
+es_host: ${env:ES_HOST, "http://localhost:9200"}
+index_name: ${env:INDEX_NAME, "test"}
+redis_url: ${env:REDIS_URL, "redis://localhost:6379/0"}
+
+# --- 실험 추적 설정 (Experiment Tracking - WandB) ---
+wandb:
+  project: "scientific-qa-rag" # WandB 프로젝트 이름
+  entity: ${env:WANDB_ENTITY}  # WandB 사용자 또는 팀 이름
+
+  # 스크립트 유형별로 실행 이름 접두사를 설정합니다.
+  run_name:
+    validate: "val"      # 검증 스크립트용 접두사
+    evaluate: "eval"     # 평가(제출) 스크립트용 접두사
+
+# --- 스크립트별 설정 (Script-Specific Settings) ---
+reindex:
+  batch_size: 500
+
+evaluate:
+  topk: 3
+
+create_validation_set:
+  sample_size: 50 # 생성할 질문-문서 쌍의 수

@@ -1,3 +1,5 @@
+# src/ir_core/generation/openai.py
+
 import os
 from typing import List, Optional, Any, cast
 import openai
@@ -6,65 +8,60 @@ from .base import BaseGenerator
 
 class OpenAIGenerator(BaseGenerator):
     """
-    A concrete implementation of the BaseGenerator for OpenAI models.
-
-    This class interfaces with the OpenAI API to generate answers.
-    It uses a Jinja2 template to construct the prompt.
+    OpenAI 모델을 위한 BaseGenerator의 구체적인 구현체입니다.
+    이 클래스는 OpenAI API와 상호 작용하여 답변을 생성하며,
+    Jinja2 템플릿을 사용하여 프롬프트를 구성합니다.
     """
     def __init__(
         self,
-        model_name: str = "gpt-3.5-turbo",
-        prompt_template_path: Optional[str] = None,
+        model_name: str,
+        prompt_template_path: str,
+        persona_path: Optional[str] = None,
         client: Optional[openai.OpenAI] = None,
     ):
         """
-        Initializes the OpenAI generator.
+        OpenAI 생성기를 초기화합니다.
 
         Args:
-            model_name: The name of the OpenAI model to use.
-            prompt_template_path: Path to the Jinja2 prompt template file.
-            client: An optional pre-configured OpenAI client instance.
+            model_name (str): 사용할 OpenAI 모델의 이름.
+            prompt_template_path (str): 답변 생성에 사용할 Jinja2 프롬프트 템플릿 파일 경로.
+            persona_path (str, optional): 시스템 메시지로 사용할 페르소나 파일 경로. Defaults to None.
+            client (Optional[openai.OpenAI], optional): 미리 설정된 OpenAI 클라이언트 인스턴스. Defaults to None.
         """
-        from ..config import settings
-
         self.model_name = model_name
         self.client = client or openai.OpenAI()
-        # Prefer the prompt template path from settings if not provided
-        self.prompt_template_path = prompt_template_path or settings.PROMPT_TEMPLATE_PATH
+        self.prompt_template_path = prompt_template_path
 
-        # Set up Jinja2 environment to load templates from the project root
+        # Jinja2 환경을 설정하여 프로젝트 루트에서 템플릿을 로드합니다.
         self.jinja_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(os.getcwd()),
             trim_blocks=True,
             lstrip_blocks=True,
         )
 
-        # Load default system persona message from env or file or settings
-        self.default_persona = os.getenv("GENERATOR_SYSTEM_MESSAGE", "")
-        # If env var not set, try reading from configured file
-        if not self.default_persona:
+        # --- 페르소나 로딩 로직 (수정됨) ---
+        # 이제 명시적으로 제공된 persona_path에서 시스템 메시지를 로드합니다.
+        self.default_persona = ""
+        if persona_path and os.path.exists(persona_path):
             try:
-                persona_file = getattr(settings, "GENERATOR_SYSTEM_MESSAGE_FILE", None)
-                if persona_file and os.path.exists(persona_file):
-                    with open(persona_file, "r", encoding="utf-8") as pf:
-                        self.default_persona = pf.read()
-            except Exception:
-                self.default_persona = ""
+                with open(persona_path, "r", encoding="utf-8") as pf:
+                    self.default_persona = pf.read()
+                print(f"'{persona_path}'에서 페르소나를 성공적으로 로드했습니다.")
+            except Exception as e:
+                print(f"경고: '{persona_path}'에서 페르소나를 로드하는 중 오류 발생: {e}")
+        else:
+            print("페르소나 경로가 제공되지 않았거나 파일이 존재하지 않습니다. 기본 시스템 메시지를 사용합니다.")
 
-        # Final fallback to settings.GENERATOR_SYSTEM_MESSAGE
-        if not self.default_persona:
-            self.default_persona = getattr(settings, "GENERATOR_SYSTEM_MESSAGE", "")
 
-    def _render_prompt(self, query: str, context_docs: List[str]) -> str:
-        """Loads and renders the Jinja2 prompt template."""
+    def _render_prompt(self, query: str, context_docs: List[str], template_path: str) -> str:
+        """지정된 경로의 Jinja2 프롬프트 템플릿을 로드하고 렌더링합니다."""
         try:
-            template = self.jinja_env.get_template(self.prompt_template_path)
+            template = self.jinja_env.get_template(template_path)
             return template.render(query=query, context_docs=context_docs)
         except jinja2.TemplateNotFound:
-            # Provide a fallback or a clearer error
             raise FileNotFoundError(
-                f"Prompt template not found at '{self.prompt_template_path}'. "
-                f"Ensure the path is correct relative to the project root."
+                f"'{template_path}'에서 프롬프트 템플릿을 찾을 수 없습니다. "
+                f"프로젝트 루트 기준 경로가 올바른지 확인하세요."
             )
 
     def generate(
@@ -74,40 +71,30 @@ class OpenAIGenerator(BaseGenerator):
         prompt_template_path: Optional[str] = None,
     ) -> str:
         """
-        Generates an answer using the OpenAI Chat Completions API with a templated prompt.
+        템플릿화된 프롬프트를 사용하여 OpenAI Chat Completions API로 답변을 생성합니다.
         """
-        # 1. Construct the prompt from the template
+        # 호출 시 특정 템플릿 경로가 제공되면 그것을 사용하고, 아니면 인스턴스의 기본값을 사용합니다.
+        template_to_use = prompt_template_path or self.prompt_template_path
+
         try:
-            full_prompt = self._render_prompt(query, context_docs)
+            full_prompt = self._render_prompt(query, context_docs, template_to_use)
         except FileNotFoundError as e:
             print(e)
-            return "Error: Could not generate an answer due to a missing prompt template."
+            return "오류: 프롬프트 템플릿을 찾을 수 없어 답변을 생성할 수 없습니다."
 
-        # 2. Call the OpenAI API. We include an explicit system message to enforce Korean
         try:
-            # If a different template path is provided at call time, use it
-            if prompt_template_path:
-                self.prompt_template_path = prompt_template_path
+            messages = []
+            if self.default_persona:
+                messages.append({"role": "system", "content": self.default_persona})
+            messages.append({"role": "user", "content": full_prompt})
 
-            messages = [
-                {"role": "system", "content": self.default_persona},
-                {"role": "user", "content": full_prompt},
-            ]
-
-            # The OpenAI client expects specific message param types; to avoid
-            # strict typing issues with local stubs we cast to Any here.
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=cast(Any, messages),
                 temperature=0.2,
             )
-            # 3. Extract and return the answer
-            if response.choices:
-                return response.choices[0].message.content or "No answer was generated."
-            else:
-                return "The model did not return a valid response."
 
+            return response.choices[0].message.content or "모델이 답변을 생성하지 않았습니다."
         except Exception as e:
-            print(f"An error occurred while calling the OpenAI API: {e}")
-            return "Error: Could not generate an answer from the model."
-
+            print(f"OpenAI API 호출 중 오류 발생: {e}")
+            return "오류: 모델로부터 답변을 생성하는 데 실패했습니다."
