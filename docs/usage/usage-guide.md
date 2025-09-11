@@ -1,6 +1,26 @@
 # **🚀 프로젝트 사용 가이드**
 
-이 문서는 RAG(Retrieval-Augmented Generation) 프로젝트의 주요 기능을 사용하고, 성능을 튜닝하며, 대회를 위한 제출물을 생성하는 전체 워크플로우를 안내합니다.
+이 문서는 RAG(Retrieval-Augmented Generation) 프로젝트의 주요 기능을 사용하고### **3.2. 검색 성능 검증 및 하이퍼파라미터 튜닝**
+
+validate_retrieval.py 스크립트는 validation.jsonl 파일을 사용하여 현재 모델의 검색 성능을 **MAP(Mean Average Precision)** 점수로 측정합니다. 이 스크립트를 사용하여 다양한 하이퍼파라미터를 테스트하고 최적의 조합을 찾을 수 있습니다.
+
+**샘플 수 제한:** 빠른 테스트를 위해 샘플 수를 제한할 수 있습니다. 기본적으로 전체 검증 데이터를 사용하지만, `params.retrieval.max_samples` 파라미터로 제한할 수 있습니다 (0이면 전체 사용).
+
+사용 예시: alpha 값 튜닝
+alpha는 BM25(키워드 검색)와 시맨틱 검색(의미 기반 검색)의 가중치를 조절하는 중요한 파라미터입니다.
+# 기준 성능 측정 (alpha 기본값 사용)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+
+# 시맨틱 검색에 더 큰 가중치를 부여하여 테스트
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py params.retrieval.alpha=0.3
+
+# 키워드 검색에 더 큰 가중치를 부여하여 테스트
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py params.retrieval.alpha=0.7
+
+# 10개 샘플로 빠른 테스트
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py params.retrieval.max_samples=10
+
+각각의 MAP 점수를 비교하여 가장 높은 점수를 내는 alpha 값을 찾은 후, 그 값을 최종 모델에 적용할 수 있습니다.위한 제출물을 생성하는 전체 워크플로우를 안내합니다.
 
 ## **목차**
 
@@ -61,6 +81,11 @@ evaluate.py 스크립트는 공식 평가 데이터(eval.jsonl)를 사용하여 
 PYTHONPATH=src poetry run python scripts/evaluate.py
 
 실행이 완료되면 outputs/ 디렉토리에서 제출 파일을 확인할 수 있습니다.
+
+**샘플 수 제한:** 빠른 테스트를 위해 샘플 수를 제한할 수 있습니다. 기본적으로 전체 평가 데이터를 사용하지만, `params.submission.max_samples` 파라미터로 제한할 수 있습니다 (0이면 전체 사용).
+
+# 10개 샘플로 빠른 제출 파일 생성
+PYTHONPATH=src poetry run python scripts/evaluate.py params.submission.max_samples=10
 
 ## **3. 모델 성능 튜닝 및 검증**
 

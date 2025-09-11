@@ -83,3 +83,4 @@ outputs/
 notebooks/
 *.ipynb
 wandb/
+ docs/notes/journal/

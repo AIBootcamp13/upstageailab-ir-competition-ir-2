@@ -55,17 +55,16 @@ class OpenAIGenerator(BaseGenerator):
         if not self.default_persona:
             self.default_persona = getattr(settings, "GENERATOR_SYSTEM_MESSAGE", "")
 
-    def _render_prompt(self, query: str, context_docs: List[str]) -> str:
-        """Loads and renders the Jinja2 prompt template."""
+    def _render_prompt(self, query: str, context_docs: List[str], template_path: str) -> str:
+        """지정된 템플릿 경로를 사용하여 프롬프트를 로드하고 렌더링합니다."""
         try:
-            template = self.jinja_env.get_template(self.prompt_template_path)
+            template = self.jinja_env.get_template(template_path)
             return template.render(query=query, context_docs=context_docs)
         except jinja2.TemplateNotFound:
-            # Provide a fallback or a clearer error
             raise FileNotFoundError(
-                f"Prompt template not found at '{self.prompt_template_path}'. "
-                f"Ensure the path is correct relative to the project root."
+                f"프롬프트 템플릿을 '{template_path}'에서 찾을 수 없습니다."
             )
+
 
     def generate(
         self,
@@ -74,40 +73,33 @@ class OpenAIGenerator(BaseGenerator):
         prompt_template_path: Optional[str] = None,
     ) -> str:
         """
-        Generates an answer using the OpenAI Chat Completions API with a templated prompt.
+        OpenAI Chat Completions API를 사용하여 답변을 생성합니다.
+        이제 특정 프롬프트 템플릿을 동적으로 선택할 수 있습니다.
         """
-        # 1. Construct the prompt from the template
+        # 호출 시 특정 템플릿 경로가 제공되지 않으면, 인스턴스의 기본 경로를 사용합니다.
+        template_path = prompt_template_path or self.prompt_template_path
+
         try:
-            full_prompt = self._render_prompt(query, context_docs)
+            # 사용할 템플릿 경로를 명시적으로 전달합니다.
+            full_prompt = self._render_prompt(query, context_docs, template_path)
         except FileNotFoundError as e:
             print(e)
-            return "Error: Could not generate an answer due to a missing prompt template."
+            return "오류: 프롬프트 템플릿이 없어 답변을 생성할 수 없습니다."
 
-        # 2. Call the OpenAI API. We include an explicit system message to enforce Korean
         try:
-            # If a different template path is provided at call time, use it
-            if prompt_template_path:
-                self.prompt_template_path = prompt_template_path
-
             messages = [
                 {"role": "system", "content": self.default_persona},
                 {"role": "user", "content": full_prompt},
             ]
 
-            # The OpenAI client expects specific message param types; to avoid
-            # strict typing issues with local stubs we cast to Any here.
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=cast(Any, messages),
                 temperature=0.2,
             )
-            # 3. Extract and return the answer
-            if response.choices:
-                return response.choices[0].message.content or "No answer was generated."
-            else:
-                return "The model did not return a valid response."
+            return response.choices[0].message.content or "모델이 유효한 답변을 반환하지 않았습니다."
 
         except Exception as e:
-            print(f"An error occurred while calling the OpenAI API: {e}")
-            return "Error: Could not generate an answer from the model."
+            print(f"OpenAI API 호출 중 오류 발생: {e}")
+            return "오류: 모델로부터 답변을 생성할 수 없습니다."
 

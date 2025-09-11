@@ -1,0 +1,17 @@
+# @package _group_
+# 이 파일은 프로젝트에서 사용하는 모든 Jinja2 프롬프트 템플릿의 경로를 관리합니다.
+
+# 1단계: 사용자의 의도를 'scientific_question' 또는 'chit_chat'으로 분류하는 프롬프트
+classify_intent: "prompts/classify_intent.jinja2"
+
+# 2단계: 과학적 질문일 경우, 검색에 적합한 독립형 쿼리를 생성하는 프롬프트
+rewrite_query: "prompts/rewrite_query.jinja2"
+
+# RAG 파이프라인에서 검색된 문맥을 바탕으로 최종 답변을 생성하는 프롬프트
+generation_qa: "prompts/scientific_qa_v1.jinja2"
+
+# 일반 대화(chit-chat) 상황에서 친근한 답변을 생성하는 프롬프트
+conversational: "prompts/conversational_v1.jinja2"
+
+# 답변 생성 시 LLM에 부여할 기본 역할 또는 페르소나를 정의하는 텍스트 파일
+persona: "prompts/persona_qa.txt"

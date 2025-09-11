@@ -1,0 +1,14 @@
+# conf/paths/base.yaml
+
+# 프로젝트에서 사용하는 주요 파일 경로를 정의합니다.
+# 이를 통해 모든 경로를 한 곳에서 관리할 수 있습니다.
+data_dir: "data"
+outputs_dir: "outputs"
+
+# 입력 파일 경로
+documents: ${paths.data_dir}/documents.jsonl
+evaluation: ${paths.data_dir}/eval.jsonl
+validation: ${paths.data_dir}/validation.jsonl
+
+# 출력 파일 경로
+submission: ${paths.outputs_dir}/submission.jsonl

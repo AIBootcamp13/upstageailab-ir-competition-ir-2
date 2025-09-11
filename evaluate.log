@@ -1,0 +1,38 @@
+[2025-09-11 08:52:43,451][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:45,150][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:45,171][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.011s]
+[2025-09-11 08:52:48,046][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:49,529][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:50,579][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:50,599][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.004s]
+[2025-09-11 08:52:51,496][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:52,356][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:53,485][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:54,539][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:55,608][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:55,618][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.006s]
+[2025-09-11 08:52:56,515][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:57,637][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:58,555][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:52:58,573][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.004s]
+[2025-09-11 08:52:59,369][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:00,534][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:01,470][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:01,491][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.012s]
+[2025-09-11 08:53:02,892][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:03,855][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:04,641][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:04,666][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.014s]
+[2025-09-11 08:53:06,986][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:07,914][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:08,788][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:08,805][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.012s]
+[2025-09-11 08:53:09,759][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:10,717][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:12,314][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:12,338][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.012s]
+[2025-09-11 08:53:14,451][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:15,992][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:16,795][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[2025-09-11 08:53:16,818][elastic_transport.transport][INFO] - POST http://localhost:9200/test/_search [status:200 duration:0.012s]
+[2025-09-11 08:53:17,465][httpx][INFO] - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"

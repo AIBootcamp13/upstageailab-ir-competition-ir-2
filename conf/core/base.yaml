@@ -1,0 +1,9 @@
+# conf/core/base.yaml
+
+# 핵심 애플리케이션 설정을 정의합니다.
+# 이 값들은 환경 변수에서 가져와야 하며, Pydantic 설정 클래스가 이를 처리합니다.
+# Hydra는 .env 파일을 자동으로 로드하므로 추가 설정이 필요 없습니다.
+es_host: ${env:ES_HOST, "http://localhost:9200"}
+index_name: ${env:INDEX_NAME, "test"}
+embedding_model: ${env:EMBEDDING_MODEL, "snunlp/KR-SBERT-V40K-klueNLI-augSTS"}
+generator_type: "openai"
