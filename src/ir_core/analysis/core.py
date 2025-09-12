@@ -78,6 +78,15 @@ class AnalysisResult:
     avg_retrieval_time: float
     error_categories: Dict[str, int]
 
+    # Error analysis (Phase 4 enhancement)
+    query_understanding_failures: Dict[str, int] = field(default_factory=dict)
+    retrieval_failures: Dict[str, int] = field(default_factory=dict)
+    system_failures: Dict[str, int] = field(default_factory=dict)
+    error_patterns: Dict[str, Any] = field(default_factory=dict)
+    domain_error_rates: Dict[str, float] = field(default_factory=dict)
+    temporal_trends: Dict[str, List[float]] = field(default_factory=dict)
+    error_recommendations: List[str] = field(default_factory=list)
+
     # Phase 3: Retrieval Quality Assessment
     performance_segmentation: Dict[str, int] = field(default_factory=dict)  # High/Medium/Low/Failed counts
     ranking_quality_metrics: Dict[str, Any] = field(default_factory=dict)   # NDCG, reciprocal rank, etc.
@@ -180,8 +189,11 @@ class RetrievalAnalyzer:
         domain_distribution = query_result.domain_distribution
 
         # Error categorization using ErrorAnalyzer
+        # Extract query domains from features
+        query_domains = [features.domain for features in query_features_list] if query_features_list else None
+
         error_result = self.error_analyzer.analyze_errors(
-            predicted_docs_list, ground_truth_ids, original_queries
+            predicted_docs_list, ground_truth_ids, original_queries, query_domains
         )
         retrieval_success_rate = error_result.retrieval_success_rate
         error_categories = error_result.error_categories
@@ -221,10 +233,13 @@ class RetrievalAnalyzer:
             )
             retrieval_results_detailed.append(retrieval_result)
 
-        # Generate recommendations using ResultAggregator
-        recommendations = self.result_aggregator.generate_recommendations(
+        # Generate recommendations using ResultAggregator (legacy) and ErrorAnalyzer (enhanced)
+        legacy_recommendations = self.result_aggregator.generate_recommendations(
             map_score, retrieval_success_rate, rewrite_rate
         )
+
+        # Combine legacy and enhanced recommendations
+        recommendations = legacy_recommendations + error_result.recommendations
 
         # Phase 3: Perform retrieval quality assessment
         retrieval_quality_result = self.retrieval_quality_analyzer.analyze_retrieval_quality(
@@ -246,6 +261,13 @@ class RetrievalAnalyzer:
             retrieval_success_rate=retrieval_success_rate,
             avg_retrieval_time=0.0,  # Placeholder
             error_categories=error_categories,
+            query_understanding_failures=error_result.query_understanding_failures,
+            retrieval_failures=error_result.retrieval_failures,
+            system_failures=error_result.system_failures,
+            error_patterns=error_result.error_patterns,
+            domain_error_rates=error_result.domain_error_rates,
+            temporal_trends=error_result.temporal_trends,
+            error_recommendations=error_result.recommendations,
             performance_segmentation=retrieval_quality_result.performance_segmentation.segmentation_stats,
             ranking_quality_metrics={
                 "ndcg_at_k": retrieval_quality_result.ranking_quality.ndcg_at_k,

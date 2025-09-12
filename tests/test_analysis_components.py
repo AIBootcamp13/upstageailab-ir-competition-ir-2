@@ -76,18 +76,54 @@ class TestErrorAnalyzer:
     """Test cases for ErrorAnalyzer."""
 
     def test_analyze_errors(self):
-        """Test error analysis."""
+        """Test comprehensive error analysis."""
         analyzer = ErrorAnalyzer()
 
-        predicted_docs = [[{"id": "doc1"}, {"id": "doc2"}]]
+        predicted_docs = [[{"id": "doc1", "score": 0.9}, {"id": "doc2", "score": 0.7}]]
         ground_truth_ids = ["doc1"]
         queries = ["What is physics?"]
+        query_domains = [["physics"]]
 
-        result = analyzer.analyze_errors(predicted_docs, ground_truth_ids, queries)
+        result = analyzer.analyze_errors(predicted_docs, ground_truth_ids, queries, query_domains)
 
         assert isinstance(result, ErrorAnalysisResult)
         assert "successful" in result.error_categories
-        assert result.retrieval_success_rate >= 0.0
+        assert result.retrieval_success_rate == 1.0  # Should be successful
+
+        # Check new comprehensive fields
+        assert isinstance(result.query_understanding_failures, dict)
+        assert isinstance(result.retrieval_failures, dict)
+        assert isinstance(result.system_failures, dict)
+        assert isinstance(result.error_patterns, dict)
+        assert isinstance(result.domain_error_rates, dict)
+        assert isinstance(result.temporal_trends, dict)
+        assert isinstance(result.recommendations, list)
+
+    def test_error_categorization(self):
+        """Test different error categorization scenarios."""
+        analyzer = ErrorAnalyzer()
+
+        # Test ambiguous query
+        predicted_docs = [[{"id": "doc1", "score": 0.5}]]
+        ground_truth_ids = ["doc_missing"]
+        queries = ["What is this thing?"]  # Ambiguous
+        query_domains = [["unknown"]]
+
+        result = analyzer.analyze_errors(predicted_docs, ground_truth_ids, queries, query_domains)
+
+        # Should detect out-of-domain error
+        assert result.query_understanding_failures.get("out_of_domain", 0) == 1
+
+        # Test false positive
+        predicted_docs = [[{"id": "wrong_doc", "score": 0.95}]]
+        ground_truth_ids = ["correct_doc"]
+        queries = ["Physics question"]
+        query_domains = [["physics"]]
+
+        result = analyzer.analyze_errors(predicted_docs, ground_truth_ids, queries, query_domains)
+
+        # Should detect false positive
+        assert result.retrieval_failures.get("false_positive", 0) == 1
 
 
 class TestResultAggregator:

@@ -72,6 +72,9 @@ class WandbAnalysisLogger:
         # Log recommendations
         self._log_recommendations(result)
 
+        # Log Phase 4: Enhanced Error Analysis
+        self._log_enhanced_error_analysis(result)
+
     def _log_core_metrics(self, result: AnalysisResult) -> None:
         """Log the core performance metrics."""
         core_metrics = {
@@ -262,6 +265,60 @@ class WandbAnalysisLogger:
                 recommendations_html += f"<li>{rec}</li>"
             recommendations_html += "</ul>"
             wandb.log({"recommendations": wandb.Html(recommendations_html)})
+
+    def _log_enhanced_error_analysis(self, result: AnalysisResult) -> None:
+        """Log Phase 4 enhanced error analysis results."""
+        # Log error category breakdowns
+        if result.query_understanding_failures:
+            wandb.log({"query_understanding_failures": result.query_understanding_failures})
+
+        if result.retrieval_failures:
+            wandb.log({"retrieval_failures": result.retrieval_failures})
+
+        if result.system_failures:
+            wandb.log({"system_failures": result.system_failures})
+
+        # Log domain error rates
+        if result.domain_error_rates:
+            domain_error_table = wandb.Table(
+                columns=["Domain", "Error Rate"],
+                data=[[domain, rate] for domain, rate in result.domain_error_rates.items()]
+            )
+            wandb.log({"domain_error_rates": domain_error_table})
+
+        # Log error patterns
+        if result.error_patterns:
+            # Log query length correlation
+            if "query_length_correlation" in result.error_patterns:
+                wandb.log({"query_length_success_correlation": result.error_patterns["query_length_correlation"]})
+
+            # Log domain performance patterns
+            if result.error_patterns.get("domain_performance_patterns"):
+                domain_patterns = result.error_patterns["domain_performance_patterns"]
+                patterns_data = []
+                for domain, pattern in domain_patterns.items():
+                    patterns_data.append([
+                        domain,
+                        pattern.get("success_rate", 0),
+                        pattern.get("sample_size", 0),
+                        pattern.get("needs_improvement", False)
+                    ])
+
+                if patterns_data:
+                    patterns_table = wandb.Table(
+                        columns=["Domain", "Success Rate", "Sample Size", "Needs Improvement"],
+                        data=patterns_data
+                    )
+                    wandb.log({"domain_performance_patterns": patterns_table})
+
+        # Log enhanced recommendations
+        if result.error_recommendations:
+            enhanced_rec_html = "<h4>Enhanced Error Analysis Recommendations</h4>"
+            enhanced_rec_html += "<ul style='margin: 0; padding-left: 20px;'>"
+            for rec in result.error_recommendations:
+                enhanced_rec_html += f"<li>{rec}</li>"
+            enhanced_rec_html += "</ul>"
+            wandb.log({"enhanced_error_recommendations": wandb.Html(enhanced_rec_html)})
 
     def create_performance_dashboard(self, results: List[AnalysisResult]) -> None:
         """

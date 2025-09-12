@@ -224,12 +224,49 @@ def run(cfg: DictConfig) -> None:
     print(f"MAP Score: {analysis_result.map_score:.4f}")
     print(f"Retrieval Success Rate: {analysis_result.retrieval_success_rate:.1%}")
     print(f"Rewrite Rate: {analysis_result.rewrite_rate:.1%}")
+
+    # Phase 4: Enhanced Error Analysis Output
+    print("\n--- Phase 4: Enhanced Error Analysis ---")
+
+    if analysis_result.query_understanding_failures:
+        print("🔍 Query Understanding Failures:")
+        for error_type, count in analysis_result.query_understanding_failures.items():
+            if count > 0:
+                print(f"  • {error_type}: {count} queries")
+
+    if analysis_result.retrieval_failures:
+        print("📊 Retrieval Failures:")
+        for error_type, count in analysis_result.retrieval_failures.items():
+            if count > 0:
+                print(f"  • {error_type}: {count} queries")
+
+    if analysis_result.system_failures:
+        print("⚠️  System Failures:")
+        for error_type, count in analysis_result.system_failures.items():
+            if count > 0:
+                print(f"  • {error_type}: {count} queries")
+
+    if analysis_result.domain_error_rates:
+        print("🌍 Domain-Specific Error Rates:")
+        for domain, rate in analysis_result.domain_error_rates.items():
+            print(f"  • {domain}: {rate:.1%} error rate")
+
+    if analysis_result.error_patterns.get("query_length_correlation"):
+        corr = analysis_result.error_patterns["query_length_correlation"]
+        print(f"📈 Query Length vs Success Correlation: {corr:.3f}")
+
     print("---------------------------")
     if analysis_result.recommendations:
         print("📋 Recommendations:")
         for rec in analysis_result.recommendations:
             print(f"  • {rec}")
     print("---------------------------")
+    if analysis_result.error_recommendations:
+        print("🔧 Enhanced Error Analysis Recommendations:")
+        for rec in analysis_result.error_recommendations:
+            print(f"  • {rec}")
+    print("---------------------------")
+
     if wandb.run is not None:
         print(f"WandB 실행 URL: {wandb.run.url}")
     wandb.finish()
