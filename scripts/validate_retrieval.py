@@ -45,6 +45,8 @@ def run(cfg: DictConfig) -> None:
     from ir_core.orchestration.pipeline import RAGPipeline
     from ir_core.utils import read_jsonl
     from ir_core.evaluation.core import mean_average_precision, average_precision
+    from ir_core.analysis.core import RetrievalAnalyzer
+    from ir_core.utils.wandb_logger import WandbAnalysisLogger
 
   # --- WandB 초기화 (WandB Initialization) ---
     # OmegaConf.set_struct를 사용하여 cfg 객체를 임시로 수정 가능하게 만듭니다.
@@ -125,15 +127,15 @@ def run(cfg: DictConfig) -> None:
         print(f"데이터셋을 {cfg.limit}개의 샘플로 제한합니다.")
         validation_data = validation_data[:cfg.limit]
 
-    # 최종 MAP 점수 계산 및 WandB 테이블 로깅을 위한 결과 저장
-    all_results_for_map = []
-    wandb_table_data = []
+    # === ANALYSIS FRAMEWORK INTEGRATION ===
+    # The new analysis framework will handle all metrics collection and logging
 
-    # 추가 분석을 위한 메트릭 수집
-    query_lengths = []
-    rewrite_changes = []
-    precision_at_k = {1: [], 3: [], 5: [], 10: []}
-    retrieval_success = []
+    # === NEW ANALYSIS FRAMEWORK INTEGRATION ===
+    # The new analysis framework handles all metrics collection and analysis internally
+
+    # Prepare data for the new analysis framework
+    queries_data = []
+    retrieval_results_data = []
 
     for item in tqdm(validation_data, desc="Validating Queries"):
         query = item.get("msg", [{}])[0].get("content")
@@ -142,88 +144,47 @@ def run(cfg: DictConfig) -> None:
         if not query or not ground_truth_id:
             continue
 
-        # 검색 파이프라인만 실행하여 예측된 문서 ID 목록을 가져옵니다.
+        queries_data.append({
+            "msg": [{"content": query}],
+            "ground_truth_doc_id": ground_truth_id
+        })
+
+        # Get retrieval results for this query
         retrieval_output = pipeline.run_retrieval_only(query)
+        retrieval_results_data.append(retrieval_output[0] if retrieval_output else {"docs": []})
 
-        predicted_docs = retrieval_output[0].get("docs", []) if retrieval_output else []
-        predicted_ids = [doc["id"] for doc in predicted_docs]
-        rewritten_query = retrieval_output[0].get("standalone_query", query) if retrieval_output else query
-        relevant_ids = [ground_truth_id]
+    # Initialize the new analysis framework
+    analyzer = RetrievalAnalyzer(cfg)
+    wandb_logger = WandbAnalysisLogger()
 
-        all_results_for_map.append((predicted_ids, relevant_ids))
+    # Perform comprehensive analysis
+    analysis_result = analyzer.analyze_batch(
+        queries=queries_data,
+        retrieval_results=retrieval_results_data
+    )
 
-        # --- 추가 메트릭 수집 ---
-        query_lengths.append(len(query))
-        rewrite_changes.append(1 if query != rewritten_query else 0)
+    # Log results using the enhanced Wandb logger
+    wandb_logger.log_analysis_result(
+        result=analysis_result
+    )
 
-        # Precision@K 계산
-        for k in precision_at_k.keys():
-            pred_at_k = predicted_ids[:k]
-            if ground_truth_id in pred_at_k:
-                precision_at_k[k].append(1.0)
-            else:
-                precision_at_k[k].append(0.0)
-
-        # 검색 성공 여부 (ground truth가 top-10에 있는지)
-        retrieval_success.append(1 if ground_truth_id in predicted_ids[:10] else 0)
-
-        # --- WandB 테이블 데이터 준비 (Preparing WandB Table Data) ---
-        ap_score = average_precision(predicted_ids, relevant_ids)
-        if ap_score is None:
-            ap_score = 0.0
-
-        # ID들을 더 간결하게 표시 (첫 8자만)
-        ground_truth_short = ground_truth_id[:8] if ground_truth_id else ""
-        predicted_short = [pid[:8] for pid in predicted_ids[:settings.RERANK_K]]
-
-        # 테이블에는 쿼리, 재작성된 쿼리, 정답 ID, 예측 ID 목록, AP 점수를 기록합니다.
-        wandb_table_data.append([
-            query,
-            rewritten_query,
-            ground_truth_short,
-            predicted_short,
-            f"{ap_score:.4f}"
-        ])
-
-    # 최종 MAP 점수를 계산합니다.
-    map_score = mean_average_precision(all_results_for_map)
-
-    # MAP 점수를 포함하여 WandB 실행 이름 업데이트
+    # Update run name with analysis results
     if wandb.run is not None:
         original_name = wandb.run.name
-        updated_name = f"{original_name}-MAP_{map_score:.2f}"
+        updated_name = f"{original_name}-MAP_{analysis_result.map_score:.3f}"
         wandb.run.name = updated_name
         print(f"WandB 실행 이름 업데이트: {original_name} -> {updated_name}")
 
-    # --- WandB에 결과 로깅 (Logging Results to WandB) ---
-    # 1. 상세 결과 테이블을 생성하고 로깅합니다.
-    results_table = wandb.Table(
-        columns=["Original Query", "Rewritten Query", "GT IDs", "Pred IDs", "AP Score"]
-    )
-    for row in wandb_table_data:
-        results_table.add_data(*row)
-    wandb.log({"Validation Results": results_table})
-
-    # 2. 추가 분석 메트릭 로깅
-    wandb.log({
-        "query_stats": {
-            "avg_query_length": sum(query_lengths) / len(query_lengths) if query_lengths else 0,
-            "rewrite_rate": sum(rewrite_changes) / len(rewrite_changes) if rewrite_changes else 0,
-            "retrieval_success_rate": sum(retrieval_success) / len(retrieval_success) if retrieval_success else 0
-        }
-    })
-
-    # 3. Precision@K 차트
-    for k, precisions in precision_at_k.items():
-        avg_precision = sum(precisions) / len(precisions) if precisions else 0
-        wandb.log({f"precision_at_{k}": avg_precision})
-
-    # 4. 최종 MAP 점수를 로깅합니다.
-    wandb.log({"map_score": map_score})
-
     print("\n--- 검증 완료 (Validation Complete) ---")
-    print(f"검증된 쿼리 수: {len(all_results_for_map)}")
-    print(f"MAP Score: {map_score:.4f}")
+    print(f"검증된 쿼리 수: {analysis_result.total_queries}")
+    print(f"MAP Score: {analysis_result.map_score:.4f}")
+    print(f"Retrieval Success Rate: {analysis_result.retrieval_success_rate:.1%}")
+    print(f"Rewrite Rate: {analysis_result.rewrite_rate:.1%}")
+    print("---------------------------")
+    if analysis_result.recommendations:
+        print("📋 Recommendations:")
+        for rec in analysis_result.recommendations:
+            print(f"  • {rec}")
     print("---------------------------")
     if wandb.run is not None:
         print(f"WandB 실행 URL: {wandb.run.url}")
