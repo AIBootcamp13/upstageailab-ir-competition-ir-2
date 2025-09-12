@@ -129,6 +129,12 @@ def run(cfg: DictConfig) -> None:
     all_results_for_map = []
     wandb_table_data = []
 
+    # 추가 분석을 위한 메트릭 수집
+    query_lengths = []
+    rewrite_changes = []
+    precision_at_k = {1: [], 3: [], 5: [], 10: []}
+    retrieval_success = []
+
     for item in tqdm(validation_data, desc="Validating Queries"):
         query = item.get("msg", [{}])[0].get("content")
         ground_truth_id = item.get("ground_truth_doc_id")
@@ -141,19 +147,41 @@ def run(cfg: DictConfig) -> None:
 
         predicted_docs = retrieval_output[0].get("docs", []) if retrieval_output else []
         predicted_ids = [doc["id"] for doc in predicted_docs]
+        rewritten_query = retrieval_output[0].get("standalone_query", query) if retrieval_output else query
         relevant_ids = [ground_truth_id]
 
         all_results_for_map.append((predicted_ids, relevant_ids))
+
+        # --- 추가 메트릭 수집 ---
+        query_lengths.append(len(query))
+        rewrite_changes.append(1 if query != rewritten_query else 0)
+
+        # Precision@K 계산
+        for k in precision_at_k.keys():
+            pred_at_k = predicted_ids[:k]
+            if ground_truth_id in pred_at_k:
+                precision_at_k[k].append(1.0)
+            else:
+                precision_at_k[k].append(0.0)
+
+        # 검색 성공 여부 (ground truth가 top-10에 있는지)
+        retrieval_success.append(1 if ground_truth_id in predicted_ids[:10] else 0)
 
         # --- WandB 테이블 데이터 준비 (Preparing WandB Table Data) ---
         ap_score = average_precision(predicted_ids, relevant_ids)
         if ap_score is None:
             ap_score = 0.0
-        # 테이블에는 쿼리, 정답 ID, 예측 ID 목록, AP 점수를 기록합니다.
+
+        # ID들을 더 간결하게 표시 (첫 8자만)
+        ground_truth_short = ground_truth_id[:8] if ground_truth_id else ""
+        predicted_short = [pid[:8] for pid in predicted_ids[:settings.RERANK_K]]
+
+        # 테이블에는 쿼리, 재작성된 쿼리, 정답 ID, 예측 ID 목록, AP 점수를 기록합니다.
         wandb_table_data.append([
             query,
-            ground_truth_id,
-            predicted_ids[:settings.RERANK_K], # 상위 K개만 표시
+            rewritten_query,
+            ground_truth_short,
+            predicted_short,
             f"{ap_score:.4f}"
         ])
 
@@ -163,20 +191,34 @@ def run(cfg: DictConfig) -> None:
     # MAP 점수를 포함하여 WandB 실행 이름 업데이트
     if wandb.run is not None:
         original_name = wandb.run.name
-        updated_name = f"{original_name}-map_{map_score:.4f}"
+        updated_name = f"{original_name}-MAP_{map_score:.2f}"
         wandb.run.name = updated_name
         print(f"WandB 실행 이름 업데이트: {original_name} -> {updated_name}")
 
     # --- WandB에 결과 로깅 (Logging Results to WandB) ---
     # 1. 상세 결과 테이블을 생성하고 로깅합니다.
     results_table = wandb.Table(
-        columns=["Query", "Ground Truth ID", "Predicted IDs", "AP Score"]
+        columns=["Original Query", "Rewritten Query", "GT IDs", "Pred IDs", "AP Score"]
     )
     for row in wandb_table_data:
         results_table.add_data(*row)
     wandb.log({"Validation Results": results_table})
 
-    # 2. 최종 MAP 점수를 로깅합니다.
+    # 2. 추가 분석 메트릭 로깅
+    wandb.log({
+        "query_stats": {
+            "avg_query_length": sum(query_lengths) / len(query_lengths) if query_lengths else 0,
+            "rewrite_rate": sum(rewrite_changes) / len(rewrite_changes) if rewrite_changes else 0,
+            "retrieval_success_rate": sum(retrieval_success) / len(retrieval_success) if retrieval_success else 0
+        }
+    })
+
+    # 3. Precision@K 차트
+    for k, precisions in precision_at_k.items():
+        avg_precision = sum(precisions) / len(precisions) if precisions else 0
+        wandb.log({f"precision_at_{k}": avg_precision})
+
+    # 4. 최종 MAP 점수를 로깅합니다.
     wandb.log({"map_score": map_score})
 
     print("\n--- 검증 완료 (Validation Complete) ---")

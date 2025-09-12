@@ -87,13 +87,13 @@ PYTHONPATH=src poetry run python scripts/evaluate.py
 
 ### **환경 요구사항**
 
-
+```
 | 구분 | 사양 |
 | OS | Ubuntu 20.04 (권장) |
 | Python | 3.10 |
 | 의존성 관리 | Poetry |
 | 필수 도구 | curl, tar, make, gcc |
-
+```
 ### **주요 기능**
 
 * ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
@@ -335,18 +335,6 @@ PYTHONPATH=src poetry run python scripts/evaluate.py
 또는
 # 명시적 설정 사용
 PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/submission.csv
-```
-
-## 🛠️ 고급 설정
-
-### 정리 작업
-
-```bash
-# 다운로드된 배포판 정리
-./scripts/cleanup-distros.sh
-
-# 전체 스모크 테스트 (서비스 시작 → 테스트 → 종료)
-./scripts/smoke-test.sh
 ```
 
 ---
