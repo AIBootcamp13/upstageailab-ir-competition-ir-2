@@ -111,7 +111,21 @@ class CLIMenu:
                 {
                     "name": "Validate Retrieval (Ollama)",
                     "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf pipeline=ollama",
-                    "description": "Run retrieval validation using local Ollama model",
+                    "description": "Run retrieval validation using local Ollama model (Qwen2)",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit", "pipeline.generator_model_name"],
+                },
+                {
+                    "name": "Validate Retrieval (Ollama Llama)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf pipeline=ollama-llama",
+                    "description": "Run retrieval validation using Ollama Llama model",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit", "pipeline.generator_model_name"],
+                },
+                {
+                    "name": "Validate Retrieval (Hybrid Ollama)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf pipeline=hybrid-ollama",
+                    "description": "Run retrieval validation using hybrid Ollama configuration",
                     "needs_params": True,
                     "params": ["model.alpha", "limit", "pipeline.generator_model_name"],
                 },
