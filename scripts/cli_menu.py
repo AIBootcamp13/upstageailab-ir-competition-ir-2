@@ -109,11 +109,18 @@ class CLIMenu:
                     "needs_params": False,
                 },
                 {
+                    "name": "Validate Retrieval (Ollama)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf pipeline=ollama",
+                    "description": "Run retrieval validation using local Ollama model",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit", "pipeline.generator_model_name"],
+                },
+                {
                     "name": "Validate Retrieval (Custom)",
                     "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf",
                     "description": "Run retrieval validation with custom parameters",
                     "needs_params": True,
-                    "params": ["model.alpha", "limit", "experiment"],
+                    "params": ["model.alpha", "limit", "experiment", "pipeline.generator_type", "pipeline.generator_model_name"],
                 },
                 {
                     "name": "Multi-Run Experiments",
@@ -262,6 +269,17 @@ class CLIMenu:
                 value = questionary.text(
                     "Enter sample size (default: 100):",
                     default="100"
+                ).ask()
+            elif param == "pipeline.generator_type":
+                value = questionary.select(
+                    "Select generator type:",
+                    choices=["openai", "ollama"],
+                    default="openai"
+                ).ask()
+            elif param == "pipeline.generator_model_name":
+                value = questionary.text(
+                    "Enter generator model name (e.g., gpt-3.5-turbo, qwen2:7b, llama3.1:8b):",
+                    default="qwen2:7b"
                 ).ask()
             else:
                 value = questionary.text(f"Enter value for {param}:").ask()

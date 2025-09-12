@@ -4,6 +4,7 @@ import os
 import sys
 from typing import cast
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from ir_core.orchestration.rewriter import QueryRewriter
 
 import hydra
@@ -142,22 +143,62 @@ def run(cfg: DictConfig) -> None:
     queries_data = []
     retrieval_results_data = []
 
-    for item in tqdm(validation_data, desc="Validating Queries"):
-        query = item.get("msg", [{}])[0].get("content")
-        ground_truth_id = item.get("ground_truth_doc_id")
+    # Use parallel processing for retrieval if enabled
+    if cfg.analysis.enable_parallel and len(validation_data) > 1:
+        max_workers = cfg.analysis.max_workers or 4
+        print(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
 
-        if not query or not ground_truth_id:
-            continue
+        def process_single_query(item):
+            """Process a single query for parallel execution."""
+            query = item.get("msg", [{}])[0].get("content")
+            ground_truth_id = item.get("ground_truth_doc_id")
 
-        queries_data.append(
-            {"msg": [{"content": query}], "ground_truth_doc_id": ground_truth_id}
-        )
+            if not query or not ground_truth_id:
+                return None, None
 
-        # Get retrieval results for this query
-        retrieval_output = pipeline.run_retrieval_only(query)
-        retrieval_results_data.append(
-            retrieval_output[0] if retrieval_output else {"docs": []}
-        )
+            query_data = {"msg": [{"content": query}], "ground_truth_doc_id": ground_truth_id}
+
+            # Get retrieval results for this query
+            try:
+                retrieval_output = pipeline.run_retrieval_only(query)
+                if retrieval_output and isinstance(retrieval_output, list) and len(retrieval_output) > 0:
+                    retrieval_result = retrieval_output[0]
+                    if not isinstance(retrieval_result, dict):
+                        print(f"Warning: Expected dict, got {type(retrieval_result)} for query '{query}'")
+                        retrieval_result = {"docs": []}
+                else:
+                    retrieval_result = {"docs": []}
+                return query_data, retrieval_result
+            except Exception as e:
+                print(f"Error processing query '{query}': {e}")
+                return query_data, {"docs": []}
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_single_query, item) for item in validation_data]
+
+            for future in tqdm(as_completed(futures), total=len(validation_data), desc="Validating Queries"):
+                query_data, retrieval_result = future.result()
+                if query_data is not None:
+                    queries_data.append(query_data)
+                    retrieval_results_data.append(retrieval_result)
+    else:
+        # Sequential processing (original logic)
+        for item in tqdm(validation_data, desc="Validating Queries"):
+            query = item.get("msg", [{}])[0].get("content")
+            ground_truth_id = item.get("ground_truth_doc_id")
+
+            if not query or not ground_truth_id:
+                continue
+
+            queries_data.append(
+                {"msg": [{"content": query}], "ground_truth_doc_id": ground_truth_id}
+            )
+
+            # Get retrieval results for this query
+            retrieval_output = pipeline.run_retrieval_only(query)
+            retrieval_results_data.append(
+                retrieval_output[0] if retrieval_output else {"docs": []}
+            )
 
     # Initialize the new analysis framework
     analyzer = RetrievalAnalyzer(cfg)
