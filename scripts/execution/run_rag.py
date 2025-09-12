@@ -24,7 +24,7 @@ def run_pipeline(cfg: DictConfig) -> None:
         cfg (DictConfig): Hydra에 의해 관리되는 설정 객체.
                            'query'는 커맨드라인에서 오버라이드해야 합니다.
     """
-    from ir_core.generation import get_generator
+    from ir_core.generation import get_generator, get_query_rewriter
     from ir_core.orchestration.pipeline import RAGPipeline
 
     # Hydra 설정에서 쿼리를 가져옵니다.
@@ -47,7 +47,17 @@ def run_pipeline(cfg: DictConfig) -> None:
         print(f"생성기 초기화 오류: {e}")
         return
 
-    # 2. RAG 파이프라인을 초기화하고, 설정에서 도구 설명을 읽어옵니다.
+    # 1.5. 설정(cfg)을 전달하여 쿼리 리라이터를 초기화합니다.
+    try:
+        query_rewriter = get_query_rewriter(cfg)
+        print(
+            f"'{cfg.pipeline.query_rewriter_type}' 유형의 쿼리 리라이터가 성공적으로 초기화되었습니다."
+        )
+    except ValueError as e:
+        print(f"쿼리 리라이터 초기화 오류: {e}")
+        return
+
+    # 도구 설명 파일을 로드합니다.
     try:
         with open(cfg.prompts.tool_description, "r", encoding="utf-8") as f:
             tool_desc = f.read()
@@ -57,7 +67,7 @@ def run_pipeline(cfg: DictConfig) -> None:
         )
         return
 
-    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
+    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc, query_rewriter=query_rewriter)
 
     # 3. 파이프라인을 실행하고 최종 답변을 출력합니다.
     print(f"\n--- 쿼리 실행: '{query}' ---")

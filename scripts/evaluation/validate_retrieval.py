@@ -2,6 +2,7 @@
 
 import os
 import sys
+from typing import cast
 from tqdm import tqdm
 from ir_core.orchestration.rewriter import QueryRewriter
 
@@ -64,8 +65,7 @@ def run(cfg: DictConfig) -> None:
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         name=run_name,
-        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),  # type: ignore
-        job_type="validation",  # 작업 유형을 'validation'으로 지정
+        config=cast(dict, OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)),
     )
 
     # 설정 파일 경로 로깅 (Log Config File Path)

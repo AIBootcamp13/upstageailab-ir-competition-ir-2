@@ -21,6 +21,7 @@ from .analysis_components import (
     QueryProcessingResult,
     ErrorAnalysisResult
 )
+from .retrieval_analyzer import RetrievalQualityAnalyzer
 from .utils import find_rank_of_ground_truth, calculate_top_k_precision
 from .constants import (
     SCIENTIFIC_TERMS,
@@ -77,6 +78,14 @@ class AnalysisResult:
     avg_retrieval_time: float
     error_categories: Dict[str, int]
 
+    # Phase 3: Retrieval Quality Assessment
+    performance_segmentation: Dict[str, int] = field(default_factory=dict)  # High/Medium/Low/Failed counts
+    ranking_quality_metrics: Dict[str, Any] = field(default_factory=dict)   # NDCG, reciprocal rank, etc.
+    score_distribution_metrics: Dict[str, Any] = field(default_factory=dict) # Mean, std, percentiles
+    consistency_metrics: Dict[str, Any] = field(default_factory=dict)       # Jaccard, correlation
+    false_positive_analysis: Dict[str, Any] = field(default_factory=dict)   # FP/FN rates
+    confidence_analysis: Dict[str, Any] = field(default_factory=dict)       # Confidence intervals
+
     # Detailed results
     query_analyses: List[QueryAnalysis] = field(default_factory=list)
     retrieval_results: List[RetrievalResult] = field(default_factory=list)
@@ -109,6 +118,7 @@ class RetrievalAnalyzer:
         self.query_processor = QueryBatchProcessor(config)
         self.error_analyzer = ErrorAnalyzer()
         self.result_aggregator = ResultAggregator()
+        self.retrieval_quality_analyzer = RetrievalQualityAnalyzer(cast(Dict[str, Any], OmegaConf.to_container(config)) if config else None)
         self.enable_parallel = PARALLEL_PROCESSING_DEFAULTS.get("enable_parallel", True)
         self.max_workers = PARALLEL_PROCESSING_DEFAULTS.get("max_workers_analysis", 4)
 
@@ -216,6 +226,11 @@ class RetrievalAnalyzer:
             map_score, retrieval_success_rate, rewrite_rate
         )
 
+        # Phase 3: Perform retrieval quality assessment
+        retrieval_quality_result = self.retrieval_quality_analyzer.analyze_retrieval_quality(
+            queries, retrieval_results, ground_truth_ids
+        )
+
         analysis_time = time.time() - start_time
         print(f"Analysis completed in {analysis_time:.2f} seconds")
 
@@ -231,6 +246,42 @@ class RetrievalAnalyzer:
             retrieval_success_rate=retrieval_success_rate,
             avg_retrieval_time=0.0,  # Placeholder
             error_categories=error_categories,
+            performance_segmentation=retrieval_quality_result.performance_segmentation.segmentation_stats,
+            ranking_quality_metrics={
+                "ndcg_at_k": retrieval_quality_result.ranking_quality.ndcg_at_k,
+                "reciprocal_rank": retrieval_quality_result.ranking_quality.reciprocal_rank,
+                "rank_distribution": retrieval_quality_result.ranking_quality.rank_distribution,
+                "score_variance": retrieval_quality_result.ranking_quality.score_variance,
+                "score_range": retrieval_quality_result.ranking_quality.score_range,
+                "top_k_consistency": retrieval_quality_result.ranking_quality.top_k_consistency
+            },
+            score_distribution_metrics={
+                "mean_score": retrieval_quality_result.score_distribution.mean_score,
+                "median_score": retrieval_quality_result.score_distribution.median_score,
+                "score_std": retrieval_quality_result.score_distribution.score_std,
+                "score_skewness": retrieval_quality_result.score_distribution.score_skewness,
+                "score_percentiles": retrieval_quality_result.score_distribution.score_percentiles,
+                "score_histogram": retrieval_quality_result.score_distribution.score_histogram
+            },
+            consistency_metrics={
+                "jaccard_similarity": retrieval_quality_result.consistency_metrics.jaccard_similarity,
+                "rank_correlation": retrieval_quality_result.consistency_metrics.rank_correlation,
+                "score_stability": retrieval_quality_result.consistency_metrics.score_stability,
+                "top_k_overlap": retrieval_quality_result.consistency_metrics.top_k_overlap
+            },
+            false_positive_analysis={
+                "false_positive_rate": retrieval_quality_result.false_positive_analysis.false_positive_rate,
+                "false_negative_rate": retrieval_quality_result.false_positive_analysis.false_negative_rate,
+                "precision_by_rank": retrieval_quality_result.false_positive_analysis.precision_by_rank,
+                "false_positive_by_domain": retrieval_quality_result.false_positive_analysis.false_positive_by_domain,
+                "false_negative_by_domain": retrieval_quality_result.false_positive_analysis.false_negative_by_domain
+            },
+            confidence_analysis={
+                "confidence_intervals": retrieval_quality_result.confidence_analysis.confidence_intervals,
+                "uncertainty_scores": retrieval_quality_result.confidence_analysis.uncertainty_scores,
+                "score_calibration_error": retrieval_quality_result.confidence_analysis.score_calibration_error,
+                "confidence_by_rank": retrieval_quality_result.confidence_analysis.confidence_by_rank
+            },
             query_analyses=query_analyses,
             retrieval_results=retrieval_results_detailed,
             recommendations=recommendations,

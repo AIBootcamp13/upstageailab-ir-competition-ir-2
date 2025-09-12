@@ -41,5 +41,22 @@ def get_generator(cfg: "DictConfig") -> BaseGenerator:
     else:
         raise ValueError(f"알 수 없는 생성기 유형입니다: '{generator_type}'")
 
+def get_query_rewriter(cfg: "DictConfig"):
+    """
+    Hydra 설정(cfg)을 기반으로 QueryRewriter 인스턴스를 생성하고 반환하는 팩토리 함수입니다.
+
+    Args:
+        cfg (DictConfig): Hydra에 의해 관리되는 전체 설정 객체.
+
+    Returns:
+        QueryRewriter: 설정에 따라 초기화된 QueryRewriter 인스턴스.
+    """
+    from ..orchestration.rewriter import QueryRewriter
+
+    return QueryRewriter(
+        model_name=cfg.pipeline.rewriter_model,
+        prompt_template_path=cfg.prompts.rephrase_query
+    )
+
 # 이 패키지의 공개 API를 명시적으로 정의합니다.
-__all__ = ["get_generator", "BaseGenerator"]
+__all__ = ["get_generator", "get_query_rewriter", "BaseGenerator"]

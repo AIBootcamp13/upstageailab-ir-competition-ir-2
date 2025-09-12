@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+from typing import cast
 from tqdm import tqdm
 
 # --- 새로운 임포트 (New Imports) ---
@@ -47,7 +48,7 @@ def run(cfg: DictConfig) -> None:
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         name=run_name,
-        config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),
+        config=cast(dict, OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)),
         job_type="evaluation",  # 작업 유형을 'evaluation'으로 지정
     )
     print(f"평가 실행 시작: {cfg.data.evaluation_path}")

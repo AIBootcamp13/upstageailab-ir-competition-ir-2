@@ -63,6 +63,9 @@ class WandbAnalysisLogger:
         # Log retrieval analysis
         self._log_retrieval_analysis(result)
 
+        # Log Phase 3: Retrieval Quality Assessment
+        # self._log_retrieval_quality_metrics(result)  # Temporarily commented out due to duplicate method
+
         # Log detailed tables
         self._log_detailed_tables(result)
 
@@ -71,22 +74,23 @@ class WandbAnalysisLogger:
 
     def _log_core_metrics(self, result: AnalysisResult) -> None:
         """Log the core performance metrics."""
-        wandb.log({
+        core_metrics = {
             "map_score": result.map_score,
             "mean_ap": result.mean_ap,
             "retrieval_success_rate": result.retrieval_success_rate,
             "rewrite_rate": result.rewrite_rate,
             "avg_query_length": result.avg_query_length,
             "total_queries": result.total_queries
-        })
+        }
 
-        # Log precision@K metrics
+        # Add precision@K and recall@K to the same dictionary
         for k, precision in result.precision_at_k.items():
-            wandb.log({f"precision_at_{k}": precision})
-
-        # Log recall@K metrics
+            core_metrics[f"precision_at_{k}"] = precision
         for k, recall in result.recall_at_k.items():
-            wandb.log({f"recall_at_{k}": recall})
+            core_metrics[f"recall_at_{k}"] = recall
+
+        # Log everything in a single, atomic call
+        wandb.log(core_metrics)
 
     def _log_query_analysis(self, result: AnalysisResult) -> None:
         """Log query-level analysis metrics."""
@@ -120,6 +124,103 @@ class WandbAnalysisLogger:
         # Retrieval timing (if available)
         if hasattr(result, 'avg_retrieval_time') and result.avg_retrieval_time > 0:
             wandb.log({"avg_retrieval_time": result.avg_retrieval_time})
+
+
+    def _log_retrieval_quality_metrics(self, result: AnalysisResult) -> None:
+        """Log Phase 3: Retrieval Quality Assessment metrics."""
+        # Performance segmentation
+        if result.performance_segmentation:
+            segmentation_table = wandb.Table(
+                columns=["Performance Level", "Count"],
+                data=[[level, count] for level, count in result.performance_segmentation.items()]
+            )
+            wandb.log({"performance_segmentation": segmentation_table})
+
+        # Ranking quality metrics
+        if result.ranking_quality_metrics:
+            ranking_metrics = result.ranking_quality_metrics
+
+            # Log NDCG@K
+            if "ndcg_at_k" in ranking_metrics:
+                for k, ndcg in ranking_metrics["ndcg_at_k"].items():
+                    wandb.log({f"ndcg_at_{k}": ndcg})
+
+            # Log other ranking metrics
+            wandb.log({
+                "reciprocal_rank": ranking_metrics.get("reciprocal_rank", 0.0),
+                "score_variance": ranking_metrics.get("score_variance", 0.0)
+            })
+
+            # Rank distribution table
+            if "rank_distribution" in ranking_metrics and ranking_metrics["rank_distribution"]:
+                rank_table = wandb.Table(
+                    columns=["Rank", "Count"],
+                    data=[[rank, count] for rank, count in ranking_metrics["rank_distribution"].items()]
+                )
+                wandb.log({"rank_distribution": rank_table})
+
+        # Score distribution metrics
+        if result.score_distribution_metrics:
+            score_metrics = result.score_distribution_metrics
+            wandb.log({
+                "mean_retrieval_score": score_metrics.get("mean_score", 0.0),
+                "median_retrieval_score": score_metrics.get("median_score", 0.0),
+                "score_std": score_metrics.get("score_std", 0.0),
+                "score_skewness": score_metrics.get("score_skewness", 0.0)
+            })
+
+            # Score percentiles
+            if "score_percentiles" in score_metrics:
+                for percentile, value in score_metrics["score_percentiles"].items():
+                    wandb.log({f"score_p{percentile}": value})
+
+        # Consistency metrics
+        if result.consistency_metrics:
+            consistency = result.consistency_metrics
+            wandb.log({
+                "jaccard_similarity": consistency.get("jaccard_similarity", 0.0),
+                "rank_correlation": consistency.get("rank_correlation", 0.0),
+                "score_stability": consistency.get("score_stability", 0.0)
+            })
+
+            # Top-K overlap
+            if "top_k_overlap" in consistency:
+                for k, overlap in consistency["top_k_overlap"].items():
+                    wandb.log({f"top_{k}_overlap": overlap})
+
+        # False positive/negative analysis
+        if result.false_positive_analysis:
+            fp_analysis = result.false_positive_analysis
+            wandb.log({
+                "false_positive_rate": fp_analysis.get("false_positive_rate", 0.0),
+                "false_negative_rate": fp_analysis.get("false_negative_rate", 0.0)
+            })
+
+            # Precision by rank
+            if "precision_by_rank" in fp_analysis:
+                for rank, precision in fp_analysis["precision_by_rank"].items():
+                    wandb.log({f"precision_at_rank_{rank}": precision})
+
+        # Confidence analysis
+        if result.confidence_analysis:
+            confidence = result.confidence_analysis
+            wandb.log({
+                "score_calibration_error": confidence.get("score_calibration_error", 0.0)
+            })
+
+            # Confidence by rank
+            if "confidence_by_rank" in confidence:
+                for rank, conf in confidence["confidence_by_rank"].items():
+                    wandb.log({f"confidence_at_rank_{rank}": conf})
+
+            # Uncertainty scores summary
+            if "uncertainty_scores" in confidence and confidence["uncertainty_scores"]:
+                uncertainty_scores = confidence["uncertainty_scores"]
+                wandb.log({
+                    "mean_uncertainty": sum(uncertainty_scores) / len(uncertainty_scores),
+                    "max_uncertainty": max(uncertainty_scores),
+                    "min_uncertainty": min(uncertainty_scores)
+                })
 
     def _log_detailed_tables(self, result: AnalysisResult) -> None:
         """Log detailed analysis tables."""
