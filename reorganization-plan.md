@@ -1,4 +1,4 @@
-### Assessment of scripts Directory
+### Assessment of scripts Directory (COMPLETED)
 The scripts folder contains 20+ files (mixing Python scripts, shell scripts, and a __pycache__ directory), with no subfolders. Key observations:
 - **Diverse purposes**: Files range from core execution (e.g., running RAG pipelines) to data processing, evaluation, infrastructure setup, and utilities. This flat structure makes it hard to navigate and understand responsibilities.
 - **Inconsistent naming and structure**: Some files use underscores (e.g., run_rag.py), others hyphens (e.g., `run-local.sh`). No clear grouping by function.
@@ -82,5 +82,3 @@ The plan breaks the task into phases, focusing on logical grouping by purpose. T
   2. Add tests for key scripts in `tests/scripts/`.
   3. Update CI to reference new paths.
   4. Monitor for issues post-reorg.
-
-This plan keeps changes incremental to avoid breaking the system. If you'd like me to start implementing (e.g., create subfolders and move files), provide more details on priorities or let me know which phase to begin with!
