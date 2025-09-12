@@ -146,9 +146,45 @@ python transform_submission.py data/eval.jsonl outputs/submission.csv outputs/ev
 PYTHONPATH=src poetry run python scripts/create_validation_set.py create_validation_set.sample_size=100
 ```
 
-### **6.2. 설정 파일 수정**
+### **6.3. 고성능 분석: 병렬 처리**
 
-기본 파라미터를 영구적으로 변경하려면 `conf/` 디렉토리의 YAML 파일들(`conf/model/default.yaml`, `conf/pipeline/default.yaml` 등)을 직접 수정하세요.
+프로젝트의 분석 프레임워크는 대규모 데이터셋 처리 시 자동으로 병렬 처리를 지원합니다. 자세한 내용은 [병렬 처리 가이드](parallel-processing-guide.md)를 참조하세요.
+
+#### **기본 사용법**
+
+```bash
+# 기본 설정으로 분석 실행 (자동 병렬 처리)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+```
+
+#### **병렬 처리 설정**
+
+```yaml
+# conf/config.yaml에 추가
+analysis:
+  max_workers: 8          # 최대 워커 수
+  enable_parallel: true   # 병렬 처리 활성화
+```
+
+#### **커맨드라인에서 설정 변경**
+
+```bash
+# 병렬 처리 비활성화
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.enable_parallel=false
+
+# 최대 워커 수 지정
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.max_workers=4
+```
+
+#### **성능 모니터링**
+
+```bash
+# 처리 시간 모니터링
+time PYTHONPATH=src poetry run python scripts/validate_retrieval.py limit=100
+
+# 메모리 사용량 확인
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py | grep "🔄"
+```
 
 ## Multirun 3 run example
 ```bash

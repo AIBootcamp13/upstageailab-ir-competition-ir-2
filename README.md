@@ -82,7 +82,21 @@ PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.7 l
 PYTHONPATH=src poetry run python scripts/evaluate.py
 ```
 
-> 실험 및 고급 사용법에 대한 더 자세한 안내는 \*\*[워크플로우 가이드](docs/usage/workflow-guide.md)\*\*를 참고하세요.
+**🚀 고성능 분석 (병렬 처리)**
+
+```bash
+# 대규모 데이터셋 분석 시 자동 병렬 처리
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+
+# 병렬 처리 설정 (8개 워커 사용)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.max_workers=8
+
+# 병렬 처리 비활성화 (디버깅용)
+PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.enable_parallel=false
+```
+
+> 실험 및 고급 사용법에 대한 더 자세한 안내는 **[워크플로우 가이드](docs/usage/workflow-guide.md)**를 참고하세요.
+> 병렬 처리에 대한 자세한 정보는 **[병렬 처리 가이드](docs/usage/parallel-processing-guide.md)**를 참고하세요.
 ## **🎯 개요**
 
 ### **환경 요구사항**
@@ -98,8 +112,10 @@ PYTHONPATH=src poetry run python scripts/evaluate.py
 
 * ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
 * ✅ 모듈형 RAG 파이프라인
+* ✅ **병렬 처리 지원**: 대규모 분석 시 자동 성능 최적화
 * ✅ 임베딩, 검색, 평가 유틸리티 제공
 * ✅ Docker 없는 로컬 개발 환경 지원
+* ✅ Ollama 통합: 비용 효율적인 로컬 AI 모델
 
 ## **🏆 대회 정보**
 

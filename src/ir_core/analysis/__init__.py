@@ -18,9 +18,12 @@ Modules:
 
 from .core import RetrievalAnalyzer, AnalysisResult
 from .metrics import RetrievalMetrics
+from .query_analyzer import QueryAnalyzer, QueryFeatures
 
 __all__ = [
     'RetrievalAnalyzer',
     'AnalysisResult',
-    'RetrievalMetrics'
+    'RetrievalMetrics',
+    'QueryAnalyzer',
+    'QueryFeatures'
 ]

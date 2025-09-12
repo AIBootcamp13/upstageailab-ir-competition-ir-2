@@ -140,7 +140,7 @@ class WandbAnalysisLogger:
                 f"{retrieval_result.ap_score:.4f}",
                 retrieval_result.rank_of_ground_truth or 0,
                 query_analysis.query_length,
-                query_analysis.domain
+                ", ".join(query_analysis.domain) if isinstance(query_analysis.domain, list) else query_analysis.domain
             ])
 
         results_table = wandb.Table(

@@ -4,12 +4,14 @@
 Core analysis classes and data structures for the Scientific QA retrieval system.
 """
 
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, cast
 from dataclasses import dataclass, field
 from omegaconf import DictConfig, OmegaConf
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .metrics import RetrievalMetrics
+from .query_analyzer import QueryAnalyzer
 
 
 @dataclass
@@ -18,7 +20,7 @@ class QueryAnalysis:
     original_query: str
     rewritten_query: str
     query_length: int
-    domain: str
+    domain: List[str]  # Support multiple domains
     complexity_score: float
     processing_time: float
     rewrite_effective: bool
@@ -86,20 +88,27 @@ class RetrievalAnalyzer:
         """
         self.config = config
         self.metrics_calculator = RetrievalMetrics()
+        self.query_analyzer = QueryAnalyzer(config)
+
+        # Parallel processing configuration
+        self.max_workers = config.get('analysis', {}).get('max_workers', None)
+        self.enable_parallel = config.get('analysis', {}).get('enable_parallel', True)
 
     def analyze_batch(
         self,
         queries: List[Dict[str, Any]],
         retrieval_results: List[Dict[str, Any]],
-        rewritten_queries: Optional[List[str]] = None
+        rewritten_queries: Optional[List[str]] = None,
+        max_workers: Optional[int] = None
     ) -> AnalysisResult:
         """
-        Perform comprehensive analysis on a batch of retrieval results.
+        Perform comprehensive analysis on a batch of retrieval results with optional parallel processing.
 
         Args:
             queries: List of query dictionaries with original queries
             retrieval_results: List of retrieval result dictionaries
             rewritten_queries: Optional list of rewritten queries
+            max_workers: Maximum number of worker threads for parallel processing
 
         Returns:
             AnalysisResult: Comprehensive analysis results
@@ -122,19 +131,52 @@ class RetrievalAnalyzer:
         if rewritten_queries is None:
             rewritten_queries = original_queries
 
-        # Calculate basic metrics
+        # Calculate basic metrics with optional parallel processing
         all_results_for_map = []
         ap_scores = []
 
-        for i, (pred_docs, gt_id) in enumerate(zip(predicted_docs_list, ground_truth_ids)):
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
-            relevant_ids = [gt_id]
+        if len(predicted_docs_list) > 10 and self.enable_parallel and max_workers != 0:
+            # Use parallel processing for metric calculation
+            if max_workers is None:
+                max_workers = self.max_workers or min(16, len(predicted_docs_list))
 
-            all_results_for_map.append((pred_ids, relevant_ids))
+            print(f"🔄 Calculating metrics for {len(predicted_docs_list)} queries using {max_workers} parallel workers...")
 
-            # Calculate AP for this query
-            ap_score = self.metrics_calculator.average_precision(pred_ids, relevant_ids)
-            ap_scores.append(ap_score if ap_score is not None else 0.0)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit metric calculation tasks
+                future_to_index = {}
+                for i, (pred_docs, gt_id) in enumerate(zip(predicted_docs_list, ground_truth_ids)):
+                    future = executor.submit(self._calculate_query_metrics, pred_docs, gt_id, i)
+                    future_to_index[future] = i
+
+                # Collect results in order
+                results_by_index = {}
+                for future in as_completed(future_to_index):
+                    try:
+                        index, pred_ids, ap_score = future.result()
+                        results_by_index[index] = (pred_ids, ap_score)
+                    except Exception as e:
+                        index = future_to_index[future]
+                        print(f"Error calculating metrics for query {index}: {e}")
+                        results_by_index[index] = ([], 0.0)
+
+                # Sort results back to original order
+                for i in range(len(predicted_docs_list)):
+                    if i in results_by_index:
+                        pred_ids, ap_score = results_by_index[i]
+                        all_results_for_map.append((pred_ids, [ground_truth_ids[i]]))
+                        ap_scores.append(ap_score)
+        else:
+            # Sequential processing
+            for i, (pred_docs, gt_id) in enumerate(zip(predicted_docs_list, ground_truth_ids)):
+                pred_ids = [doc.get("id", "") for doc in pred_docs]
+                relevant_ids = [gt_id]
+
+                all_results_for_map.append((pred_ids, relevant_ids))
+
+                # Calculate AP for this query
+                ap_score = self.metrics_calculator.average_precision(pred_ids, relevant_ids)
+                ap_scores.append(ap_score if ap_score is not None else 0.0)
 
         # Calculate overall metrics
         map_score = self.metrics_calculator.mean_average_precision(all_results_for_map)
@@ -150,16 +192,23 @@ class RetrievalAnalyzer:
         for k in [1, 3, 5, 10]:
             recall_at_k[k] = self.metrics_calculator.recall_at_k(all_results_for_map, k)
 
-        # Query analysis
+        # Enhanced query analysis using QueryAnalyzer with parallel processing
+        query_features_list = self.query_analyzer.analyze_batch(original_queries, max_workers)
         total_queries = len(original_queries)
-        avg_query_length = sum(len(q) for q in original_queries) / total_queries if total_queries > 0 else 0
+
+        # Calculate aggregate statistics from features
+        avg_query_length = sum(f.length for f in query_features_list) / total_queries if total_queries > 0 else 0
+        avg_query_complexity = sum(f.complexity_score for f in query_features_list) / total_queries if total_queries > 0 else 0
 
         # Rewrite analysis
         rewrite_changes = sum(1 for orig, rew in zip(original_queries, rewritten_queries) if orig != rew)
         rewrite_rate = rewrite_changes / total_queries if total_queries > 0 else 0
 
-        # Domain classification based on query content
-        domain_distribution = self._analyze_domain_distribution(original_queries)
+        # Domain distribution from QueryAnalyzer features
+        domain_distribution = {}
+        for features in query_features_list:
+            for domain in features.domain:
+                domain_distribution[domain] = domain_distribution.get(domain, 0) + 1
 
         # Retrieval analysis
         retrieval_success_count = sum(1 for pred_docs, gt_id in zip(predicted_docs_list, ground_truth_ids)
@@ -175,33 +224,24 @@ class RetrievalAnalyzer:
         query_analyses = []
         retrieval_results_detailed = []
 
-        for i, (orig_q, rew_q, gt_id, pred_docs) in enumerate(zip(
-            original_queries, rewritten_queries, ground_truth_ids, predicted_docs_list
+        for i, (orig_q, rew_q, gt_id, pred_docs, features) in enumerate(zip(
+            original_queries, rewritten_queries, ground_truth_ids, predicted_docs_list, query_features_list
         )):
-            # Query analysis
+            # Query analysis using QueryAnalyzer features
             query_analysis = QueryAnalysis(
                 original_query=orig_q,
                 rewritten_query=rew_q,
-                query_length=len(orig_q),
-                domain=self._classify_query_domain(orig_q),
-                complexity_score=self._calculate_query_complexity(orig_q),
+                query_length=features.length,
+                domain=features.domain,
+                complexity_score=features.complexity_score,
                 processing_time=0.0,  # Placeholder
                 rewrite_effective=orig_q != rew_q
             )
             query_analyses.append(query_analysis)
 
-            # Retrieval result
+            # Retrieval result details
             pred_ids = [doc.get("id", "") for doc in pred_docs]
             pred_scores = [doc.get("score", 0.0) for doc in pred_docs]
-
-            rank_gt = None
-            if gt_id in pred_ids:
-                rank_gt = pred_ids.index(gt_id) + 1
-
-            top_k_precision = {}
-            for k in [1, 3, 5, 10]:
-                pred_at_k = pred_ids[:k]
-                top_k_precision[k] = 1.0 if gt_id in pred_at_k else 0.0
 
             retrieval_result = RetrievalResult(
                 query=orig_q,
@@ -209,11 +249,99 @@ class RetrievalAnalyzer:
                 predicted_ids=pred_ids,
                 predicted_scores=pred_scores,
                 ap_score=ap_scores[i],
-                rank_of_ground_truth=rank_gt,
-                top_k_precision=top_k_precision,
+                rank_of_ground_truth=self._find_rank_of_ground_truth(pred_ids, gt_id),
+                top_k_precision=self._calculate_top_k_precision(pred_ids, [gt_id]),
                 retrieval_time=0.0  # Placeholder
             )
             retrieval_results_detailed.append(retrieval_result)
+
+        # Generate recommendations
+        recommendations = self._generate_recommendations(
+            map_score, retrieval_success_rate, rewrite_rate
+        )
+
+        analysis_time = time.time() - start_time
+        print(".2f")
+
+        return AnalysisResult(
+            map_score=map_score,
+            mean_ap=mean_ap,
+            precision_at_k=precision_at_k,
+            recall_at_k=recall_at_k,
+            total_queries=total_queries,
+            avg_query_length=avg_query_length,
+            rewrite_rate=rewrite_rate,
+            domain_distribution=domain_distribution,
+            retrieval_success_rate=retrieval_success_rate,
+            avg_retrieval_time=0.0,  # Placeholder
+            error_categories=error_categories,
+            query_analyses=query_analyses,
+            retrieval_results=retrieval_results_detailed,
+            recommendations=recommendations,
+            timestamp=time.time(),
+            config_snapshot=cast(Dict[str, Any], OmegaConf.to_container(self.config)) if self.config else {}
+        )
+
+    def _calculate_query_metrics(self, pred_docs: List[Dict[str, Any]], gt_id: str, index: int):
+        """
+        Calculate metrics for a single query (for parallel processing).
+
+        Args:
+            pred_docs: Predicted documents
+            gt_id: Ground truth document ID
+            index: Query index
+
+        Returns:
+            Tuple[int, List[str], float]: (index, predicted_ids, ap_score)
+        """
+        pred_ids = [doc.get("id", "") for doc in pred_docs]
+        relevant_ids = [gt_id]
+
+        # Calculate AP for this query
+        ap_score = self.metrics_calculator.average_precision(pred_ids, relevant_ids)
+        ap_score = ap_score if ap_score is not None else 0.0
+
+        return index, pred_ids, ap_score
+
+    def _find_rank_of_ground_truth(self, pred_ids: List[str], gt_id: str) -> Optional[int]:
+        """
+        Find the rank of ground truth document in predicted results.
+
+        Args:
+            pred_ids: List of predicted document IDs
+            gt_id: Ground truth document ID
+
+        Returns:
+            Optional[int]: Rank of ground truth (1-based), None if not found
+        """
+        try:
+            return pred_ids.index(gt_id) + 1
+        except ValueError:
+            return None
+
+    def _calculate_top_k_precision(self, pred_ids: List[str], relevant_ids: List[str]) -> Dict[int, float]:
+        """
+        Calculate precision@K for different K values.
+
+        Args:
+            pred_ids: List of predicted document IDs
+            relevant_ids: List of relevant document IDs
+
+        Returns:
+            Dict[int, float]: Precision values for K=1,3,5,10
+        """
+        precision_at_k = {}
+        relevant_set = set(relevant_ids)
+
+        for k in [1, 3, 5, 10]:
+            if len(pred_ids) >= k:
+                top_k_preds = pred_ids[:k]
+                correct = len([pid for pid in top_k_preds if pid in relevant_set])
+                precision_at_k[k] = correct / k
+            else:
+                precision_at_k[k] = 0.0
+
+        return precision_at_k
 
         # Generate recommendations
         recommendations = self._generate_recommendations(
