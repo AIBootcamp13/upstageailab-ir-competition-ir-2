@@ -239,7 +239,7 @@ class RetrievalAnalyzer:
         )
 
         # Combine legacy and enhanced recommendations
-        recommendations = legacy_recommendations + error_result.recommendations
+        recommendations = legacy_recommendations + error_result.error_recommendations
 
         # Phase 3: Perform retrieval quality assessment
         retrieval_quality_result = self.retrieval_quality_analyzer.analyze_retrieval_quality(
@@ -267,7 +267,7 @@ class RetrievalAnalyzer:
             error_patterns=error_result.error_patterns,
             domain_error_rates=error_result.domain_error_rates,
             temporal_trends=error_result.temporal_trends,
-            error_recommendations=error_result.recommendations,
+            error_recommendations=error_result.error_recommendations,
             performance_segmentation=retrieval_quality_result.performance_segmentation.segmentation_stats,
             ranking_quality_metrics={
                 "ndcg_at_k": retrieval_quality_result.ranking_quality.ndcg_at_k,

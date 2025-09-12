@@ -69,11 +69,11 @@ class WandbAnalysisLogger:
         # Log detailed tables
         self._log_detailed_tables(result)
 
-        # Log recommendations
-        self._log_recommendations(result)
+        # Log interactive charts
+        self._log_interactive_charts(result)
 
-        # Log Phase 4: Enhanced Error Analysis
-        self._log_enhanced_error_analysis(result)
+        # Log custom visualizations
+        self._log_custom_visualizations(result)
 
     def _log_core_metrics(self, result: AnalysisResult) -> None:
         """Log the core performance metrics."""
@@ -320,6 +320,91 @@ class WandbAnalysisLogger:
             enhanced_rec_html += "</ul>"
             wandb.log({"enhanced_error_recommendations": wandb.Html(enhanced_rec_html)})
 
+    def _log_interactive_charts(self, result: AnalysisResult) -> None:
+        """Log interactive charts for better analysis visualization."""
+        # Performance distribution histogram
+        if result.retrieval_results:
+            ap_scores = [rr.ap_score for rr in result.retrieval_results]
+            perf_hist = wandb.plot.histogram(
+                wandb.Table(data=[[s] for s in ap_scores], columns=["AP Score"]),
+                "AP Score",
+                title="Retrieval Performance Distribution"
+            )
+            wandb.log({"performance_distribution": perf_hist})
+
+        # Query length vs performance scatter
+        if result.query_analyses and result.retrieval_results:
+            scatter_data = []
+            for qa, rr in zip(result.query_analyses, result.retrieval_results):
+                scatter_data.append([qa.query_length, rr.ap_score])
+
+            if scatter_data:
+                scatter_table = wandb.Table(data=scatter_data, columns=["Query Length", "AP Score"])
+                scatter_plot = wandb.plot.scatter(
+                    scatter_table,
+                    "Query Length",
+                    "AP Score",
+                    title="Query Length vs Performance"
+                )
+                wandb.log({"query_length_performance": scatter_plot})
+
+        # Domain performance comparison
+        if result.domain_distribution:
+            domain_data = [[domain, count] for domain, count in result.domain_distribution.items()]
+            if domain_data:
+                domain_table = wandb.Table(data=domain_data, columns=["Domain", "Count"])
+                domain_bar = wandb.plot.bar(
+                    domain_table,
+                    "Domain",
+                    "Count",
+                    title="Queries by Scientific Domain"
+                )
+                wandb.log({"domain_distribution_chart": domain_bar})
+
+    def _log_custom_visualizations(self, result: AnalysisResult) -> None:
+        """Log custom visualizations for advanced analysis."""
+        # Precision@K comparison
+        if result.precision_at_k:
+            precision_data = []
+            for k in sorted(result.precision_at_k.keys()):
+                precision_data.append([f"P@{k}", result.precision_at_k[k]])
+
+            if precision_data:
+                prec_table = wandb.Table(data=precision_data, columns=["Metric", "Value"])
+                prec_bar = wandb.plot.bar(
+                    prec_table,
+                    "Metric",
+                    "Value",
+                    title="Precision@K Comparison"
+                )
+                wandb.log({"precision_at_k_comparison": prec_bar})
+
+        # Error categories breakdown
+        if result.error_categories:
+            error_data = [[err_type, count] for err_type, count in result.error_categories.items()]
+            if error_data:
+                error_table = wandb.Table(data=error_data, columns=["Error Type", "Count"])
+                error_bar = wandb.plot.bar(
+                    error_table,
+                    "Error Type",
+                    "Count",
+                    title="Error Categories Distribution"
+                )
+                wandb.log({"error_categories_chart": error_bar})
+
+        # Performance segmentation (Phase 3)
+        if result.performance_segmentation:
+            segment_data = [[level, count] for level, count in result.performance_segmentation.items()]
+            if segment_data:
+                segment_table = wandb.Table(data=segment_data, columns=["Performance Level", "Count"])
+                segment_bar = wandb.plot.bar(
+                    segment_table,
+                    "Performance Level",
+                    "Count",
+                    title="Performance Segmentation"
+                )
+                wandb.log({"performance_segmentation_chart": segment_bar})
+
     def create_performance_dashboard(self, results: List[AnalysisResult]) -> None:
         """
         Create a comprehensive performance dashboard from multiple analysis results.
@@ -347,13 +432,205 @@ class WandbAnalysisLogger:
             }
         })
 
-        # Create trend charts
-        for k, precisions in precision_trends.items():
-            trend_table = wandb.Table(
-                columns=["Run", f"P@{k}"],
-                data=[[f"Run_{i+1}", p] for i, p in enumerate(precisions)]
+        # Create interactive trend charts
+        self._create_trend_charts(results, precision_trends)
+
+        # Create comparative analysis
+        self._create_comparative_analysis(results)
+
+        # Create drill-down capabilities
+        self._create_drill_down_views(results)
+
+    def _create_trend_charts(self, results: List[AnalysisResult], precision_trends: Dict[int, List[float]]) -> None:
+        """Create interactive trend charts for performance metrics."""
+        # MAP score trend
+        map_data = [[f"Run_{i+1}", score] for i, score in enumerate([r.map_score for r in results])]
+        if map_data:
+            map_table = wandb.Table(data=map_data, columns=["Run", "MAP Score"])
+            map_line = wandb.plot.line(
+                map_table,
+                "Run",
+                "MAP Score",
+                title="MAP Score Trend Across Runs"
             )
-            wandb.log({f"precision_at_{k}_trend": trend_table})
+            wandb.log({"map_score_trend": map_line})
+
+        # Precision@K trends
+        for k, precisions in precision_trends.items():
+            trend_data = [[f"Run_{i+1}", p] for i, p in enumerate(precisions)]
+            if trend_data:
+                trend_table = wandb.Table(data=trend_data, columns=["Run", f"P@{k}"])
+                trend_line = wandb.plot.line(
+                    trend_table,
+                    "Run",
+                    f"P@{k}",
+                    title=f"Precision@{k} Trend Across Runs"
+                )
+                wandb.log({f"precision_at_{k}_trend": trend_line})
+
+    def _create_comparative_analysis(self, results: List[AnalysisResult]) -> None:
+        """Create comparative analysis views across different runs."""
+        if len(results) < 2:
+            return
+
+        # Compare key metrics across runs
+        comparison_data = []
+        for i, result in enumerate(results):
+            comparison_data.append([
+                f"Run_{i+1}",
+                result.map_score,
+                result.retrieval_success_rate,
+                result.avg_query_length,
+                result.rewrite_rate
+            ])
+
+        if comparison_data:
+            comp_table = wandb.Table(
+                data=comparison_data,
+                columns=["Run", "MAP", "Success Rate", "Avg Query Length", "Rewrite Rate"]
+            )
+
+            # Log as bar chart for comparison
+            for metric in ["MAP", "Success Rate", "Avg Query Length", "Rewrite Rate"]:
+                comp_bar = wandb.plot.bar(
+                    comp_table,
+                    "Run",
+                    metric,
+                    title=f"{metric} Comparison Across Runs"
+                )
+                wandb.log({f"comparison_{metric.lower().replace(' ', '_')}": comp_bar})
+
+    def _create_drill_down_views(self, results: List[AnalysisResult]) -> None:
+        """Create drill-down views for detailed analysis."""
+        # Domain performance across runs
+        domain_trends = {}
+        for i, result in enumerate(results):
+            if result.domain_distribution:
+                for domain, count in result.domain_distribution.items():
+                    if domain not in domain_trends:
+                        domain_trends[domain] = []
+                    domain_trends[domain].append((f"Run_{i+1}", count))
+
+        # Create domain trend charts
+        for domain, trend_data in domain_trends.items():
+            if len(trend_data) > 1:
+                domain_data = [[run, count] for run, count in trend_data]
+                domain_table = wandb.Table(data=domain_data, columns=["Run", "Count"])
+                domain_line = wandb.plot.line(
+                    domain_table,
+                    "Run",
+                    "Count",
+                    title=f"{domain} Query Distribution Trend"
+                )
+                wandb.log({f"domain_trend_{domain.lower()}": domain_line})
+
+        # Error analysis trends
+        error_trends = {}
+        for i, result in enumerate(results):
+            if result.error_categories:
+                for error_type, count in result.error_categories.items():
+                    if error_type not in error_trends:
+                        error_trends[error_type] = []
+                    error_trends[error_type].append((f"Run_{i+1}", count))
+
+        # Create error trend charts
+        for error_type, trend_data in error_trends.items():
+            if len(trend_data) > 1:
+                error_data = [[run, count] for run, count in trend_data]
+                error_table = wandb.Table(data=error_data, columns=["Run", "Count"])
+                error_line = wandb.plot.line(
+                    error_table,
+                    "Run",
+                    "Count",
+                    title=f"{error_type} Error Trend"
+                )
+                wandb.log({f"error_trend_{error_type.lower().replace(' ', '_')}": error_line})
+
+    def create_custom_dashboard(
+        self,
+        results: List[AnalysisResult],
+        chart_configs: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Create custom dashboard based on user-specified chart configurations.
+
+        Args:
+            results: List of AnalysisResult objects
+            chart_configs: List of chart configuration dictionaries
+        """
+        for config in chart_configs:
+            chart_type = config.get("type", "bar")
+            title = config.get("title", "Custom Chart")
+            x_field = config.get("x_field")
+            y_field = config.get("y_field")
+            data_source = config.get("data_source", "results")
+
+            if not x_field or not y_field:
+                continue
+
+            # Extract data based on configuration
+            chart_data = self._extract_chart_data(results, config)
+
+            if chart_data:
+                chart_table = wandb.Table(data=chart_data, columns=[x_field, y_field])
+
+                if chart_type == "bar":
+                    chart = wandb.plot.bar(chart_table, x_field, y_field, title=title)
+                elif chart_type == "line":
+                    chart = wandb.plot.line(chart_table, x_field, y_field, title=title)
+                elif chart_type == "scatter":
+                    chart = wandb.plot.scatter(chart_table, x_field, y_field, title=title)
+                else:
+                    continue
+
+                # Create a safe name for logging
+                safe_name = title.lower().replace(" ", "_").replace("@", "at")
+                wandb.log({f"custom_{safe_name}": chart})
+
+    def _extract_chart_data(self, results: List[AnalysisResult], config: Dict[str, Any]) -> List[List]:
+        """Extract data for custom charts based on configuration."""
+        data_source = config.get("data_source", "results")
+        x_field = config.get("x_field")
+        y_field = config.get("y_field")
+
+        chart_data = []
+
+        if data_source == "results":
+            for i, result in enumerate(results):
+                if x_field and y_field:
+                    x_value = self._get_nested_value(result, x_field)
+                    y_value = self._get_nested_value(result, y_field)
+
+                    if x_value is not None and y_value is not None:
+                        if x_field == "run":
+                            x_value = f"Run_{i+1}"
+                        chart_data.append([x_value, y_value])
+
+        elif data_source == "queries":
+            for result in results:
+                for qa, rr in zip(result.query_analyses, result.retrieval_results):
+                    if x_field and y_field:
+                        x_value = self._get_nested_value(qa, x_field) or self._get_nested_value(rr, x_field)
+                        y_value = self._get_nested_value(qa, y_field) or self._get_nested_value(rr, y_field)
+
+                        if x_value is not None and y_value is not None:
+                            chart_data.append([x_value, y_value])
+
+        return chart_data
+
+    def _get_nested_value(self, obj: Any, field_path: str) -> Any:
+        """Get nested value from object using dot notation."""
+        try:
+            for part in field_path.split("."):
+                if hasattr(obj, part):
+                    obj = getattr(obj, part)
+                elif isinstance(obj, dict) and part in obj:
+                    obj = obj[part]
+                else:
+                    return None
+            return obj
+        except:
+            return None
 
     def log_query_analysis_table(self, queries: List[Dict[str, Any]]) -> None:
         """

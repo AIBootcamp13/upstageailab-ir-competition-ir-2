@@ -142,8 +142,8 @@ class AnalysisVisualizer:
                     'query_length': 'Query Length (characters)',
                     'performance': 'Average Precision (AP)'
                 },
-                template='plotly_white',
-                trendline="ols"
+                template='plotly_white'
+                # trendline="ols"  # Disabled due to statsmodels dependency
             )
         else:
             fig, ax = plt.subplots(figsize=(10, 6))
@@ -495,16 +495,16 @@ class AnalysisVisualizer:
         full_path = self.output_dir / save_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if self.backend == 'plotly':
-            # Save HTML version (always works)
+        if isinstance(fig, go.Figure):
+            # Plotly figure
             fig.write_html(str(full_path.with_suffix('.html')))
-            # Try to save PNG version (requires kaleido)
             try:
                 fig.write_image(str(full_path.with_suffix('.png')))
-            except (ImportError, ValueError) as e:
-                print(f"Warning: Could not save PNG image for {save_path}. Install kaleido for PNG export: pip install kaleido")
+            except (ImportError, ValueError, RuntimeError) as e:
+                print(f"Warning: Could not save PNG image for {save_path}. Install Chrome for PNG export: plotly_get_chrome")
                 print(f"HTML version saved at: {full_path.with_suffix('.html')}")
         else:
+            # Matplotlib figure
             fig.savefig(str(full_path.with_suffix('.png')), dpi=300, bbox_inches='tight')
             plt.close(fig)
 

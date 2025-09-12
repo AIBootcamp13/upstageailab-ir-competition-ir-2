@@ -21,6 +21,7 @@ from .core import RetrievalAnalyzer, AnalysisResult
 from .metrics import RetrievalMetrics
 from .query_analyzer import QueryAnalyzer, QueryFeatures
 from .visualizer import AnalysisVisualizer, plot_performance_distribution, plot_query_performance_correlation, plot_domain_comparison
+from .report_generator import AnalysisReportGenerator, generate_performance_report, generate_error_report, generate_trend_report
 from .components import (
     MetricCalculator,
     MetricCalculationResult,
@@ -49,5 +50,10 @@ __all__ = [
     'AnalysisVisualizer',
     'plot_performance_distribution',
     'plot_query_performance_correlation',
-    'plot_domain_comparison'
+    'plot_domain_comparison',
+    # Phase 5: Report Generation
+    'AnalysisReportGenerator',
+    'generate_performance_report',
+    'generate_error_report',
+    'generate_trend_report'
 ]
