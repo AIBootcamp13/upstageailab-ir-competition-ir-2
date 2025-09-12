@@ -15,7 +15,7 @@ add_src_to_path()
 # get_generator는 run_pipeline 함수 내부에서 임포트하여 순환 참조를 방지합니다.
 
 
-@hydra.main(config_path="../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def run_pipeline(cfg: DictConfig) -> None:
     """
     Hydra 설정을 사용하여 주어진 쿼리에 대해 전체 RAG 파이프라인을 초기화하고 실행합니다.

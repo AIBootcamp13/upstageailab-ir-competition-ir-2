@@ -29,10 +29,10 @@ nano .env
 이 스크립트는 로컬 환경에 Elasticsearch와 Redis를 다운로드하고 실행합니다.
 
 ```bash
-./scripts/run-local.sh start
+./scripts/execution/run-local.sh start
 ```
 
-`./scripts/run-local.sh status` 명령어로 서비스 상태를 확인할 수 있습니다.
+`./scripts/execution/run-local.sh status` 명령어로 서비스 상태를 확인할 수 있습니다.
 
 -----
 
@@ -41,7 +41,7 @@ nano .env
 실험을 실행하기 전에, 제공된 `documents.jsonl` 파일을 Elasticsearch에 색인해야 합니다. 이 명령어는 `conf/config.yaml`에서 설정을 읽어옵니다.
 
 ```bash
-PYTHONPATH=src poetry run python scripts/reindex.py
+PYTHONPATH=src poetry run python scripts/maintenance/reindex.py
 ```
 
 -----
@@ -55,7 +55,7 @@ PYTHONPATH=src poetry run python scripts/reindex.py
 `conf/` 디렉토리에 정의된 기본 파라미터로 검증을 실행하려면 다음 명령어를 사용하세요.
 
 ```bash
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 ```
 
 ### **3.2. 파라미터 변경하기**
@@ -67,7 +67,7 @@ Hydra의 가장 큰 장점은 커맨드라인에서 설정을 쉽게 변경할 �
 ```bash
 # 이번 실행에만 model.alpha 값을 0.7로 설정
 # limit=50을 추가하여 빠른 테스트 실행
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.7 limit=50
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py model.alpha=0.7 limit=50
 ```
 
 ### **3.3. 고급 실험: 프롬프트 튜닝 (Multi-Run)**
@@ -75,7 +75,7 @@ PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.7 l
 여러 실험을 병렬로 실행할 수 있습니다. 예를 들어, `conf/experiment/prompt_tuning.yaml`에 정의된 여러 도구 호출 프롬프트를 한 번에 테스트하려면 다음 명령어를 사용하세요.
 
 ```bash
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py --multirun experiment=prompt_tuning limit=50
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py --multirun experiment=prompt_tuning limit=50
 ```
 
 이 명령어는 각기 다른 프롬프트를 사용하는 3개의 개별 실행을 시작하고, 결과를 WandB에 기록하여 쉽게 비교할 수 있도록 합니다.
@@ -88,7 +88,7 @@ PYTHONPATH=src poetry run python scripts/validate_retrieval.py --multirun experi
 
 ```bash
 # 검증 단계에서 찾은 최적의 파라미터를 사용
-PYTHONPATH=src poetry run python scripts/evaluate.py model.alpha=0.7
+PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py model.alpha=0.7
 ```
 
 이 명령어는 `outputs/` 디렉토리에 `submission.jsonl` 파일을 생성하고, 해당 파일을 WandB 아티팩트로도 기록합니다.
@@ -103,10 +103,10 @@ PYTHONPATH=src poetry run python scripts/evaluate.py model.alpha=0.7
 
 ```bash
 # 기본 최대 길이(500자)로 트리밍
-python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv
+PYTHONPATH=src poetry run python scripts/data/trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv
 
 # 사용자 지정 최대 길이(300자)로 트리밍
-python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 300
+PYTHONPATH=src poetry run python scripts/data/trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 300
 ```
 
 **파라미터 설명:**
@@ -120,7 +120,7 @@ python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 
 
 ```bash
 # 제출 파일을 평가 로그로 변환
-python transform_submission.py data/eval.jsonl outputs/submission.csv outputs/evaluation_logs.jsonl
+PYTHONPATH=src poetry run python scripts/data/transform_submission.py data/eval.jsonl outputs/submission.csv outputs/evaluation_logs.jsonl
 ```
 
 **파라미터 설명:**
@@ -143,7 +143,7 @@ python transform_submission.py data/eval.jsonl outputs/submission.csv outputs/ev
 
 ```bash
 # 100개의 샘플로 새로운 검증 데이터셋 생성
-PYTHONPATH=src poetry run python scripts/create_validation_set.py create_validation_set.sample_size=100
+PYTHONPATH=src poetry run python scripts/data/create_validation_set.py create_validation_set.sample_size=100
 ```
 
 ### **6.3. 고성능 분석: 병렬 처리**
@@ -154,7 +154,7 @@ PYTHONPATH=src poetry run python scripts/create_validation_set.py create_validat
 
 ```bash
 # 기본 설정으로 분석 실행 (자동 병렬 처리)
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 ```
 
 #### **병렬 처리 설정**
@@ -170,25 +170,25 @@ analysis:
 
 ```bash
 # 병렬 처리 비활성화
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.enable_parallel=false
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.enable_parallel=false
 
 # 최대 워커 수 지정
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.max_workers=4
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.max_workers=4
 ```
 
 #### **성능 모니터링**
 
 ```bash
 # 처리 시간 모니터링
-time PYTHONPATH=src poetry run python scripts/validate_retrieval.py limit=100
+time PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py limit=100
 
 # 메모리 사용량 확인
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py | grep "🔄"
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py | grep "🔄"
 ```
 
 ## Multirun 3 run example
 ```bash
-poetry run python scripts/validate_retrieval.py --multirun experiment=prompt_tuning limit=50 prompts.tool_description='prompts/tool_desc_baseline.txt,prompts/tool_desc_balanced_v1.txt,prompts/tool_desc_recall_v1.txt'
+poetry run python scripts/evaluation/validate_retrieval.py --multirun experiment=prompt_tuning limit=50 prompts.tool_description='prompts/tool_desc_baseline.txt,prompts/tool_desc_balanced_v1.txt,prompts/tool_desc_recall_v1.txt'
 ```
 
 

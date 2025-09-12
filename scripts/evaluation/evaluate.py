@@ -26,7 +26,7 @@ add_src_to_path()
 from ir_core.utils.wandb import generate_run_name
 
 
-@hydra.main(config_path="../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
 def run(cfg: DictConfig) -> None:
     """
     Hydra 설정을 사용하여 RAG 파이프라인에 대한 평가를 실행하고,

@@ -9,6 +9,7 @@ packages = [
 
 [tool.poetry.scripts]
 evaluate = "scripts.evaluate:main"
+cli = "scripts.cli_menu:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -30,6 +31,8 @@ fire = "^0.5.0"
 pytest = "^7.4"
 pydantic = "^1.10"
 Jinja2 = "^3.1.4"
+rich = "^13.7.0"
+questionary = "^2.0.1"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"

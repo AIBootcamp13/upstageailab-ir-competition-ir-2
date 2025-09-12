@@ -46,7 +46,7 @@ async def generate_question_for_document(
     return None
 
 
-@hydra.main(config_path="../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name="config", version_base=None)
 async def run(cfg: DictConfig) -> None:
     """문서 샘플로부터 비동기적으로 검증 데이터셋을 생성합니다."""
     _add_src_to_path()
