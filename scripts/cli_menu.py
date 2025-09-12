@@ -104,27 +104,27 @@ class CLIMenu:
             "Experiments & Validation": [
                 {
                     "name": "Validate Retrieval (Basic)",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf",
                     "description": "Run basic retrieval validation",
                     "needs_params": False,
                 },
                 {
                     "name": "Validate Retrieval (Custom)",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf",
                     "description": "Run retrieval validation with custom parameters",
                     "needs_params": True,
                     "params": ["model.alpha", "limit", "experiment"],
                 },
                 {
                     "name": "Multi-Run Experiments",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --multirun",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf --multirun",
                     "description": "Run multiple experiments in parallel",
                     "needs_params": True,
                     "params": ["experiment", "limit"],
                 },
                 {
                     "name": "Domain Classification Validation",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_domain_classification.py",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_domain_classification.py --config-dir conf",
                     "description": "Validate domain classification accuracy",
                     "needs_params": False,
                 },
@@ -198,23 +198,15 @@ class CLIMenu:
             result = subprocess.run(
                 command,
                 shell=True,
-                capture_output=True,
-                text=True,
                 cwd=self.project_root,
                 env=env
             )
 
             if result.returncode == 0:
-                if result.stdout:
-                    console.print("[green]✓ Success![/green]")
-                    console.print(Panel(result.stdout, title="Output"))
-                else:
-                    console.print("[green]✓ Command completed successfully![/green]")
+                console.print("[green]✓ Command completed successfully![/green]")
                 return True
             else:
                 console.print("[red]✗ Command failed![/red]")
-                if result.stderr:
-                    console.print(Panel(result.stderr, title="Error Output"))
                 return False
 
         except Exception as e:
