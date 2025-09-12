@@ -15,18 +15,14 @@ import wandb
 # OmegaConf가 ${env:VAR_NAME} 구문을 해석할 수 있도록 'env' 리졸버를 등록합니다.
 OmegaConf.register_new_resolver("env", os.getenv)
 
+from src.scripts_utils import add_src_to_path
+
 
 # Add the src directory to the path to allow for project imports
-def _add_src_to_path():
-    scripts_dir = os.path.dirname(__file__)
-    repo_dir = os.path.dirname(scripts_dir)
-    src_dir = os.path.join(repo_dir, "src")
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
+add_src_to_path()
 
 
 # --- 유틸리티 임포트 (Utility Imports) ---
-_add_src_to_path()
 from ir_core.utils.wandb import generate_run_name
 
 

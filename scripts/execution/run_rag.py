@@ -7,17 +7,11 @@ import sys
 import hydra
 from omegaconf import DictConfig
 
-
-def _add_src_to_path():
-    scripts_dir = os.path.dirname(__file__)
-    repo_dir = os.path.dirname(scripts_dir)
-    src_dir = os.path.join(repo_dir, "src")
-    if src_dir not in sys.path:
-        sys.path.insert(0, src_dir)
+from src.scripts_utils import add_src_to_path
 
 
 # --- 유틸리티 임포트 (Utility Imports) ---
-_add_src_to_path()
+add_src_to_path()
 # get_generator는 run_pipeline 함수 내부에서 임포트하여 순환 참조를 방지합니다.
 
 
