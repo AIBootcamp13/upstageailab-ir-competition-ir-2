@@ -22,6 +22,12 @@ if [ "${2:-}" = "-v" ] || [ "${2:-}" = "--verbose" ]; then verb=1; fi
 log(){ if [ "$verb" -eq 1 ]; then echo "$@"; fi }
 
 download_es(){
+  EXISTING_ES_DIR=$(ls -d "$ROOT_DIR"/elasticsearch-* 2>/dev/null | head -1 || true)
+  if [ -n "$EXISTING_ES_DIR" ]; then
+    ES_DIR="$EXISTING_ES_DIR"
+    log "Using existing ES dir: $ES_DIR"
+    return 0
+  fi
   if [ -d "$ES_DIR" ]; then log "ES dir exists: $ES_DIR"; return 0; fi
   TAR_NAME="elasticsearch-${ES_VERSION}-linux-x86_64.tar.gz"
   URL="https://artifacts.elastic.co/downloads/elasticsearch/${TAR_NAME}"
@@ -33,6 +39,12 @@ download_es(){
 }
 
 download_redis(){
+  EXISTING_REDIS_DIR=$(ls -d "$ROOT_DIR"/redis-* 2>/dev/null | head -1 || true)
+  if [ -n "$EXISTING_REDIS_DIR" ]; then
+    REDIS_DIR="$EXISTING_REDIS_DIR"
+    log "Using existing Redis dir: $REDIS_DIR"
+    return 0
+  fi
   if [ -d "$REDIS_DIR" ]; then log "Redis dir exists: $REDIS_DIR"; return 0; fi
   TAR_NAME="redis-$REDIS_VERSION.tar.gz"
   URL="http://download.redis.io/releases/$TAR_NAME"
@@ -64,12 +76,22 @@ xpack.security.enabled: false
 EOF
   fi
   echo "Starting Elasticsearch (logs -> $ES_DIR/logs)"
+  export ES_JAVA_OPTS="-Xms512m -Xmx512m"
   nohup "$ES_DIR/bin/elasticsearch" > "$ES_DIR/logs/es.stdout.log" 2> "$ES_DIR/logs/es.stderr.log" &
   echo $! > "$PIDFILE_ES"
   sleep 1
 }
 
 start_redis(){
+    # Add this check at the top
+  if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
+    if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
+      echo "Error: 'make' and 'gcc' are required to build Redis from source." >&2
+      echo "Please install them (e.g., 'sudo apt-get install build-essential') and try again." >&2
+      exit 1
+    fi
+  fi
+
   if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
     echo "Redis already running (pid $(cat $PIDFILE_REDIS))"; return 0
   fi
@@ -81,7 +103,7 @@ start_redis(){
   fi
   ensure_dirs
   echo "Starting Redis (logs -> $REDIS_DIR/logs)"
-  nohup "$REDIS_DIR/src/redis-server" --dir "$REDIS_DIR/data" > "$REDIS_DIR/logs/redis.stdout.log" 2> "$REDIS_DIR/logs/redis.stderr.log" &
+  nohup "$REDIS_DIR/src/redis-server" --dir "$REDIS_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru > "$REDIS_DIR/logs/redis.stdout.log" 2> "$REDIS_DIR/logs/redis.stderr.log" &
   echo $! > "$PIDFILE_REDIS"
   sleep 1
 }

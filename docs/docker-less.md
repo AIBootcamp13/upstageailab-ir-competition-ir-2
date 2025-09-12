@@ -125,6 +125,12 @@ sudo netstat -tlnp | grep :6379  # Redis
 sudo kill -9 <PID>
 ```
 
+---
+**재구동**
+scripts/run-local.sh stop && scripts/run-local.sh start
+---
+
+
 **권한 문제**
 ```bash
 # 실행 권한 부여

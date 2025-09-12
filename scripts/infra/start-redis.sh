@@ -26,7 +26,13 @@ done
 
 REDIS_VERSION="${VER:-7.2.0}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DIST_DIR="$ROOT_DIR/redis-$REDIS_VERSION"
+EXISTING_REDIS_DIR=$(ls -d "$ROOT_DIR"/redis-* 2>/dev/null | head -1 || true)
+if [ -n "$EXISTING_REDIS_DIR" ]; then
+  echo "Using existing Redis directory: $EXISTING_REDIS_DIR"
+  DIST_DIR="$EXISTING_REDIS_DIR"
+else
+  DIST_DIR="$ROOT_DIR/redis-$REDIS_VERSION"
+fi
 
 # If a Redis instance is already responding on localhost:6379, skip start/download.
 if python3 - <<'PY' > /dev/null 2>&1
@@ -95,10 +101,10 @@ mkdir -p "$DIST_DIR/data" "$DIST_DIR/logs" "$DIST_DIR/run"
 
 if [ "$FOREGROUND" -eq 1 ]; then
   echo "Starting redis-server in foreground using $REDIS_BIN"
-  exec "$REDIS_BIN" --dir "$DIST_DIR/data"
+  exec "$REDIS_BIN" --dir "$DIST_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru
 else
   echo "Starting redis-server in background using $REDIS_BIN (logs -> $DIST_DIR/logs)"
-  nohup "$REDIS_BIN" --dir "$DIST_DIR/data" > "$DIST_DIR/logs/redis.stdout.log" 2> "$DIST_DIR/logs/redis.stderr.log" &
+  nohup "$REDIS_BIN" --dir "$DIST_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru > "$DIST_DIR/logs/redis.stdout.log" 2> "$DIST_DIR/logs/redis.stderr.log" &
   REDIS_PID=$!
   echo "$REDIS_PID" > "$DIST_DIR/run/redis.pid"
   echo "Redis started with PID $REDIS_PID"

@@ -34,7 +34,13 @@ done
 
 ES_VERSION="${ES_VERSION_ARG:-8.9.0}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DIST_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
+EXISTING_ES_DIR=$(ls -d "$ROOT_DIR"/elasticsearch-* 2>/dev/null | head -1 || true)
+if [ -n "$EXISTING_ES_DIR" ]; then
+  echo "Using existing Elasticsearch directory: $EXISTING_ES_DIR"
+  DIST_DIR="$EXISTING_ES_DIR"
+else
+  DIST_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
+fi
 
 # If an Elasticsearch instance is already responding on localhost:9200, skip start/download.
 if curl -sS --fail http://127.0.0.1:9200 >/dev/null 2>&1; then
@@ -106,6 +112,9 @@ fi
 mkdir -p "$DIST_DIR/logs" "$DIST_DIR/run"
 
 mkdir -p "$DIST_DIR/logs" "$DIST_DIR/run"
+
+# Set heap size for local dev to reduce memory usage
+export ES_JAVA_OPTS="-Xms512m -Xmx512m"
 
 if [ "$FOREGROUND" -eq 1 ]; then
   echo "Starting Elasticsearch in foreground (suitable for systemd)"

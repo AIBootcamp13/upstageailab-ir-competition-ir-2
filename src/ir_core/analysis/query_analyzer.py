@@ -10,24 +10,22 @@ and scientific term extraction.
 
 from typing import Dict, List, Any, Optional, Tuple
 import re
-from dataclasses import dataclass
 from omegaconf import DictConfig
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
-
-@dataclass
-class QueryFeatures:
-    """Detailed features extracted from a query."""
-    length: int
-    word_count: int
-    scientific_terms: List[str]
-    complexity_score: float
-    query_type: str
-    domain: List[str]  # Support multiple domains
-    has_numbers: bool
-    has_formulas: bool
-    language_complexity: float
+from .constants import (
+    DOMAIN_KEYWORDS,
+    SCIENTIFIC_TERMS,
+    QUERY_TYPE_PATTERNS,
+    ANALYSIS_THRESHOLDS,
+    PARALLEL_PROCESSING_DEFAULTS,
+    LANGUAGE_COMPLEXITY_INDICATORS,
+    FORMULA_PATTERNS,
+    QUERY_LENGTH_NORMALIZATION,
+    VALIDATION_DOMAINS
+)
+from .query_components import QueryFeatures, BatchQueryProcessor
 
 
 class QueryAnalyzer:
@@ -46,39 +44,11 @@ class QueryAnalyzer:
             config: Optional configuration for analysis parameters
         """
         self.config = config or DictConfig({})
+        self.batch_processor = BatchQueryProcessor(config)
 
         # Parallel processing configuration
         self.max_workers = self.config.get('analysis', {}).get('max_workers', None)
         self.enable_parallel = self.config.get('analysis', {}).get('enable_parallel', True)
-
-        # Scientific domain keywords (Korean)
-        self.domain_keywords = {
-            "physics": ["물리", "힘", "에너지", "운동", "속도", "질량", "전자", "원자", "분자", "반응", "화합물", "파동", "광자", "중력", "입자", "핵", "방사능", "전기", "자기"],
-            "biology": ["생물", "세포", "유전자", "단백질", "RNA", "DNA", "미생물", "생태", "진화", "대사", "호흡", "광합성", "가금류", "알", "난백", "난황", "생식", "번식", "유기체", "조직", "기관", "계통"],
-            "chemistry": ["화학", "원소", "화합물", "반응", "결합", "용액", "산", "염기", "pH", "산화", "환원", "촉매", "분자", "원자", "이온", "결정", "용매", "용질", "침전", "증류"],
-            "astronomy": ["천문", "별", "행성", "은하", "우주", "태양", "달", "지구", "블랙홀", "혜성", "소행성", "성운", "은하수", "대폭발", "중력파"],
-            "geology": ["지질", "암석", "광물", "지층", "화산", "지진", "대륙", "판", "퇴적", "퇴적물", "지각", "맨틀", "핵", "광상", "지형"],
-            "mathematics": ["수학", "방정식", "계산", "확률", "통계", "기하", "대수", "미적분", "행렬", "벡터", "함수", "그래프", "극한", "적분"],
-            "general": ["과학", "연구", "실험", "관찰", "측정", "계산", "현상", "원리", "분석", "이론"]
-        }
-
-        # Scientific terms for complexity scoring
-        self.scientific_terms = [
-            '원자', '분자', '세포', '유전자', '단백질', 'RNA', 'DNA', '화합물', '반응', '에너지', '힘', '운동',
-            '속도', '질량', '전자', '양성자', '중성자', '원소', '결합', '용액', '산', '염기', 'pH',
-            '파동', '광자', '중력', '블랙홀', '행성', '별', '은하', '우주', '암석', '광물', '지층',
-            '화산', '지진', '방정식', '확률', '통계', '미적분', '행렬', '대수', '기하'
-        ]
-
-        # Query type patterns
-        self.query_type_patterns = {
-            "what": re.compile(r'\b(무엇|뭐|어떤|어떻게|왜|언제|어디|누구|얼마나)\b', re.IGNORECASE),
-            "how": re.compile(r'\b(어떻게|방법|과정|절차|원리)\b', re.IGNORECASE),
-            "why": re.compile(r'\b(왜|이유|원인|목적)\b', re.IGNORECASE),
-            "when": re.compile(r'\b(언제|시기|기간|시간)\b', re.IGNORECASE),
-            "where": re.compile(r'\b(어디|장소|위치|지역)\b', re.IGNORECASE),
-            "calculate": re.compile(r'\b(계산|구하|값|수치)\b', re.IGNORECASE)
-        }
 
     def analyze_query(self, query: str) -> QueryFeatures:
         """
@@ -90,39 +60,7 @@ class QueryAnalyzer:
         Returns:
             QueryFeatures: Detailed analysis results
         """
-        # Basic features
-        length = len(query)
-        words = query.split()
-        word_count = len(words)
-
-        # Scientific term extraction
-        scientific_terms = self._extract_scientific_terms(query)
-
-        # Complexity scoring
-        complexity_score = self._calculate_complexity(query, scientific_terms)
-
-        # Query type classification
-        query_type = self._classify_query_type(query)
-
-        # Domain classification
-        domain = self._classify_domain(query)
-
-        # Additional features
-        has_numbers = bool(re.search(r'\d', query))
-        has_formulas = self._detect_formulas(query)
-        language_complexity = self._assess_language_complexity(query)
-
-        return QueryFeatures(
-            length=length,
-            word_count=word_count,
-            scientific_terms=scientific_terms,
-            complexity_score=complexity_score,
-            query_type=query_type,
-            domain=domain,
-            has_numbers=has_numbers,
-            has_formulas=has_formulas,
-            language_complexity=language_complexity
-        )
+        return self.batch_processor.feature_extractor.extract_features(query)
 
     def analyze_batch(self, queries: List[str], max_workers: Optional[int] = None) -> List[QueryFeatures]:
         """
@@ -135,177 +73,8 @@ class QueryAnalyzer:
         Returns:
             List[QueryFeatures]: Analysis results for each query
         """
-        if not queries:
-            return []
+        return self.batch_processor.process_batch(queries, max_workers)
 
-        # Use parallel processing for batches larger than threshold
-        if len(queries) > 10 and self.enable_parallel and max_workers != 0:  # Allow disabling with max_workers=0
-            if max_workers is None:
-                max_workers = self.max_workers or min(32, len(queries))
-
-            print(f"🔄 Analyzing {len(queries)} queries using {max_workers} parallel workers...")
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all analysis tasks
-                future_to_query = {executor.submit(self.analyze_query, query): query for query in queries}
-
-                # Collect results in order
-                results = []
-                for future in as_completed(future_to_query):
-                    try:
-                        result = future.result()
-                        results.append((future_to_query[future], result))
-                    except Exception as e:
-                        print(f"Error analyzing query: {e}")
-                        # Return empty features for failed queries
-                        results.append((future_to_query[future], QueryFeatures(
-                            length=0, word_count=0, scientific_terms=[], complexity_score=0.0,
-                            query_type="unknown", domain=["unknown"], has_numbers=False,
-                            has_formulas=False, language_complexity=0.0
-                        )))
-
-                # Sort results back to original order
-                results.sort(key=lambda x: queries.index(x[0]))
-                return [result for _, result in results]
-        else:
-            # Use sequential processing for small batches
-            return [self.analyze_query(query) for query in queries]
-
-    def _extract_scientific_terms(self, query: str) -> List[str]:
-        """
-        Extract scientific terms from the query.
-
-        Args:
-            query: The query string
-
-        Returns:
-            List[str]: List of detected scientific terms
-        """
-        query_lower = query.lower()
-        found_terms = []
-
-        for term in self.scientific_terms:
-            if term in query_lower:
-                found_terms.append(term)
-
-        return found_terms
-
-    def _calculate_complexity(self, query: str, scientific_terms: List[str]) -> float:
-        """
-        Calculate query complexity score based on multiple factors.
-
-        Args:
-            query: The query string
-            scientific_terms: List of scientific terms found in the query
-
-        Returns:
-            float: Complexity score between 0 and 1
-        """
-        # Length-based complexity (0-0.3)
-        length_score = min(len(query) / 200, 0.3)
-
-        # Scientific term density (0-0.4)
-        words = query.split()
-        term_density = len(scientific_terms) / len(words) if words else 0
-        term_score = min(term_density * 2, 0.4)
-
-        # Language complexity (0-0.3)
-        lang_score = self._assess_language_complexity(query) * 0.3
-
-        return length_score + term_score + lang_score
-
-    def _classify_query_type(self, query: str) -> str:
-        """
-        Classify the query type based on question words and patterns.
-
-        Args:
-            query: The query string
-
-        Returns:
-            str: Query type (what, how, why, when, where, calculate, or general)
-        """
-        query_lower = query.lower()
-
-        # Check for question words
-        for qtype, pattern in self.query_type_patterns.items():
-            if pattern.search(query):
-                return qtype
-
-        # Check for calculation indicators
-        if any(term in query_lower for term in ['=', '계산', '구하라', '값은']):
-            return "calculate"
-
-        # Default to general
-        return "general"
-
-    def _classify_domain(self, query: str) -> List[str]:
-        """
-        Classify the query into scientific domains (supports multiple domains).
-
-        Args:
-            query: The query string
-
-        Returns:
-            List[str]: List of matched domains
-        """
-        query_lower = query.lower()
-        matched_domains = []
-
-        for domain, keywords in self.domain_keywords.items():
-            if any(keyword in query_lower for keyword in keywords):
-                matched_domains.append(domain)
-
-        # Remove duplicates and return
-        return list(set(matched_domains)) if matched_domains else ["unknown"]
-
-    def _detect_formulas(self, query: str) -> bool:
-        """
-        Detect if the query contains mathematical or chemical formulas.
-
-        Args:
-            query: The query string
-
-        Returns:
-            bool: True if formulas are detected
-        """
-        # Simple pattern for formulas (can be enhanced)
-        formula_patterns = [
-            r'\b[A-Z][a-z]?\d*\b',  # Chemical formulas like H2O, CO2
-            r'\d+\s*[+\-*/=]\s*\d+',  # Mathematical expressions
-            r'[a-zA-Z]\s*=\s*[^=]+',  # Equations
-        ]
-
-        for pattern in formula_patterns:
-            if re.search(pattern, query):
-                return True
-
-        return False
-
-    def _assess_language_complexity(self, query: str) -> float:
-        """
-        Assess the linguistic complexity of the query.
-
-        Args:
-            query: The query string
-
-        Returns:
-            float: Language complexity score (0-1)
-        """
-        words = query.split()
-
-        if not words:
-            return 0.0
-
-        # Average word length (longer words suggest complexity)
-        avg_word_length = sum(len(word) for word in words) / len(words)
-        length_score = min(avg_word_length / 10, 1.0)
-
-        # Sentence structure complexity (presence of clauses)
-        clause_indicators = ['그리고', '그러나', '때문에', '따라서', '만약', '이다']
-        clause_count = sum(1 for indicator in clause_indicators if indicator in query)
-        clause_score = min(clause_count / 3, 1.0)
-
-        return (length_score + clause_score) / 2
 
     def measure_rewrite_effectiveness(
         self,
@@ -342,7 +111,7 @@ class QueryAnalyzer:
 
         # Complexity change
         complexity_diff = rew_features.complexity_score - orig_features.complexity_score
-        if abs(complexity_diff) > 0.1:
+        if abs(complexity_diff) > ANALYSIS_THRESHOLDS["query_complexity_change_threshold"]:
             changes.append(f"complexity_{'increase' if complexity_diff > 0 else 'decrease'}")
 
         # Domain change
@@ -365,7 +134,7 @@ class QueryAnalyzer:
         if changes:
             effectiveness_score += 0.2  # Some changes are good
 
-        if abs(complexity_diff) > 0.2:
+        if abs(complexity_diff) > ANALYSIS_THRESHOLDS["significant_complexity_change"]:
             effectiveness_score += 0.1  # Significant complexity change
 
         effectiveness_score = min(effectiveness_score, 1.0)
@@ -409,20 +178,12 @@ class QueryAnalyzer:
                 validation_set = []
 
                 # Define domains to test (excluding 'general' and 'unknown')
-                test_domains = {
-                    "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등)",
-                    "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등)",
-                    "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등)",
-                    "astronomy": "천문학 (별, 행성, 은하, 우주, 태양 등)",
-                    "geology": "지질학 (암석, 광물, 지층, 화산, 지진 등)",
-                    "mathematics": "수학 (방정식, 계산, 확률, 통계, 기하 등)"
-                }
+                test_domains = VALIDATION_DOMAINS
 
                 # Use parallel processing for domain query generation
                 if len(test_domains) > 2 and max_workers != 0:
                     if max_workers is None:
-                        max_workers = min(6, len(test_domains))  # One worker per domain
-
+                        max_workers = PARALLEL_PROCESSING_DEFAULTS["max_workers_domain_generation"]
                     print(f"🔄 Generating queries for {len(test_domains)} domains using {max_workers} parallel workers...")
 
                     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -478,19 +239,12 @@ class QueryAnalyzer:
         validation_set = []
 
         # Define domains to test (excluding 'general' and 'unknown')
-        test_domains = {
-            "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등)",
-            "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등)",
-            "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등)",
-            "astronomy": "천문학 (별, 행성, 은하, 우주, 태양 등)",
-            "geology": "지질학 (암석, 광물, 지층, 화산, 지진 등)",
-            "mathematics": "수학 (방정식, 계산, 확률, 통계, 기하 등)"
-        }
+        test_domains = VALIDATION_DOMAINS
 
         # Use parallel processing for OpenAI domain generation
         if len(test_domains) > 2 and max_workers != 0:
             if max_workers is None:
-                max_workers = min(6, len(test_domains))
+                max_workers = min(PARALLEL_PROCESSING_DEFAULTS["max_workers_domain_generation"], len(test_domains))
 
             print(f"🔄 Generating queries for {len(test_domains)} domains using {max_workers} parallel workers (OpenAI)...")
 
@@ -623,7 +377,7 @@ class QueryAnalyzer:
         # Use parallel processing for larger validation sets
         if len(validation_set) > 5 and max_workers != 0:
             if max_workers is None:
-                max_workers = min(16, len(validation_set))
+                max_workers = PARALLEL_PROCESSING_DEFAULTS["max_workers_analysis"]
 
             print(f"🔄 Using {max_workers} parallel workers for evaluation...")
 

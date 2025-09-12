@@ -7,6 +7,8 @@ Comprehensive metrics calculation for Scientific QA retrieval evaluation.
 from typing import List, Tuple, Dict, Optional
 import numpy as np
 
+from .constants import DEFAULT_K_VALUES
+
 
 class RetrievalMetrics:
     """
@@ -241,12 +243,12 @@ class RetrievalMetrics:
         metrics['AP'] = ap if ap is not None else 0.0
 
         # Precision@K
-        for k in [1, 3, 5, 10]:
+        for k in DEFAULT_K_VALUES:
             p_at_k = RetrievalMetrics.precision_at_k([(predicted_ids, relevant_ids)], k)
             metrics[f'P@{k}'] = p_at_k
 
         # Recall@K
-        for k in [1, 3, 5, 10]:
+        for k in DEFAULT_K_VALUES:
             r_at_k = RetrievalMetrics.recall_at_k([(predicted_ids, relevant_ids)], k)
             metrics[f'R@{k}'] = r_at_k
 
