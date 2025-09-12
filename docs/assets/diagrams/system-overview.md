@@ -26,7 +26,7 @@ flowchart LR
     smoke["scripts/smoke_test.py<br/>(embedding-only runs without ES; full smoke requires ES + index)"]
     eval["Evaluation & diagnostics<br/>(src/ir_core/evaluation/core.py)"]
     config["pyproject.toml / deps<br/>(transformers, sentencepiece, scikit-learn, pydantic)"]
-    docs_md["SMOKE_TEST.md (project root)"]
+    docs_md["SMOKE_TEST.md (docs/usage/)"]
   end
 
   docs --> preprocess

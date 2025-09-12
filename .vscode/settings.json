@@ -23,7 +23,9 @@
     "**/elasticsearch-*/**",
     "**/redis-*/**",
     "**/multirun/**",
-    "**/notebooks/**"
+    "**/notebooks/**",
+    "**/prompts/**",
+    "**/confg/**"
   ],
 
   // Also exclude from file explorer

@@ -9,7 +9,6 @@
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
-        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
     </tr>
     <tr>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
@@ -25,7 +24,8 @@
         <td align="center">모델 최적화, 프롬트 엔지니어링</td>
         <td align="center">API 개발, Steamlit UI</td>
     </tr>
-</table>
+
+ - ✅ **확장 가능성**: 새로운 임베딩 모델 및 검색 전략 쉽게 추가 가능
 
 ---
 
@@ -38,6 +38,7 @@
 - [설치 및 실행](#-설치-및-실행)
 - [사용법](#-사용법)
 - [결과](#-결과)
+- [현재 작업](#-현재-작업)
 
 ---
 
@@ -137,53 +138,25 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analys
 ```
 📦 프로젝트 루트
 ├── 📄 README.md
-├── 📄 SMOKE_TEST.md
 ├── 📄 pyproject.toml
 ├── 📄 poetry.lock
-│
+├── 📄 poetry.toml
+├── 📄 pytest.ini
 ├── 📂 conf/
-│
 ├── 📂 data/
-│   ├── 📄 documents.jsonl
-│   ├── 📄 eval.jsonl
-│
 ├── 📂 docs/
 │   ├── 📂 assets/
-│   │   ├── 📂 images/
-│   │   └── 📂 diagrams/
 │   ├── 📂 notes/
-│   │   ├── 📄 project-overview.md
-│   │   ├── 📄 architecture.md
-│   │   └── 📄 evaluation.md
-│   └── 📂 usage/
-│       ├── 📄 workflow-guide.md
-│       ├── 📄 testing-guide.md
-│       └── 📄 troubleshooting.md
-│
-├── 📂 notebooks/
-│   ├── 📄 01_data_exploration.ipynb
-│   ├── 📄 02_embedding_analysis.ipynb
-│   ├── 📄 03_retrieval_experiments.ipynb
-│   └── 📄 04_evaluation_results.ipynb
-│
+│   ├── 📂 planning/
+│   ├── 📂 usage/
+│   └── 📂 current-work/
+│       ├── 📄 README.md
+│       ├── 📄 screenshots.md
+│       └── 📄 development-plans.md
 ├── 📂 scripts/
-│   ├── 🔧 cleanup-distros.sh
-│   ├── 🔧 manage-services.sh
-│   ├── 🔧 smoke-test.sh
-│   ├── 🔧 smoke_test.py
-│   ├── 🔧 start-elasticsearch.sh
-│   └── 🔧 start-redis.sh
-│
-└── 📂 src/
-    └── 📂 ir_core/
-        ├── 📂 api/
-        ├── 📂 config/
-        ├── 📂 embeddings/
-        ├── 📂 evaluation/
-        ├── 📂 infra/
-        ├── 📂 retrieval/
-        └── 📂 utils/
-
+├── 📂 src/
+├── 📂 tests/
+└── ... (other standard dirs)
 ```
 ### **🔧 주요 컴포넌트**
 
@@ -245,6 +218,8 @@ flowchart TD
   4. 검색 결과를 재랭킹 및 캐시 확인(Redis)
   5. 결과 반환 및 평가 저장
 
+> 자세한 아키텍처 다이어그램은 [시스템 개요](docs/assets/diagrams/system-overview.md), [RAG 아키텍처](docs/assets/diagrams/rag-architecture.md), [시퀀스 플로우](docs/assets/diagrams/system-sequence-flow.md)를 참고하세요.
+
 ## **🚀 설치 및 실행**
 
 ### **1️⃣ 저장소 클론**
@@ -266,42 +241,30 @@ pip install -r requirements.txt
 ```
 ### **3️⃣ 서비스 시작**
 
-#### **Elasticsearch 시작**
-```bash
-# 자동 다운로드 및 시작
-./scripts/infra/start-elasticsearch.sh
-```
+로컬 Elasticsearch와 Redis를 시작하려면:
 
 ```bash
-# 기존 설치된 버전 사용
-./scripts/infra/start-elasticsearch.sh --prebuilt
+./scripts/execution/run-local.sh start
 ```
-#### **Redis 시작**
+
+상태 확인:
 
 ```bash
-# 자동 다운로드 및 시작
-./scripts/infra/start-redis.sh
-
+./scripts/execution/run-local.sh status
 ```
+
+중지:
+
 ```bash
-# 기존 설치된 버전 사용
-./scripts/infra/start-redis.sh --prebuilt
+./scripts/execution/run-local.sh stop
 ```
 
 ### **4️⃣ 초기 데이터 인덱싱**
 
-```bash
-poetry run python - <<'EOF'
-from ir_core import api
-api.index_documents_from_jsonl('data/documents.jsonl', index_name='test')
-print('✅ 샘플 문서 인덱싱 완료')
-EOF
-```
-#### **대안: 제공된 CLI 사용 및 환경 팁**
 - 프로젝트에 포함된 scripts/maintenance/reindex.py는 간단한 CLI 포맷을 제공합니다.
 - 프로젝트의 src/를 `PYTHONPATH에` 추가하여 사용 (스크립트를 직접 실행할 때 권장)
 ```bash
-PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
 ```
 
 환경 관련 팁:
@@ -377,68 +340,91 @@ PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/sub
 - ✅ **확장 가능성**: 새로운 임베딩 모델 및 검색 전략 쉽게 추가 가능
 
 ---
+<!--
+## 🚧 현재 작업
 
-## 🔧 트러블슈팅
-
-### 자주 발생하는 문제
+### 📋 진행 중인 작업
 
 <details>
-<summary><strong>ConnectionRefusedError 발생 시</strong></summary>
+<summary><strong>🔄 리팩토링 및 정리 작업</strong></summary>
 
-```bash
-# 서비스 상태 확인
-curl -X GET "localhost:9200/_cluster/health"
-redis-cli ping
+현재 프로젝트의 구조를 개선하고 문서를 정리하는 작업을 진행 중입니다:
 
-# 서비스 재시작
-./scripts/start-elasticsearch.sh
-./scripts/start-redis.sh
-```
+- ✅ **스크립트 재구성**: 로컬 서비스 관리 스크립트들을 적절한 디렉토리로 재배치
+- ✅ **문서 정리**: 중복된 문서 제거 및 최신 정보로 업데이트
+- ✅ **다이어그램 개선**: 시스템 아키텍처 다이어그램의 명확성 향상
+- 🔄 **README 최적화**: 사용자 경험 개선을 위한 문서 구조 개선
+
 </details>
 
 <details>
-<summary><strong>index_not_found_exception 발생 시</strong></summary>
+<summary><strong>📊 성능 최적화</strong></summary>
 
-```bash
-# 인덱스 생성 및 문서 인덱싱
-poetry run python -c "
-from ir_core import api
-api.index_documents_from_jsonl('data/documents.jsonl', index_name='test')
-"
-```
+시스템 성능 향상을 위한 다양한 최적화 작업을 계획 중입니다:
+
+- 🔄 **병렬 처리 개선**: 대용량 데이터 처리 시 성능 최적화
+- 🔄 **캐싱 전략 강화**: Redis 활용도 극대화
+- 🔄 **메모리 사용 최적화**: Elasticsearch 및 임베딩 모델 메모리 효율성 개선
+
 </details>
 
 <details>
-<summary><strong>메모리 부족 시</strong></summary>
+<summary><strong>🔧 개발 환경 개선</strong></summary>
 
-```bash
-# Elasticsearch 힙 메모리 조정
-export ES_JAVA_OPTS="-Xms1g -Xmx2g"
-./scripts/start-elasticsearch.sh
-```
+개발자 경험 향상을 위한 환경 개선 작업:
+
+- ✅ **로컬 개발 환경**: Docker 없는 완전한 로컬 개발 환경 구축
+- 🔄 **CI/CD 파이프라인**: 자동화된 테스트 및 배포 프로세스 구축
+- 🔄 **모니터링 도구**: 시스템 상태 모니터링 및 로깅 개선
+
 </details>
 
-### 로그 확인
+### 📸 스크린샷 및 시각화
 
-```bash
-# Elasticsearch 로그
-tail -f elasticsearch-*/logs/elasticsearch.log
+> 현재 작업 중인 기능과 개선사항에 대한 스크린샷은 [작업 진행 상황](docs/current-work/screenshots.md)에서 확인하실 수 있습니다.
 
-# Redis 로그
-tail -f redis-*/logs/redis-server.log
-```
+### 📝 상세 계획
+
+> 앞으로의 개발 계획과 로드맵은 [개발 계획](docs/current-work/development-plans.md)에서 확인하실 수 있습니다.
 
 ---
 
-## 📚 참고 자료
+## � 참고 자료  <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+    </tr>
+    <tr>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_김효석</a></td>
+        <td align="center"><a href="https://github.com/Wchoi189">AI13_최용비</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_강연경</a></td>
+        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_정재훈</a></td>
+    </tr>
+    <tr>
+        <td align="center">검색 알고리즘 최적화</td>
+        <td align="center">툴 연동, 평가 검증</td>
+        <td align="center">베이스라인 제작, readme 작성</td>
+        <td align="center">모델 최적화, 프롬트 엔지니어링</td>
+        <td align="center">API 개발, Steamlit UI</td>
+    </tr>
+</table> -->
+
+
+---
+
+## � 참고 자료
 
 ### 📖 문서
 
 - [프로젝트 상세 개요](docs/notes/project-overview.md)
 - [Docker 없는 개발 환경](docs/docker-less.md)
-- [스모크 테스트 가이드](SMOKE_TEST.md)
+- [스모크 테스트 가이드](docs/usage/smoke-test.md)
+- [트러블슈팅 가이드](docs/usage/troubleshooting.md)
+- [현재 작업 스크린샷](docs/current-work/screenshots.md)
+- [개발 계획 및 로드맵](docs/current-work/development-plans.md)
+- [현재 작업 개요](docs/current-work/README.md)
 
-### 🔗 유용한 링크
+###  유용한 링크
 
 - [Elasticsearch 공식 문서](https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index.html)
 - [Redis 공식 문서](https://redis.io/documentation)

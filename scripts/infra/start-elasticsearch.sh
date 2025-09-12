@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 ES_VERSION="${ES_VERSION_ARG:-8.9.0}"
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 EXISTING_ES_DIR=$(ls -d "$ROOT_DIR"/elasticsearch-* 2>/dev/null | head -1 || true)
 if [ -n "$EXISTING_ES_DIR" ]; then
   echo "Using existing Elasticsearch directory: $EXISTING_ES_DIR"

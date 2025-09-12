@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 REDIS_VERSION="${VER:-7.2.0}"
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 EXISTING_REDIS_DIR=$(ls -d "$ROOT_DIR"/redis-* 2>/dev/null | head -1 || true)
 if [ -n "$EXISTING_REDIS_DIR" ]; then
   echo "Using existing Redis directory: $EXISTING_REDIS_DIR"

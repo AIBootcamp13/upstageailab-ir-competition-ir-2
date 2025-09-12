@@ -5,7 +5,7 @@ set -euo pipefail
 # and Redis distributions inside the repository.
 # Usage: scripts/execution/run-local.sh [start|stop|status|help] [-v]
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ES_VERSION=${ES_VERSION:-8.9.0}
 REDIS_VERSION=${REDIS_VERSION:-7.2.0}
 
