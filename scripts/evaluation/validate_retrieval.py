@@ -118,6 +118,7 @@ def run(cfg: DictConfig) -> None:
         generator=generator,
         query_rewriter=query_rewriter,
         tool_prompt_description=tool_desc,
+        tool_calling_model=cfg.pipeline.tool_calling_model,
     )
 
     # 검증 데이터를 읽어옵니다.

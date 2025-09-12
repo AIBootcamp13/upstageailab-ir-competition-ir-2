@@ -20,6 +20,7 @@ class RAGPipeline:
         generator: BaseGenerator,
         query_rewriter: QueryRewriter, # QueryRewriter 인스턴스를 받도록 __init__ 수정
         tool_prompt_description: str,
+        tool_calling_model: str = "gpt-3.5-turbo-1106",
         dispatcher: ToolDispatcher = default_dispatcher
     ):
         """
@@ -29,6 +30,7 @@ class RAGPipeline:
         self.query_rewriter = query_rewriter # rewriter를 인스턴스 변수로 저장
         self.dispatcher = dispatcher
         self.tool_prompt_description = tool_prompt_description
+        self.tool_calling_model = tool_calling_model
         self.client = openai.OpenAI()
 
     def run_retrieval_only(self, query: str) -> List[Dict[str, Any]]:
@@ -44,7 +46,7 @@ class RAGPipeline:
         try:
             # --- 2단계: 재작성된 쿼리로 도구 호출 ---
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=self.tool_calling_model,
                 messages=[{"role": "user", "content": rewritten_query}], # 재작성된 쿼리 사용
                 tools=tools,
                 tool_choice="auto"
