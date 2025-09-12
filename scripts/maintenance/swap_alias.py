@@ -3,7 +3,7 @@
 Swap an Elasticsearch alias to point to a new index atomically.
 
 Usage:
-    python scripts/maintenance/swap_alias.py --alias <alias_name> --new <new_index> [--old <old_index>] [--delete-old]
+    poetry run python scripts/maintenance/swap_alias.py --alias <alias_name> --new <new_index> [--old <old_index>] [--delete-old]
 
 If --old is not provided and the alias exists, the script will remove the alias from all indices and point it to the new index.
 """
@@ -16,7 +16,11 @@ def parse_args():
     p.add_argument("--alias", required=True, help="Alias name to update")
     p.add_argument("--new", required=True, help="New index to point the alias to")
     p.add_argument("--old", help="Old index currently holding the alias (optional)")
-    p.add_argument("--delete-old", action="store_true", help="Delete the old index after swapping (use with caution)")
+    p.add_argument(
+        "--delete-old",
+        action="store_true",
+        help="Delete the old index after swapping (use with caution)",
+    )
     return p.parse_args()
 
 
@@ -86,5 +90,5 @@ def main():
         print(f"Alias '{alias}' does not exist after update (unexpected).")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

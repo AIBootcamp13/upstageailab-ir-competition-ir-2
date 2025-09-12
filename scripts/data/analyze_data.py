@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import fire
 
+
 # Add the src directory to the path to allow for project imports
 def _add_src_to_path():
     scripts_dir = os.path.dirname(__file__)
@@ -11,6 +12,7 @@ def _add_src_to_path():
     src_dir = os.path.join(repo_dir, "src")
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
+
 
 def analyze(file_path: str = "data/documents.jsonl"):
     """
@@ -34,7 +36,9 @@ def analyze(file_path: str = "data/documents.jsonl"):
         tokenizer, _ = load_model()
         print("Tokenizer loaded successfully.")
     except Exception as e:
-        print(f"Failed to load tokenizer. Make sure model weights are available. Error: {e}")
+        print(
+            f"Failed to load tokenizer. Make sure model weights are available. Error: {e}"
+        )
         return
 
     docs = list(read_jsonl(file_path))
@@ -75,7 +79,9 @@ def analyze(file_path: str = "data/documents.jsonl"):
     # Check how many documents are longer than the model's max length
     max_len = 512
     oversized_docs = np.sum(counts_np > max_len)
-    print(f"\nDocuments longer than {max_len} tokens: {oversized_docs} ({oversized_docs / len(counts_np) * 100:.2f}%)")
+    print(
+        f"\nDocuments longer than {max_len} tokens: {oversized_docs} ({oversized_docs / len(counts_np) * 100:.2f}%)"
+    )
 
     # --- Print a Simple Text-Based Histogram ---
     print("\n--- Histogram of Token Lengths ---")
@@ -84,10 +90,10 @@ def analyze(file_path: str = "data/documents.jsonl"):
 
     for i in range(len(hist)):
         bin_start = int(bin_edges[i])
-        bin_end = int(bin_edges[i+1])
+        bin_end = int(bin_edges[i + 1])
         # Scale the bar length for display
         bar_length = int(50 * hist[i] / max_freq) if max_freq > 0 else 0
-        bar = '█' * bar_length
+        bar = "█" * bar_length
         print(f"{bin_start:4d} - {bin_end:4d} | {bar} ({hist[i]})")
 
     print("\n--- Analysis Complete ---")

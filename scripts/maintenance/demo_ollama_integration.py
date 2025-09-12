@@ -9,14 +9,15 @@ Scientific QA pipeline for cost-effective, local LLM usage.
 import sys
 import os
 import time
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from src.ir_core.utils.ollama_client import (
     OllamaClient,
     rewrite_query_ollama,
     generate_answer_ollama,
     generate_validation_queries_ollama,
-    benchmark_ollama_model
+    benchmark_ollama_model,
 )
 
 
@@ -31,7 +32,7 @@ def demo_query_rewriting():
         "태양계의 나이를 알아내는 데 어떤 방법들이 사용되고 있을까요?",
         "원자의 구성 요소와 원자의 화학 반응에서의 역할은 무엇인가요?",
         "가금류 알 내부에서 발견되는 난백은 어떤 역할을 하는 건가요?",
-        "빅뱅 이론은 무엇인가요?"
+        "빅뱅 이론은 무엇인가요?",
     ]
 
     print("Original → Rewritten")
@@ -60,7 +61,7 @@ def demo_answer_generation():
     context_docs = [
         "원자는 물질의 기본 단위로, 양성자, 중성자, 전자로 구성되어 있습니다. 양성자와 중성자는 원자핵에 위치하며, 전자는 원자핵 주위를 공전합니다.",
         "원자 번호는 원자핵에 있는 양성자의 수를 나타내며, 각 원소의 특징을 결정합니다.",
-        "전자 배치는 원자의 화학적 성질을 결정하는 중요한 요소입니다."
+        "전자 배치는 원자의 화학적 성질을 결정하는 중요한 요소입니다.",
     ]
 
     print(f"Query: {query}")
@@ -86,7 +87,7 @@ def demo_validation_query_generation():
     domains = {
         "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등)",
         "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등)",
-        "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등)"
+        "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등)",
     }
 
     for domain, description in domains.items():
@@ -114,7 +115,7 @@ def demo_performance_benchmark():
         "원자의 구조에 대해 설명해주세요.",
         "화학 반응에서 촉매의 역할은 무엇인가요?",
         "DNA 복제 과정은 어떻게 이루어지나요?",
-        "빅뱅 이론의 주요 증거는 무엇인가요?"
+        "빅뱅 이론의 주요 증거는 무엇인가요?",
     ]
 
     print("Benchmarking Ollama model performance...")
@@ -203,20 +204,20 @@ def main():
 
         # Run demos
         demo_query_rewriting()
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60 + "\n")
 
         demo_answer_generation()
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60 + "\n")
 
         demo_validation_query_generation()
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60 + "\n")
 
         demo_performance_benchmark()
-        print("\n" + "="*60 + "\n")
+        print("\n" + "=" * 60 + "\n")
 
         demo_integration_comparison()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🎉 Ollama Integration Demo Complete!")
         print("\nNext Steps:")
         print("1. Integrate Ollama into your validation scripts")

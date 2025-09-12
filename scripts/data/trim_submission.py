@@ -28,7 +28,7 @@ def trim_content(content: str, max_length: int = 500) -> str:
 
     # Find the last space within the max_length limit
     trimmed = content[:max_length]
-    last_space = trimmed.rfind(' ')
+    last_space = trimmed.rfind(" ")
 
     if last_space > 0:
         return trimmed[:last_space] + "..."
@@ -49,8 +49,9 @@ def process_submission(input_file: str, output_file: str, max_length: int = 500)
     print(f"Output will be saved to: {output_file}")
     print(f"Maximum content length: {max_length}")
 
-    with open(input_file, 'r', encoding='utf-8') as infile, \
-         open(output_file, 'w', encoding='utf-8', newline='') as outfile:
+    with open(input_file, "r", encoding="utf-8") as infile, open(
+        output_file, "w", encoding="utf-8", newline=""
+    ) as outfile:
 
         reader = csv.DictReader(infile)
         fieldnames = reader.fieldnames
@@ -65,10 +66,10 @@ def process_submission(input_file: str, output_file: str, max_length: int = 500)
         processed_count = 0
         for row in reader:
             # Trim content in relevant fields (adjust field names as needed)
-            if 'content' in row:
-                row['content'] = trim_content(row['content'], max_length)
-            if 'answer' in row:
-                row['answer'] = trim_content(row['answer'], max_length)
+            if "content" in row:
+                row["content"] = trim_content(row["content"], max_length)
+            if "answer" in row:
+                row["answer"] = trim_content(row["answer"], max_length)
 
             writer.writerow(row)
             processed_count += 1
@@ -80,8 +81,12 @@ def process_submission(input_file: str, output_file: str, max_length: int = 500)
 def main():
     """Main function to handle command line arguments."""
     if len(sys.argv) < 3:
-        print("Usage: python trim_submission.py <input_file> <output_file> [max_length]")
-        print("Example: python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 500")
+        print(
+            "Usage: python trim_submission.py <input_file> <output_file> [max_length]"
+        )
+        print(
+            "Example: python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 500"
+        )
         sys.exit(1)
 
     input_file = sys.argv[1]

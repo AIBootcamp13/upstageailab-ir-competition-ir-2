@@ -9,10 +9,12 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 import wandb
+
 # ------------------------------------
 
 # OmegaConf가 ${env:VAR_NAME} 구문을 해석할 수 있도록 'env' 리졸버를 등록합니다.
 OmegaConf.register_new_resolver("env", os.getenv)
+
 
 # Add the src directory to the Python path
 def _add_src_to_path():
@@ -22,7 +24,9 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
+
 from ir_core.utils.wandb import generate_run_name
+
 
 # --- Hydra 데코레이터 적용 (Applying the Hydra Decorator) ---
 # @hydra.main은 이 스크립트의 진입점을 정의하며, 설정 파일의 경로를 지정합니다.
@@ -48,24 +52,24 @@ def run(cfg: DictConfig) -> None:
     from ir_core.analysis.core import RetrievalAnalyzer
     from ir_core.utils.wandb_logger import WandbAnalysisLogger
 
-  # --- WandB 초기화 (WandB Initialization) ---
+    # --- WandB 초기화 (WandB Initialization) ---
     # OmegaConf.set_struct를 사용하여 cfg 객체를 임시로 수정 가능하게 만듭니다.
     OmegaConf.set_struct(cfg, False)
     # 'validate' 유형에 맞는 실행 이름 접두사를 설정합니다.
     cfg.wandb.run_name_prefix = cfg.wandb.run_name.validate
     run_name = generate_run_name(cfg)
-    OmegaConf.set_struct(cfg, True) # 다시 읽기 전용으로 변경
+    OmegaConf.set_struct(cfg, True)  # 다시 읽기 전용으로 변경
 
     wandb.init(
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         name=run_name,
         config=OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True),  # type: ignore
-        job_type="validation" # 작업 유형을 'validation'으로 지정
+        job_type="validation",  # 작업 유형을 'validation'으로 지정
     )
 
     # 설정 파일 경로 로깅 (Log Config File Path)
-    if hasattr(cfg.wandb, 'log_config_path') and cfg.wandb.log_config_path:
+    if hasattr(cfg.wandb, "log_config_path") and cfg.wandb.log_config_path:
         try:
             # Hydra가 저장한 설정 파일 경로를 가져옵니다
             config_path = HydraConfig.get().runtime.output_dir
@@ -93,16 +97,18 @@ def run(cfg: DictConfig) -> None:
     # RAG 파이프라인을 초기화합니다.
     # 설정에서 지정된 경로의 도구 설명 프롬프트를 읽어옵니다.
     try:
-        with open(cfg.prompts.tool_description, 'r', encoding='utf-8') as f:
+        with open(cfg.prompts.tool_description, "r", encoding="utf-8") as f:
             tool_desc = f.read()
     except FileNotFoundError:
-        print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
+        print(
+            f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다."
+        )
         return
 
     # 1. QueryRewriter 인스턴스를 생성합니다.
     query_rewriter = QueryRewriter(
         model_name=cfg.pipeline.rewriter_model,
-        prompt_template_path=cfg.prompts.rephrase_query
+        prompt_template_path=cfg.prompts.rephrase_query,
     )
 
     # 2. RAG 파이프라인을 초기화할 때 rewriter 인스턴스를 전달합니다.
@@ -110,9 +116,8 @@ def run(cfg: DictConfig) -> None:
     pipeline = RAGPipeline(
         generator=generator,
         query_rewriter=query_rewriter,
-        tool_prompt_description=tool_desc
+        tool_prompt_description=tool_desc,
     )
-
 
     # 검증 데이터를 읽어옵니다.
     try:
@@ -125,7 +130,7 @@ def run(cfg: DictConfig) -> None:
     # cfg.limit 값이 설정된 경우, 데이터셋을 해당 크기만큼만 사용합니다.
     if cfg.limit:
         print(f"데이터셋을 {cfg.limit}개의 샘플로 제한합니다.")
-        validation_data = validation_data[:cfg.limit]
+        validation_data = validation_data[: cfg.limit]
 
     # === ANALYSIS FRAMEWORK INTEGRATION ===
     # The new analysis framework will handle all metrics collection and logging
@@ -144,14 +149,15 @@ def run(cfg: DictConfig) -> None:
         if not query or not ground_truth_id:
             continue
 
-        queries_data.append({
-            "msg": [{"content": query}],
-            "ground_truth_doc_id": ground_truth_id
-        })
+        queries_data.append(
+            {"msg": [{"content": query}], "ground_truth_doc_id": ground_truth_id}
+        )
 
         # Get retrieval results for this query
         retrieval_output = pipeline.run_retrieval_only(query)
-        retrieval_results_data.append(retrieval_output[0] if retrieval_output else {"docs": []})
+        retrieval_results_data.append(
+            retrieval_output[0] if retrieval_output else {"docs": []}
+        )
 
     # Initialize the new analysis framework
     analyzer = RetrievalAnalyzer(cfg)
@@ -159,14 +165,11 @@ def run(cfg: DictConfig) -> None:
 
     # Perform comprehensive analysis
     analysis_result = analyzer.analyze_batch(
-        queries=queries_data,
-        retrieval_results=retrieval_results_data
+        queries=queries_data, retrieval_results=retrieval_results_data
     )
 
     # Log results using the enhanced Wandb logger
-    wandb_logger.log_analysis_result(
-        result=analysis_result
-    )
+    wandb_logger.log_analysis_result(result=analysis_result)
 
     # Update run name with analysis results
     if wandb.run is not None:

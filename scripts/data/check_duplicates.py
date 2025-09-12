@@ -2,6 +2,7 @@
 Scan data/documents.jsonl for duplicate docid values and report counts.
 Optionally prints the first few duplicate docids and their counts.
 """
+
 import json
 from collections import Counter
 from pathlib import Path

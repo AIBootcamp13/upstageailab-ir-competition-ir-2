@@ -33,18 +33,22 @@ SCRIPT_DESCRIPTIONS = {
     "maintenance/demo_ollama_integration.py": "Demo for Ollama model integration.",
 }
 
+
 def list_scripts():
     scripts_dir = Path(__file__).parent
     print("Available scripts in scripts/ directory:\n")
     for subfolder in sorted(scripts_dir.iterdir()):
-        if subfolder.is_dir() and not subfolder.name.startswith('__'):
+        if subfolder.is_dir() and not subfolder.name.startswith("__"):
             print(f"## {subfolder.name}/")
             for script in sorted(subfolder.iterdir()):
                 if script.is_file():
                     rel_path = script.relative_to(scripts_dir)
-                    desc = SCRIPT_DESCRIPTIONS.get(str(rel_path), "No description available.")
+                    desc = SCRIPT_DESCRIPTIONS.get(
+                        str(rel_path), "No description available."
+                    )
                     print(f"  - {rel_path}: {desc}")
             print()
+
 
 if __name__ == "__main__":
     list_scripts()

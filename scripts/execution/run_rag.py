@@ -1,4 +1,4 @@
-# scripts/run_rag.py
+# scripts/execution/run_rag.py
 
 import os
 import sys
@@ -7,6 +7,7 @@ import sys
 import hydra
 from omegaconf import DictConfig
 
+
 def _add_src_to_path():
     scripts_dir = os.path.dirname(__file__)
     repo_dir = os.path.dirname(scripts_dir)
@@ -14,9 +15,11 @@ def _add_src_to_path():
     if src_dir not in sys.path:
         sys.path.insert(0, src_dir)
 
+
 # --- 유틸리티 임포트 (Utility Imports) ---
 _add_src_to_path()
 # get_generator는 run_pipeline 함수 내부에서 임포트하여 순환 참조를 방지합니다.
+
 
 @hydra.main(config_path="../conf", config_name="config", version_base=None)
 def run_pipeline(cfg: DictConfig) -> None:
@@ -33,7 +36,9 @@ def run_pipeline(cfg: DictConfig) -> None:
     # Hydra 설정에서 쿼리를 가져옵니다.
     query = cfg.get("query")
     if not query:
-        print("오류: 쿼리가 제공되지 않았습니다. 커맨드라인에서 'query=\"질문 내용\"' 형식으로 전달하세요.")
+        print(
+            "오류: 쿼리가 제공되지 않았습니다. 커맨드라인에서 'query=\"질문 내용\"' 형식으로 전달하세요."
+        )
         return
 
     print("--- RAG 시스템 초기화 ---")
@@ -41,17 +46,21 @@ def run_pipeline(cfg: DictConfig) -> None:
     # 1. 설정(cfg)을 전달하여 생성기를 초기화합니다. (오류 수정)
     try:
         generator = get_generator(cfg)
-        print(f"'{cfg.pipeline.generator_type}' 유형의 생성기가 성공적으로 초기화되었습니다.")
+        print(
+            f"'{cfg.pipeline.generator_type}' 유형의 생성기가 성공적으로 초기화되었습니다."
+        )
     except ValueError as e:
         print(f"생성기 초기화 오류: {e}")
         return
 
     # 2. RAG 파이프라인을 초기화하고, 설정에서 도구 설명을 읽어옵니다.
     try:
-        with open(cfg.prompts.tool_description, 'r', encoding='utf-8') as f:
+        with open(cfg.prompts.tool_description, "r", encoding="utf-8") as f:
             tool_desc = f.read()
     except FileNotFoundError:
-        print(f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다.")
+        print(
+            f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다."
+        )
         return
 
     pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc)
@@ -66,9 +75,10 @@ def run_pipeline(cfg: DictConfig) -> None:
     print("===================================")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         from dotenv import load_dotenv
+
         load_dotenv()
     except ImportError:
         pass

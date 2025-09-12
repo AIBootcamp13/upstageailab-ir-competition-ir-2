@@ -46,7 +46,9 @@ def main():
     ]
 
     # Encode texts and a query
-    print("Encoding sample documents (this will download model weights on first run)...")
+    print(
+        "Encoding sample documents (this will download model weights on first run)..."
+    )
     doc_embs = emb_mod.encode_texts(texts, batch_size=2)
     print(f"Encoded {len(texts)} docs -> embeddings shape: {doc_embs.shape}")
 
@@ -57,18 +59,22 @@ def main():
     # Create a synthetic BM25 hit list (as Elasticsearch would return)
     bm25_hits = []
     for i, t in enumerate(texts):
-        bm25_hits.append({
-            "_id": str(i),
-            "_source": {"content": t},
-            "_score": float(1.0 / (i + 1)),
-        })
+        bm25_hits.append(
+            {
+                "_id": str(i),
+                "_source": {"content": t},
+                "_score": float(1.0 / (i + 1)),
+            }
+        )
 
     # Monkeypatch the sparse_retrieve used by hybrid_retrieve to return our synthetic hits
     retrieval.sparse_retrieve = lambda q, size=10, index=None: bm25_hits
 
     # Run hybrid retrieve (it will call encode_texts on the BM25 texts internally)
     print("Running hybrid_retrieve (uses synthetic BM25 candidates)...")
-    results = retrieval.hybrid_retrieve(query, bm25_k=len(bm25_hits), rerank_k=5, alpha=None)
+    results = retrieval.hybrid_retrieve(
+        query, bm25_k=len(bm25_hits), rerank_k=5, alpha=None
+    )
 
     # Print a compact summary
     print("Hybrid re-ranking results (top K):")
@@ -78,7 +84,9 @@ def main():
         if isinstance(r, dict):
             cosine = r.get("cosine")
             score = r.get("score")
-            print(f"id={hit.get('_id')} score={score:.4f} cosine={cosine:.4f} text={hit['_source']['content']}")
+            print(
+                f"id={hit.get('_id')} score={score:.4f} cosine={cosine:.4f} text={hit['_source']['content']}"
+            )
         else:
             print(json.dumps(r, ensure_ascii=False))
 

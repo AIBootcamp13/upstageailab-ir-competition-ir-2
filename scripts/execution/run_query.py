@@ -44,7 +44,7 @@ def run(query: str, index_name: str = "test", rerank_k: int = 5):
             source = hit.get("_source", {})
             content = source.get("content", "N/A")
             # Truncate content for cleaner display
-            display_content = (content[:150] + '...') if len(content) > 150 else content
+            display_content = (content[:150] + "...") if len(content) > 150 else content
 
             print(f"Rank {i+1}:")
             print(f"  ID: {hit.get('_id')}")
@@ -54,9 +54,13 @@ def run(query: str, index_name: str = "test", rerank_k: int = 5):
 
     except Exception as e:
         print(f"\nAn error occurred: {e}")
-        print("Please ensure Elasticsearch is running and the index '{index_name}' exists.")
+        print(
+            "Please ensure Elasticsearch is running and the index '{index_name}' exists."
+        )
         print("You can start services with: ./scripts/execution/run-local.sh start")
-        print("You can index data with: PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl")
+        print(
+            "You can index data with: PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl"
+        )
 
 
 if __name__ == "__main__":

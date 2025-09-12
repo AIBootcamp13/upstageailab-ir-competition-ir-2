@@ -24,20 +24,34 @@ def _add_src_to_path() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     _add_src_to_path()
-    parser = argparse.ArgumentParser(description="Reindex a JSONL file into Elasticsearch")
+    parser = argparse.ArgumentParser(
+        description="Reindex a JSONL file into Elasticsearch"
+    )
     parser.add_argument("jsonl", help="Path to JSONL file")
     parser.add_argument("--index", "-i", help="Index name (overrides config)")
-    parser.add_argument("--batch-size", "-b", type=int, default=500, help="Bulk batch size")
-    parser.add_argument("--dry-run", action="store_true", help="Do not write to ES; simulate indexing")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Print per-batch timing and ETA")
+    parser.add_argument(
+        "--batch-size", "-b", type=int, default=500, help="Bulk batch size"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Do not write to ES; simulate indexing"
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Print per-batch timing and ETA"
+    )
     args = parser.parse_args(argv)
 
     # Import here so that src/ is already on sys.path
     from ir_core import api
 
-    print(f"Reindexing {args.jsonl} -> index={args.index or 'configured'} batch={args.batch_size}")
+    print(
+        f"Reindexing {args.jsonl} -> index={args.index or 'configured'} batch={args.batch_size}"
+    )
     api.index_documents_from_jsonl(
-        args.jsonl, index_name=args.index, batch_size=args.batch_size, dry_run=args.dry_run, verbose=args.verbose
+        args.jsonl,
+        index_name=args.index,
+        batch_size=args.batch_size,
+        dry_run=args.dry_run,
+        verbose=args.verbose,
     )
     return 0
 

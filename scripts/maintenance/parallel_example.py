@@ -8,7 +8,8 @@ of the analysis framework for high-performance query analysis.
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from src.ir_core.analysis.query_analyzer import QueryAnalyzer
 from omegaconf import DictConfig
@@ -36,7 +37,7 @@ def main():
         "반응 속도에 영향을 미치는 요인은 무엇인가요?",
         "블랙홀의 특성은 무엇인가요?",
         "미적분의 기본 개념은 무엇인가요?",
-        "지구의 대기층 구성은 어떻게 되어 있나요?"
+        "지구의 대기층 구성은 어떻게 되어 있나요?",
     ] * 3  # Create larger batch for demonstration
 
     print(f"📊 Processing {len(sample_queries)} queries...")
@@ -55,12 +56,7 @@ def main():
 
     # Test 2: Custom configuration
     print("\n🔧 Test 2: Custom configuration (4 workers)")
-    config = DictConfig({
-        'analysis': {
-            'max_workers': 4,
-            'enable_parallel': True
-        }
-    })
+    config = DictConfig({"analysis": {"max_workers": 4, "enable_parallel": True}})
     analyzer_custom = QueryAnalyzer(config)
 
     start_time = time.time()
@@ -73,12 +69,9 @@ def main():
 
     # Test 3: Sequential processing (for comparison)
     print("\n🐌 Test 3: Sequential processing (for comparison)")
-    config_sequential = DictConfig({
-        'analysis': {
-            'max_workers': 1,
-            'enable_parallel': False
-        }
-    })
+    config_sequential = DictConfig(
+        {"analysis": {"max_workers": 1, "enable_parallel": False}}
+    )
     analyzer_seq = QueryAnalyzer(config_sequential)
 
     start_time = time.time()
