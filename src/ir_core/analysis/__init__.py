@@ -20,6 +20,7 @@ Modules:
 from .core import RetrievalAnalyzer, AnalysisResult
 from .metrics import RetrievalMetrics
 from .query_analyzer import QueryAnalyzer, QueryFeatures
+from .visualizer import AnalysisVisualizer, plot_performance_distribution, plot_query_performance_correlation, plot_domain_comparison
 from .components import (
     MetricCalculator,
     MetricCalculationResult,
@@ -43,5 +44,10 @@ __all__ = [
     'QueryProcessingResult',
     'ErrorAnalyzer',
     'ErrorAnalysisResult',
-    'ResultAggregator'
+    'ResultAggregator',
+    # Phase 5: Visualizations
+    'AnalysisVisualizer',
+    'plot_performance_distribution',
+    'plot_query_performance_correlation',
+    'plot_domain_comparison'
 ]
