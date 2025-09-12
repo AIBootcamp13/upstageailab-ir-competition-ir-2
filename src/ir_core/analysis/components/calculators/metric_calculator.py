@@ -98,7 +98,14 @@ class MetricCalculator:
         else:
             # Sequential processing
             for i, (pred_docs, gt_id) in enumerate(zip(predicted_docs_list, ground_truth_ids)):
-                pred_ids = [doc.get("id", "") for doc in pred_docs]
+                pred_ids = []
+                for doc in pred_docs:
+                    if isinstance(doc, dict):
+                        pred_ids.append(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        pred_ids.append(doc)
+                    else:
+                        pred_ids.append(str(doc) if doc else "")
                 relevant_ids = [gt_id]
                 all_results_for_map.append((pred_ids, relevant_ids))
 
@@ -142,7 +149,14 @@ class MetricCalculator:
         Returns:
             Tuple of (index, predicted_ids, ap_score)
         """
-        pred_ids = [doc.get("id", "") for doc in pred_docs]
+        pred_ids = []
+        for doc in pred_docs:
+            if isinstance(doc, dict):
+                pred_ids.append(doc.get("id", ""))
+            elif isinstance(doc, str):
+                pred_ids.append(doc)
+            else:
+                pred_ids.append(str(doc) if doc else "")
         relevant_ids = [gt_id]
 
         ap_score = self.metrics_calculator.average_precision(pred_ids, relevant_ids)

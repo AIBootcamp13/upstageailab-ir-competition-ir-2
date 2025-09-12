@@ -6,7 +6,7 @@
 # 이 파일은 임베딩 모델, 검색 알고리즘, 생성 모델의 모든 파라미터를 정의합니다.
 
 # --- 임베딩 및 검색 파라미터 (Embedding & Retrieval Parameters) ---
-embedding_model: "snunlp/KR-SBERT-V40K-klueNLI-augSTS" # 사용할 임베딩 모델의 HuggingFace 이름
+embedding_model: "EleutherAI/polyglot-ko-12.8b" #"snunlp/KR-SBERT-V40K-klueNLI-augSTS" # 사용할 임베딩 모델의 HuggingFace 이름
 
 bm25_k: 200          # BM25 검색 시 초기 후보군으로 가져올 문서의 수
 rerank_k: 10         # 하이브리드 검색 후 최종적으로 반환할 문서의 수

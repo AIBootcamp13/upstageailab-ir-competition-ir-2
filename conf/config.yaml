@@ -46,5 +46,5 @@ create_validation_set:
 
 # --- 분석 설정 (Analysis Settings) ---
 analysis:
-  max_workers: 4      # Maximum parallel workers for analysis
+  max_workers: null      # Maximum parallel workers for analysis
   enable_parallel: true  # 병렬 처리 활성화 여부

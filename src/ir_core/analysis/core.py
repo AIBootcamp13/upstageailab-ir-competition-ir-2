@@ -218,8 +218,18 @@ class RetrievalAnalyzer:
             query_analyses.append(query_analysis)
 
             # Retrieval result details
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
-            pred_scores = [doc.get("score", 0.0) for doc in pred_docs]
+            pred_ids = []
+            pred_scores = []
+            for doc in pred_docs:
+                if isinstance(doc, dict):
+                    pred_ids.append(doc.get("id", ""))
+                    pred_scores.append(doc.get("score", 0.0))
+                elif isinstance(doc, str):
+                    pred_ids.append(doc)
+                    pred_scores.append(0.0)
+                else:
+                    pred_ids.append(str(doc) if doc else "")
+                    pred_scores.append(0.0)
 
             retrieval_result = RetrievalResult(
                 query=orig_q,

@@ -105,7 +105,14 @@ class MetricCalculator:
         else:
             # Sequential processing
             for i, (pred_docs, gt_id) in enumerate(zip(predicted_docs_list, ground_truth_ids)):
-                pred_ids = [doc.get("id", "") for doc in pred_docs]
+                pred_ids = []
+                for doc in pred_docs:
+                    if isinstance(doc, dict):
+                        pred_ids.append(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        pred_ids.append(doc)
+                    else:
+                        pred_ids.append(str(doc) if doc else "")
                 relevant_ids = [gt_id]
                 all_results_for_map.append((pred_ids, relevant_ids))
 
@@ -149,7 +156,14 @@ class MetricCalculator:
         Returns:
             Tuple of (index, predicted_ids, ap_score)
         """
-        pred_ids = [doc.get("id", "") for doc in pred_docs]
+        pred_ids = []
+        for doc in pred_docs:
+            if isinstance(doc, dict):
+                pred_ids.append(doc.get("id", ""))
+            elif isinstance(doc, str):
+                pred_ids.append(doc)
+            else:
+                pred_ids.append(str(doc) if doc else "")
         relevant_ids = [gt_id]
 
         ap_score = self.metrics_calculator.average_precision(pred_ids, relevant_ids)
@@ -325,7 +339,14 @@ class ErrorAnalyzer:
                 continue
 
             # Check if ground truth is in top 10
-            top_10_ids = [doc.get("id", "") for doc in pred_docs[:10]]
+            top_10_ids = []
+            for doc in pred_docs[:10]:
+                if isinstance(doc, dict):
+                    top_10_ids.append(doc.get("id", ""))
+                elif isinstance(doc, str):
+                    top_10_ids.append(doc)
+                else:
+                    top_10_ids.append(str(doc) if doc else "")
             is_successful = gt_id in top_10_ids
 
             if is_successful:
@@ -428,12 +449,24 @@ class ErrorAnalyzer:
             return "ambiguous_query"
 
         # Check retrieval quality
-        top_scores = [doc.get("score", 0.0) for doc in pred_docs[:3]]
+        top_scores = []
+        for doc in pred_docs[:3]:
+            if isinstance(doc, dict):
+                top_scores.append(doc.get("score", 0.0))
+            else:
+                top_scores.append(0.0)
         avg_top_score = sum(top_scores) / len(top_scores) if top_scores else 0.0
 
         # Check if ground truth has low score (false negative)
-        gt_doc = next((doc for doc in pred_docs if doc.get("id") == gt_id), None)
-        if gt_doc and gt_doc.get("score", 0.0) < ERROR_ANALYSIS_THRESHOLDS["false_negative_threshold"]:
+        gt_doc = None
+        for doc in pred_docs:
+            if isinstance(doc, dict) and doc.get("id") == gt_id:
+                gt_doc = doc
+                break
+            elif isinstance(doc, str) and doc == gt_id:
+                gt_doc = {"id": doc, "score": 0.0}
+                break
+        if gt_doc and isinstance(gt_doc, dict) and gt_doc.get("score", 0.0) < ERROR_ANALYSIS_THRESHOLDS["false_negative_threshold"]:
             return "false_negative"
 
         # Check for false positives (high score but wrong)
@@ -441,7 +474,14 @@ class ErrorAnalyzer:
             return "false_positive"
 
         # Check ranking error
-        gt_rank = next((i for i, doc in enumerate(pred_docs) if doc.get("id") == gt_id), -1)
+        gt_rank = -1
+        for i, doc in enumerate(pred_docs):
+            if isinstance(doc, dict) and doc.get("id") == gt_id:
+                gt_rank = i
+                break
+            elif isinstance(doc, str) and doc == gt_id:
+                gt_rank = i
+                break
         if gt_rank > 5:  # Ground truth not in top 5
             return "ranking_error"
 

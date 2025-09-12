@@ -193,7 +193,12 @@ class RetrievalQualityAnalyzer:
         predicted_scores_list = []
         for result in retrieval_results:
             if result and "docs" in result:
-                scores = [doc.get("score", 0.0) for doc in result["docs"]]
+                scores = []
+                for doc in result["docs"]:
+                    if isinstance(doc, dict):
+                        scores.append(doc.get("score", 0.0))
+                    else:
+                        scores.append(0.0)
                 predicted_scores_list.append(scores)
             else:
                 predicted_scores_list.append([])
@@ -216,7 +221,14 @@ class RetrievalQualityAnalyzer:
             if not pred_docs:
                 continue
 
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
+            pred_ids = []
+            for doc in pred_docs:
+                if isinstance(doc, dict):
+                    pred_ids.append(doc.get("id", ""))
+                elif isinstance(doc, str):
+                    pred_ids.append(doc)
+                else:
+                    pred_ids.append(str(doc) if doc else "")
 
             # Calculate NDCG@K
             for k in self.k_values:
@@ -364,8 +376,23 @@ class RetrievalQualityAnalyzer:
                 scores_j = predicted_scores_list[j]
 
                 # Jaccard similarity of document IDs
-                ids_i = set(doc.get("id", "") for doc in docs_i)
-                ids_j = set(doc.get("id", "") for doc in docs_j)
+                ids_i = set()
+                for doc in docs_i:
+                    if isinstance(doc, dict):
+                        ids_i.add(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        ids_i.add(doc)
+                    else:
+                        ids_i.add(str(doc) if doc else "")
+
+                ids_j = set()
+                for doc in docs_j:
+                    if isinstance(doc, dict):
+                        ids_j.add(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        ids_j.add(doc)
+                    else:
+                        ids_j.add(str(doc) if doc else "")
                 if ids_i or ids_j:
                     jaccard = len(ids_i & ids_j) / len(ids_i | ids_j)
                     jaccard_similarities.append(jaccard)
@@ -423,7 +450,14 @@ class RetrievalQualityAnalyzer:
         false_negative_by_domain = defaultdict(int)
 
         for pred_docs, gt_id, query in zip(predicted_docs_list, ground_truth_ids, queries):
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
+            pred_ids = []
+            for doc in pred_docs:
+                if isinstance(doc, dict):
+                    pred_ids.append(doc.get("id", ""))
+                elif isinstance(doc, str):
+                    pred_ids.append(doc)
+                else:
+                    pred_ids.append(str(doc) if doc else "")
             total_predictions += len(pred_ids)
 
             # Count false positives (predicted but not ground truth)
@@ -470,7 +504,14 @@ class RetrievalQualityAnalyzer:
         failed = []
 
         for query, pred_docs, gt_id in zip(queries, predicted_docs_list, ground_truth_ids):
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
+            pred_ids = []
+            for doc in pred_docs:
+                if isinstance(doc, dict):
+                    pred_ids.append(doc.get("id", ""))
+                elif isinstance(doc, str):
+                    pred_ids.append(doc)
+                else:
+                    pred_ids.append(str(doc) if doc else "")
 
             # Calculate AP score (simplified)
             if gt_id in pred_ids:
@@ -531,7 +572,14 @@ class RetrievalQualityAnalyzer:
 
         # Confidence by rank
         for pred_docs, pred_scores, gt_id in zip(predicted_docs_list, predicted_scores_list, ground_truth_ids):
-            pred_ids = [doc.get("id", "") for doc in pred_docs]
+            pred_ids = []
+            for doc in pred_docs:
+                if isinstance(doc, dict):
+                    pred_ids.append(doc.get("id", ""))
+                elif isinstance(doc, str):
+                    pred_ids.append(doc)
+                else:
+                    pred_ids.append(str(doc) if doc else "")
             for rank, (pred_id, score) in enumerate(zip(pred_ids, pred_scores), 1):
                 confidence_by_rank[rank].append(score)
 
@@ -561,7 +609,15 @@ class RetrievalQualityAnalyzer:
         for k in range(1, max_k + 1):
             accuracies = []
             for pred_docs, gt_id in zip(predicted_docs_list, ground_truth_ids):
-                pred_ids = [doc.get("id", "") for doc in pred_docs[:k]]
+                pred_ids = []
+                if pred_docs:
+                    for doc in pred_docs[:k]:
+                        if isinstance(doc, dict):
+                            pred_ids.append(doc.get("id", ""))
+                        elif isinstance(doc, str):
+                            pred_ids.append(doc)
+                        else:
+                            pred_ids.append(str(doc) if doc else "")
                 is_correct = gt_id in pred_ids
                 accuracies.append(1.0 if is_correct else 0.0)
 
