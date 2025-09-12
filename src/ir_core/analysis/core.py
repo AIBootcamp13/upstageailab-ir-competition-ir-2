@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .metrics import RetrievalMetrics
 from .query_analyzer import QueryAnalyzer
-from .analysis_components import (
+from .components import (
     MetricCalculator,
     QueryBatchProcessor,
     ErrorAnalyzer,

@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 from omegaconf import DictConfig
 
-from src.ir_core.analysis.analysis_components import (
+from src.ir_core.analysis.components import (
     MetricCalculator,
     QueryBatchProcessor,
     ErrorAnalyzer,
@@ -29,7 +29,7 @@ class TestMetricCalculator:
         assert calculator.max_workers == 4
         assert calculator.enable_parallel is True
 
-    @patch('src.ir_core.analysis.analysis_components.RetrievalMetrics')
+    @patch('src.ir_core.analysis.components.calculators.metric_calculator.RetrievalMetrics')
     def test_calculate_batch_metrics(self, mock_metrics):
         """Test batch metrics calculation."""
         # Mock the metrics calculator
@@ -53,7 +53,7 @@ class TestMetricCalculator:
 class TestQueryBatchProcessor:
     """Test cases for QueryBatchProcessor."""
 
-    @patch('src.ir_core.analysis.analysis_components.QueryAnalyzer')
+    @patch('src.ir_core.analysis.components.processors.query_processor.QueryAnalyzer')
     def test_process_batch(self, mock_query_analyzer):
         """Test batch query processing."""
         mock_instance = Mock()
@@ -97,7 +97,7 @@ class TestErrorAnalyzer:
         assert isinstance(result.error_patterns, dict)
         assert isinstance(result.domain_error_rates, dict)
         assert isinstance(result.temporal_trends, dict)
-        assert isinstance(result.recommendations, list)
+        assert isinstance(result.error_recommendations, list)
 
     def test_error_categorization(self):
         """Test different error categorization scenarios."""

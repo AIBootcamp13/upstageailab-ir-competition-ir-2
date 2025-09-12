@@ -14,16 +14,34 @@ Modules:
     - error_analyzer: Error pattern detection and categorization
     - domain_classifier: Scientific domain classification
     - visualizer: Framework-agnostic visualization utilities
+    - components: Modular analysis components (calculators, processors, analyzers, aggregators)
 """
 
 from .core import RetrievalAnalyzer, AnalysisResult
 from .metrics import RetrievalMetrics
 from .query_analyzer import QueryAnalyzer, QueryFeatures
+from .components import (
+    MetricCalculator,
+    MetricCalculationResult,
+    QueryBatchProcessor,
+    QueryProcessingResult,
+    ErrorAnalyzer,
+    ErrorAnalysisResult,
+    ResultAggregator
+)
 
 __all__ = [
     'RetrievalAnalyzer',
     'AnalysisResult',
     'RetrievalMetrics',
     'QueryAnalyzer',
-    'QueryFeatures'
+    'QueryFeatures',
+    # New modular components
+    'MetricCalculator',
+    'MetricCalculationResult',
+    'QueryBatchProcessor',
+    'QueryProcessingResult',
+    'ErrorAnalyzer',
+    'ErrorAnalysisResult',
+    'ResultAggregator'
 ]
