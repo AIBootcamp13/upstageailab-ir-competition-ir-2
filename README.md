@@ -24,8 +24,8 @@
         <td align="center">모델 최적화, 프롬트 엔지니어링</td>
         <td align="center">API 개발, Steamlit UI</td>
     </tr>
+ </table>
 
- - ✅ **확장 가능성**: 새로운 임베딩 모델 및 검색 전략 쉽게 추가 가능
 
 ---
 
@@ -225,7 +225,7 @@ flowchart TD
 ### **1️⃣ 저장소 클론**
 
 ```bash
-git clone [https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git)
+git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
 ```
 ### **2️⃣ 의존성 설치**
@@ -235,10 +235,7 @@ cd upstageailab-ir-competition-upstageailab-information-retrieval_2
 poetry install
 ```
 
-```bash
-# 또는 pip 사용 시
-pip install -r requirements.txt
-```
+
 ### **3️⃣ 서비스 시작**
 
 로컬 Elasticsearch와 Redis를 시작하려면:
@@ -263,6 +260,7 @@ pip install -r requirements.txt
 
 - 프로젝트에 포함된 scripts/maintenance/reindex.py는 간단한 CLI 포맷을 제공합니다.
 - 프로젝트의 src/를 `PYTHONPATH에` 추가하여 사용 (스크립트를 직접 실행할 때 권장)
+
 ```bash
 PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
 ```
@@ -289,11 +287,10 @@ poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index te
 ```
 
 팁:
-
 * 배치 사이즈(`--batch-size`)를 늘리면 네트워크 왕복 횟수가 줄어들어 전체 속도가 빨라질 수 있지만, 메모리/ES 부하를 고려하세요.
 * ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
 * 에디터에서 `elasticsearch`나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
-
+<!--
 ### 5️⃣ 스모크 테스트
 
 ```bash
@@ -304,7 +301,7 @@ poetry run python scripts/evaluation/smoke_test.py
 래퍼의 플래그:
 
 * `--no-install`: apt/yum을 사용하여 패키지를 설치하지 않습니다. 상승된 설치가 바람직하지 않은 머신에서 유용합니다.
-* `--no-cleanup`: 테스트 후 서비스 중지를 건너뜁니다 (실행 중인 상태로 둡니다).
+* `--no-cleanup`: 테스트 후 서비스 중지를 건너뜁니다 (실행 중인 상태로 둡니다). -->
 
 ### 테스트 데이터 인프런스 (대회 제출용)
 ```bash
@@ -385,32 +382,10 @@ PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/sub
 
 ### 📝 상세 계획
 
-> 앞으로의 개발 계획과 로드맵은 [개발 계획](docs/current-work/development-plans.md)에서 확인하실 수 있습니다.
+> 앞으로의 개발 계획과 로드맵은 [개발 계획](docs/current-work/development-plans.md)에서 확인하실 수 있습니다. -->
 
 ---
 
-## � 참고 자료  <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
-        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
-        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
-    </tr>
-    <tr>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_김효석</a></td>
-        <td align="center"><a href="https://github.com/Wchoi189">AI13_최용비</a></td>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_강연경</a></td>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_정재훈</a></td>
-    </tr>
-    <tr>
-        <td align="center">검색 알고리즘 최적화</td>
-        <td align="center">툴 연동, 평가 검증</td>
-        <td align="center">베이스라인 제작, readme 작성</td>
-        <td align="center">모델 최적화, 프롬트 엔지니어링</td>
-        <td align="center">API 개발, Steamlit UI</td>
-    </tr>
-</table> -->
-
-
----
 
 ## � 참고 자료
 
