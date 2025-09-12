@@ -55,44 +55,44 @@ poetry install
 cp .env.example .env
 
 # 로컬 Elasticsearch & Redis 다운로드 및 실행
-./scripts/run-local.sh start
+./scripts/execution/run-local.sh start
 ````
 
 **2. 데이터 색인**
 
 ```bash
 # Elasticsearch에 문서 데이터 색인
-PYTHONPATH=src poetry run python scripts/reindex.py
+PYTHONPATH=src poetry run python scripts/maintenance/reindex.py
 ```
 
 **3. 검증 실험 실행**
 
 ```bash
 # 기본 설정값으로 검증 스크립트 실행 (conf/model/default.yaml에 정의됨)
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 
 # 파라미터(예: alpha)를 변경하고, 50개 샘플로 제한하여 실행
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py model.alpha=0.7 limit=50
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py model.alpha=0.7 limit=50
 ```
 
 **4. 제출 파일 생성**
 
 ```bash
 # 공식 평가 데이터셋으로 평가 실행 후 outputs/ 디렉토리에 저장
-PYTHONPATH=src poetry run python scripts/evaluate.py
+PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py
 ```
 
 **🚀 고성능 분석 (병렬 처리)**
 
 ```bash
 # 대규모 데이터셋 분석 시 자동 병렬 처리
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 
 # 병렬 처리 설정 (8개 워커 사용)
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.max_workers=8
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.max_workers=8
 
 # 병렬 처리 비활성화 (디버깅용)
-PYTHONPATH=src poetry run python scripts/validate_retrieval.py analysis.enable_parallel=false
+PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.enable_parallel=false
 ```
 
 > 실험 및 고급 사용법에 대한 더 자세한 안내는 **[워크플로우 가이드](docs/usage/workflow-guide.md)**를 참고하세요.
@@ -269,23 +269,23 @@ pip install -r requirements.txt
 #### **Elasticsearch 시작**
 ```bash
 # 자동 다운로드 및 시작
-./scripts/start-elasticsearch.sh
+./scripts/infra/start-elasticsearch.sh
 ```
 
 ```bash
 # 기존 설치된 버전 사용
-./scripts/start-elasticsearch.sh --prebuilt
+./scripts/infra/start-elasticsearch.sh --prebuilt
 ```
 #### **Redis 시작**
 
 ```bash
 # 자동 다운로드 및 시작
-./scripts/start-redis.sh
+./scripts/infra/start-redis.sh
 
 ```
 ```bash
 # 기존 설치된 버전 사용
-./scripts/start-redis.sh --prebuilt
+./scripts/infra/start-redis.sh --prebuilt
 ```
 
 ### **4️⃣ 초기 데이터 인덱싱**
@@ -298,7 +298,7 @@ print('✅ 샘플 문서 인덱싱 완료')
 EOF
 ```
 #### **대안: 제공된 CLI 사용 및 환경 팁**
-- 프로젝트에 포함된 scripts/reindex.py는 간단한 CLI 포맷을 제공합니다.
+- 프로젝트에 포함된 scripts/maintenance/reindex.py는 간단한 CLI 포맷을 제공합니다.
 - 프로젝트의 src/를 `PYTHONPATH에` 추가하여 사용 (스크립트를 직접 실행할 때 권장)
 ```bash
 PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
@@ -311,18 +311,18 @@ PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index
 
 ### 재인덱싱(재구축) 사용법 — CLI
 
-- 프로젝트에 포함된 `scripts/reindex.py`는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
+- 프로젝트에 포함된 `scripts/maintenance/reindex.py`는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
 
 예시:
 
 권장: Poetry 환경에서 실행 (src를 PYTHONPATH에 추가)
 ```bash
-PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
 ```
 
 또는 패키지를 편집 모드로 설치한 경우:
 ```bash
-poetry run python scripts/reindex.py data/documents.jsonl --index test
+poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test
 ```
 
 팁:
@@ -334,9 +334,9 @@ poetry run python scripts/reindex.py data/documents.jsonl --index test
 ### 5️⃣ 스모크 테스트
 
 ```bash
-poetry run python scripts/smoke_test.py
+poetry run python scripts/evaluation/smoke_test.py
 ```
-- 참고: `scripts/smoke-test.sh` 래퍼는 이제 PID 파일을 확인하고 프로세스가 아직 실행 중인지 확인한 후에만 종료를 시도합니다. 이렇게 하면 서비스가 이미 종료된 경우 정리 중에 시끄러운 "No such process" 메시지를 방지합니다.
+- 참고: `scripts/evaluation/smoke-test.sh` 래퍼는 이제 PID 파일을 확인하고 프로세스가 아직 실행 중인지 확인한 후에만 종료를 시도합니다. 이렇게 하면 서비스가 이미 종료된 경우 정리 중에 시끄러운 "No such process" 메시지를 방지합니다.
 
 래퍼의 플래그:
 

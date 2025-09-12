@@ -4,7 +4,7 @@ from __future__ import annotations
 """Reindex CLI — JSONL 파일을 Elasticsearch로 일괄 인덱싱합니다.
 
 간단한 예:
-  PYTHONPATH=src poetry run python scripts/reindex.py data/documents.jsonl --index test --batch-size 500
+  PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
 
 이 스크립트는 `src/`를 sys.path에 추가해 로컬 패키지를 바로 임포트할 수 있게 합니다.
 """

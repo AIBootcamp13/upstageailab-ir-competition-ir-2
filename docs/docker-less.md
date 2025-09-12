@@ -4,7 +4,7 @@
 
 ## Elasticsearch
 
-스크립트: `scripts/start-elasticsearch.sh [version]` (기본값: 8.9.0)
+스크립트: `scripts/infra/start-elasticsearch.sh [version]` (기본값: 8.9.0)
 
 동작:
 - `elasticsearch-<version>`이 없으면 공식 Linux tarball을 프로젝트 루트에 다운로드합니다.
@@ -18,14 +18,14 @@
 예시:
 
 ```bash
-./scripts/start-elasticsearch.sh 8.9.0
+./scripts/infra/start-elasticsearch.sh 8.9.0
 curl http://127.0.0.1:9200
 ```
 
 ## Redis
 
 
-스크립트: `scripts/start-redis.sh [version]` (기본값: 7.2.0)
+스크립트: `scripts/infra/start-redis.sh [version]` (기본값: 7.2.0)
 
 동작:
 - 공식 Redis 소스 tarball을 다운로드하고 로컬에서 빌드합니다(`make`와 C 툴체인 필요).
@@ -37,7 +37,7 @@ curl http://127.0.0.1:9200
 예시:
 
 ```bash
-./scripts/start-redis.sh 7.2.0
+./scripts/infra/start-redis.sh 7.2.0
 redis-cli -p 6379 ping
 ```
 

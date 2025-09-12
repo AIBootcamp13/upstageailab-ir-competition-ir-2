@@ -3,7 +3,7 @@
 Swap an Elasticsearch alias to point to a new index atomically.
 
 Usage:
-    python scripts/swap_alias.py --alias <alias_name> --new <new_index> [--old <old_index>] [--delete-old]
+    python scripts/maintenance/swap_alias.py --alias <alias_name> --new <new_index> [--old <old_index>] [--delete-old]
 
 If --old is not provided and the alias exists, the script will remove the alias from all indices and point it to the new index.
 """

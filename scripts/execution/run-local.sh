@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Lightweight helper to download, start, stop, and inspect local non-root Elasticsearch
 # and Redis distributions inside the repository.
-# Usage: scripts/run-local.sh [start|stop|status|help] [-v]
+# Usage: scripts/execution/run-local.sh [start|stop|status|help] [-v]
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ES_VERSION=${ES_VERSION:-8.9.0}
@@ -160,7 +160,7 @@ case "$action" in
   start)
     start_es
     start_redis
-    echo "Started. Use 'scripts/run-local.sh status' to check."
+    echo "Started. Use 'scripts/execution/run-local.sh status' to check."
     ;;
   stop)
     stop_redis
@@ -171,7 +171,7 @@ case "$action" in
     ;;
   help|--help|-h)
     cat <<'EOF'
-Usage: scripts/run-local.sh [start|stop|status|help]
+Usage: scripts/execution/run-local.sh [start|stop|status|help]
 
 Commands:
   start   Download (if needed) and start local ES and Redis under the repo (no sudo).
