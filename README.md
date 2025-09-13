@@ -269,35 +269,35 @@ python scripts/cli_menu.py
 프로젝트 인프라 설정 및 관리 기능을 제공합니다. 의존성 설치, 환경 설정, 로컬 서비스(Elasticsearch, Redis) 시작/중지 등의 작업을 수행할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/cli-menu/cli-menu-setup-infrastructure-option.png" alt="Setup & Infrastructure Menu" width="600">
+  <img src="docs/assets/images/05_refactor_visualizations/cli-menu/cli-menu-setup-infrastructure-option.png" alt="Setup & Infrastructure Menu" width="600">
 </p>
 
 #### 2. Data Management
 문서 데이터의 색인, 분석, 중복 검사 등의 데이터 관리 작업을 지원합니다. Elasticsearch에 문서를 효율적으로 색인하고 데이터 품질을 검증할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/cli-menu/cli-menu-data-management-options.png" alt="Data Management Menu" width="600">
+  <img src="docs/assets/images/05_refactor_visualizations/cli-menu/cli-menu-data-management-options.png" alt="Data Management Menu" width="600">
 </p>
 
 #### 3. Experiments & Validation
 검색 성능 검증 및 실험을 위한 다양한 옵션을 제공합니다. 기본 검증부터 Ollama 모델을 활용한 고급 실험까지 지원하며 병렬 처리도 가능합니다.
 
 <p align="center">
-  <img src="docs/assets/images/cli-menu/cli-menu-experiments-validation.png" alt="Experiments & Validation Menu" width="600">
+  <img src="docs/assets/images/05_refactor_visualizations/cli-menu/cli-menu-experiments-validation.png" alt="Experiments & Validation Menu" width="600">
 </p>
 
 #### 4. Evaluation & Submission
 대회 제출용 파일 생성 및 평가 작업을 수행합니다. 다양한 모델(OpenAI, Qwen2, Llama 등)을 선택하여 최적의 제출 파일을 생성할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="600">
+  <img src="docs/assets/images/05_refactor_visualizations/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="600">
 </p>
 
 #### 5. Utilities
 시스템 상태 확인, 스크립트 목록 조회, Streamlit UI 실행 등의 유틸리티 기능을 제공합니다. 프로젝트 유지보수 및 모니터링에 유용합니다.
 
 <p align="center">
-  <img src="docs/assets/images/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="600">
+  <img src="docs/assets/images/05_refactor_visualizations/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="600">
 </p>
 
 ---
