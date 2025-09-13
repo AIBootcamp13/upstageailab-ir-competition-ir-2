@@ -41,6 +41,8 @@ plotly = "^6.3.0"
 kaleido = "^1.1.0"
 instructor = "^1.11.3"
 fastapi = "^0.116.1"
+streamlit = "^1.49.1"
+pandas = "^2.3.2"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"

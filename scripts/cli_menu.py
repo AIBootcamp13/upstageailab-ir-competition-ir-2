@@ -220,6 +220,12 @@ class CLIMenu:
                     "description": "Clean up downloaded service distributions",
                     "needs_params": False,
                 },
+                {
+                    "name": "Launch Streamlit UI",
+                    "command": "pkill -f streamlit; poetry run streamlit run scripts/visualize_submissions.py",
+                    "description": "Launch the Streamlit UI for visualizing RAG submission results",
+                    "needs_params": False,
+                },
             ],
         }
 
