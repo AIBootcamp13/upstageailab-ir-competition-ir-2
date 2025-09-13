@@ -1,7 +1,12 @@
 # src/ir_core/tools/retrieval_tool.py
 
 from typing import List, Dict, Any
+from pydantic import BaseModel
 from ..retrieval import hybrid_retrieve
+
+class ScientificSearchArgs(BaseModel):
+    query: str
+    top_k: int = 5
 
 def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     """

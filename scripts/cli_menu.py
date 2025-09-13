@@ -152,11 +152,32 @@ class CLIMenu:
             ],
             "Evaluation & Submission": [
                 {
-                    "name": "Generate Submission",
+                    "name": "Generate Submission (OpenAI)",
                     "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py --config-dir conf",
-                    "description": "Generate submission file for evaluation",
+                    "description": "Generate submission file for evaluation using OpenAI",
                     "needs_params": True,
-                    "params": ["model.alpha"],
+                    "params": ["model.alpha", "limit"],
+                },
+                {
+                    "name": "Generate Submission (Qwen2:7b Full)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=qwen-full",
+                    "description": "Generate submission using Qwen2:7b for query rewriting, tool calling, and answer generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
+                },
+                {
+                    "name": "Generate Submission (Llama3.1:8b Full)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=llama-full",
+                    "description": "Generate submission using Llama3.1:8b for query rewriting, tool calling, and answer generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
+                },
+                {
+                    "name": "Generate Submission (Ollama Hybrid)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=hybrid-qwen-llama",
+                    "description": "Generate submission using Qwen2:7b for query rewriting and tool calling, Llama3.1:8b for answer generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
                 },
                 {
                     "name": "Create Validation Set",
@@ -241,62 +262,94 @@ class CLIMenu:
         for param in params:
             if param == "model.alpha":
                 value = questionary.text(
-                    f"Enter value for {param} (default: 0.7):",
-                    default="0.7"
+                    f"Enter value for {param} (default: 0.0):",
+                    default="0.0"
                 ).ask()
+                if value is None:
+                    value = "0.0"
             elif param == "limit":
                 value = questionary.text(
                     f"Enter value for {param} (default: 50):",
                     default="50"
                 ).ask()
+                if value is None:
+                    value = "50"
+            elif param == "pipeline":
+                value = questionary.select(
+                    "Select pipeline:",
+                    choices=["ollama-full", "ollama", "ollama-llama", "hybrid-ollama"],
+                    default="ollama-full"
+                ).ask()
+                if value is None:
+                    value = "ollama-full"
             elif param == "experiment":
                 value = questionary.text(
                     f"Enter experiment name (e.g., prompt_tuning):",
                     default="prompt_tuning"
                 ).ask()
+                if value is None:
+                    value = "prompt_tuning"
             elif param == "input_file":
                 value = questionary.text(
                     "Enter input file path:",
                     default="outputs/submission.csv"
                 ).ask()
+                if value is None:
+                    value = "outputs/submission.csv"
             elif param == "output_file":
                 value = questionary.text(
                     "Enter output file path:",
                     default="outputs/submission_processed.csv"
                 ).ask()
+                if value is None:
+                    value = "outputs/submission_processed.csv"
             elif param == "max_length":
                 value = questionary.text(
                     "Enter max length (default: 500):",
                     default="500"
                 ).ask()
+                if value is None:
+                    value = "500"
             elif param == "eval_file":
                 value = questionary.text(
                     "Enter eval file path:",
                     default="data/eval.jsonl"
                 ).ask()
+                if value is None:
+                    value = "data/eval.jsonl"
             elif param == "submission_file":
                 value = questionary.text(
                     "Enter submission file path:",
                     default="outputs/submission.csv"
                 ).ask()
+                if value is None:
+                    value = "outputs/submission.csv"
             elif param == "create_validation_set.sample_size":
                 value = questionary.text(
                     "Enter sample size (default: 100):",
                     default="100"
                 ).ask()
+                if value is None:
+                    value = "100"
             elif param == "pipeline.generator_type":
                 value = questionary.select(
                     "Select generator type:",
                     choices=["openai", "ollama"],
                     default="openai"
                 ).ask()
+                if value is None:
+                    value = "openai"
             elif param == "pipeline.generator_model_name":
                 value = questionary.text(
                     "Enter generator model name (e.g., gpt-3.5-turbo, qwen2:7b, llama3.1:8b):",
-                    default="qwen2:7b"
+                    default="llama3.1:8b"
                 ).ask()
+                if value is None:
+                    value = "llama3.1:8b"
             else:
                 value = questionary.text(f"Enter value for {param}:").ask()
+                if value is None:
+                    value = ""
 
             param_values[param] = value
 
@@ -307,7 +360,13 @@ class CLIMenu:
         command_parts = [base_command]
 
         for param, value in params.items():
+            # Skip empty values (when user cancels input)
+            if not value or value.strip() == "":
+                continue
+
             if param == "create_validation_set.sample_size":
+                command_parts.append(f"{param}={value}")
+            elif param == "pipeline":
                 command_parts.append(f"{param}={value}")
             elif param in ["input_file", "output_file", "eval_file", "submission_file"]:
                 # These are positional arguments, not Hydra parameters

@@ -70,7 +70,7 @@ elasticsearch-*/
 
 # Redis runtime artifacts
 redis-*/
-
+*.rdb
 # Misc
 *.swp
 *~

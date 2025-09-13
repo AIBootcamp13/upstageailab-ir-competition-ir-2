@@ -3,7 +3,7 @@ from typing import Dict, Callable, Any
 import json
 
 # Import the specific tool functions that the dispatcher will manage
-from .retrieval_tool import scientific_search
+from .retrieval_tool import scientific_search, ScientificSearchArgs
 
 class ToolDispatcher:
     """

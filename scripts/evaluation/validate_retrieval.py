@@ -5,7 +5,7 @@ import sys
 from typing import cast
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from ir_core.orchestration.rewriter import QueryRewriter
+from ir_core.orchestration.rewriter_openai import QueryRewriter
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -107,12 +107,9 @@ def run(cfg: DictConfig) -> None:
         return
 
     # 1. QueryRewriter 인스턴스를 생성합니다.
-    query_rewriter = QueryRewriter(
-        model_name=cfg.pipeline.rewriter_model,
-        prompt_template_path=cfg.prompts.rephrase_query,
-    )
+    from ir_core.generation import get_query_rewriter
 
-    # 2. RAG 파이프라인을 초기화할 때 rewriter 인스턴스를 전달합니다.
+    query_rewriter = get_query_rewriter(cfg)    # 2. RAG 파이프라인을 초기화할 때 rewriter 인스턴스를 전달합니다.
     generator = get_generator(cfg)
     pipeline = RAGPipeline(
         generator=generator,

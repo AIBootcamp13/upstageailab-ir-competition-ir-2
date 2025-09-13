@@ -4,12 +4,13 @@ from typing import List, Dict, Any, cast
 import os
 import json
 import openai
+import requests
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from ..generation.base import BaseGenerator
 from ..tools.dispatcher import default_dispatcher, ToolDispatcher
 from ..tools.retrieval_tool import get_tool_definition
-from .rewriter import QueryRewriter # QueryRewriter를 임포트합니다.
+from .rewriter_openai import BaseQueryRewriter # QueryRewriter를 임포트합니다.
 
 class RAGPipeline:
     """
@@ -18,9 +19,9 @@ class RAGPipeline:
     def __init__(
         self,
         generator: BaseGenerator,
-        query_rewriter: QueryRewriter, # QueryRewriter 인스턴스를 받도록 __init__ 수정
+        query_rewriter: BaseQueryRewriter, # QueryRewriter 인스턴스를 받도록 __init__ 수정
         tool_prompt_description: str,
-        tool_calling_model: str = "gpt-3.5-turbo-1106",
+        tool_calling_model: str,
         dispatcher: ToolDispatcher = default_dispatcher
     ):
         """
@@ -31,7 +32,13 @@ class RAGPipeline:
         self.dispatcher = dispatcher
         self.tool_prompt_description = tool_prompt_description
         self.tool_calling_model = tool_calling_model
-        self.client = openai.OpenAI()
+        # Determine if using OpenAI or Ollama for tool calling
+        if ":" in tool_calling_model:  # Assume Ollama model (e.g., qwen2:7b)
+            self.use_ollama = True
+            self.ollama_url = "http://localhost:11434/api/chat"
+        else:  # Assume OpenAI
+            self.use_ollama = False
+            self.client = openai.OpenAI()
 
     def run_retrieval_only(self, query: str) -> List[Dict[str, Any]]:
         """
@@ -44,29 +51,54 @@ class RAGPipeline:
         tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 
         try:
-            # --- 2단계: 재작성된 쿼리로 도구 호출 ---
-            response = self.client.chat.completions.create(
-                model=self.tool_calling_model,
-                messages=[{"role": "user", "content": rewritten_query}], # 재작성된 쿼리 사용
-                tools=tools,
-                tool_choice="auto"
-            )
-            response_message = response.choices[0].message
-            tool_calls = response_message.tool_calls
+            if self.use_ollama:
+                # Use Ollama for tool calling
+                tools = [get_tool_definition(self.tool_prompt_description)]
+                payload = {
+                    "model": self.tool_calling_model,
+                    "messages": [{"role": "user", "content": rewritten_query}],
+                    "tools": tools,
+                    "stream": False
+                }
+                response = requests.post(self.ollama_url, json=payload, timeout=30)
+                response.raise_for_status()
+                result = response.json()
+                response_message = result.get("message", {})
+                tool_calls = response_message.get("tool_calls", [])
+                if tool_calls:
+                    tool_call = tool_calls[0]
+                    tool_args_json = json.dumps(tool_call["function"]["arguments"])
+                    tool_name = tool_call["function"]["name"]
+                else:
+                    tool_name = None
+                    tool_args_json = "{}"
+                    tool_args_json = "{}"
+            else:
+                # Use OpenAI for tool calling
+                tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
+                response = self.client.chat.completions.create(
+                    model=self.tool_calling_model,
+                    messages=[{"role": "user", "content": rewritten_query}],
+                    tools=tools,
+                    tool_choice="auto"
+                )
+                response_message = response.choices[0].message
+                tool_calls = response_message.tool_calls
+                if tool_calls:
+                    tool_call = cast(ChatCompletionMessageToolCall, tool_calls[0])
+                    tool_args_json = tool_call.function.arguments or "{}"
+                    tool_name = tool_call.function.name
+                else:
+                    tool_name = None
+                    tool_args_json = "{}"
 
-            if tool_calls:
-                tool_call = cast(ChatCompletionMessageToolCall, tool_calls[0])
-                tool_args_json = tool_call.function.arguments or "{}"
-
+            if tool_name:
                 tool_result = self.dispatcher.execute_tool(
-                    tool_name=tool_call.function.name,
+                    tool_name=tool_name,
                     tool_args_json=tool_args_json
                 )
-
-                # standalone_query는 이제 LLM이 재작성한 쿼리가 됩니다.
                 return [{"standalone_query": rewritten_query, "docs": tool_result}]
             else:
-                # 도구가 호출되지 않은 경우, 재작성된 쿼리를 포함하여 반환
                 return [{"standalone_query": rewritten_query, "docs": []}]
         except Exception as e:
             print(f"'{query}' 쿼리에 대한 검색 중 오류 발생: {e}")

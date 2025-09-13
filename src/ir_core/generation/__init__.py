@@ -49,14 +49,24 @@ def get_query_rewriter(cfg: "DictConfig"):
         cfg (DictConfig): Hydra에 의해 관리되는 전체 설정 객체.
 
     Returns:
-        QueryRewriter: 설정에 따라 초기화된 QueryRewriter 인스턴스.
+        BaseQueryRewriter: 설정에 따라 초기화된 QueryRewriter 인스턴스.
     """
-    from ..orchestration.rewriter import QueryRewriter
-
-    return QueryRewriter(
-        model_name=cfg.pipeline.rewriter_model,
-        prompt_template_path=cfg.prompts.rephrase_query
-    )
+    if cfg.pipeline.query_rewriter_type == "ollama":
+        from ..orchestration.rewriter_ollama import OllamaQueryRewriter
+        return OllamaQueryRewriter(
+            model_name=cfg.pipeline.rewriter_model,
+            prompt_template_path=cfg.prompts.rephrase_query,
+            max_tokens=cfg.pipeline.rewriter.max_tokens,
+            temperature=cfg.pipeline.rewriter.temperature
+        )
+    else:
+        from ..orchestration.rewriter_openai import QueryRewriter
+        return QueryRewriter(
+            model_name=cfg.pipeline.rewriter_model,
+            prompt_template_path=cfg.prompts.rephrase_query,
+            max_tokens=cfg.pipeline.rewriter.max_tokens,
+            temperature=cfg.pipeline.rewriter.temperature
+        )
 
 # 이 패키지의 공개 API를 명시적으로 정의합니다.
 __all__ = ["get_generator", "get_query_rewriter", "BaseGenerator"]

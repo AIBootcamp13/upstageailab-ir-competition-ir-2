@@ -67,7 +67,12 @@ def run_pipeline(cfg: DictConfig) -> None:
         )
         return
 
-    pipeline = RAGPipeline(generator=generator, tool_prompt_description=tool_desc, query_rewriter=query_rewriter)
+    pipeline = RAGPipeline(
+        generator=generator,
+        tool_prompt_description=tool_desc,
+        query_rewriter=query_rewriter,
+        tool_calling_model=cfg.pipeline.tool_calling_model,
+    )
 
     # 3. 파이프라인을 실행하고 최종 답변을 출력합니다.
     print(f"\n--- 쿼리 실행: '{query}' ---")
