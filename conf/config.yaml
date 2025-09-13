@@ -15,6 +15,10 @@ defaults:
 
 limit: null # 빠른 테스트를 위한 샘플 데이터 수 제한 (null일 경우 전체 데이터 사용)
 
+# Debug options for validation
+debug: false  # Enable debug mode to log prompts and answers
+debug_limit: 3  # Number of queries to debug in detail
+
 # --- 인프라 설정 (Infrastructure Settings) ---
 # .env 파일 또는 환경 변수에서 값을 가져옵니다.
 es_host: ${env:ES_HOST, "http://localhost:9200"}
@@ -40,12 +44,12 @@ reindex:
 
 evaluate:
   topk: 3
-  max_workers: 4
+  max_workers: 16
 
 create_validation_set:
   sample_size: 50 # 생성할 질문-문서 쌍의 수
 
 # --- 분석 설정 (Analysis Settings) ---
 analysis:
-  max_workers: null      # Maximum parallel workers for analysis
+  max_workers: 16        # Maximum parallel workers for analysis (set to null for auto-detection)
   enable_parallel: true  # 병렬 처리 활성화 여부

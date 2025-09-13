@@ -2,6 +2,7 @@
 
 import os
 import sys
+import logging
 from typing import cast
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -13,6 +14,9 @@ from omegaconf import DictConfig, OmegaConf
 import wandb
 
 # ------------------------------------
+
+# Suppress httpx INFO logs to prevent BrokenPipeError with tqdm in multi-threaded environment
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # OmegaConf가 ${env:VAR_NAME} 구문을 해석할 수 있도록 'env' 리졸버를 등록합니다.
 OmegaConf.register_new_resolver("env", os.getenv)
@@ -131,6 +135,12 @@ def run(cfg: DictConfig) -> None:
         print(f"데이터셋을 {cfg.limit}개의 샘플로 제한합니다.")
         validation_data = validation_data[: cfg.limit]
 
+    # Debug mode: Log prompts and answers for first few queries
+    debug_mode = getattr(cfg, 'debug', False)
+    if debug_mode:
+        debug_limit = getattr(cfg, 'debug_limit', 3)
+        print(f"🐛 Debug mode enabled - will log prompts and answers for first {debug_limit} queries")
+
     # === ANALYSIS FRAMEWORK INTEGRATION ===
     # The new analysis framework will handle all metrics collection and logging
 
@@ -146,8 +156,9 @@ def run(cfg: DictConfig) -> None:
         max_workers = cfg.analysis.max_workers or 4
         print(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
 
-        def process_single_query(item):
+        def process_single_query(item, idx=0):
             """Process a single query for parallel execution."""
+            debug_limit = getattr(cfg, 'debug_limit', 3)  # Define in function scope
             query = item.get("msg", [{}])[0].get("content")
             ground_truth_id = item.get("ground_truth_doc_id")
 
@@ -166,13 +177,34 @@ def run(cfg: DictConfig) -> None:
                         retrieval_result = {"docs": []}
                 else:
                     retrieval_result = {"docs": []}
+
+                # Debug mode: Log full pipeline for first few queries
+                if debug_mode and idx < debug_limit:
+                    print(f"\n🐛 DEBUG Query {idx + 1}: {query}")
+                    try:
+                        full_answer = pipeline.run(query)
+                        print(f"🐛 DEBUG Answer: {full_answer[:200]}..." if len(full_answer) > 200 else f"🐛 DEBUG Answer: {full_answer}")
+
+                        # Log retrieved context
+                        docs = retrieval_result.get("docs", [])
+                        if docs:
+                            print(f"🐛 DEBUG Retrieved {len(docs)} documents:")
+                            for i, doc in enumerate(docs[:3]):  # Show first 3 docs
+                                content_preview = doc.get("content", "")[:100]
+                                score = doc.get("score", 0)
+                                print(f"  Doc {i+1} (score: {score:.3f}): {content_preview}...")
+                        else:
+                            print("🐛 DEBUG No documents retrieved")
+                    except Exception as e:
+                        print(f"🐛 DEBUG Error in full pipeline: {e}")
+
                 return query_data, retrieval_result
             except Exception as e:
                 print(f"Error processing query '{query}': {e}")
                 return query_data, {"docs": []}
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(process_single_query, item) for item in validation_data]
+            futures = [executor.submit(process_single_query, item, idx) for idx, item in enumerate(validation_data)]
 
             for future in tqdm(as_completed(futures), total=len(validation_data), desc="Validating Queries"):
                 query_data, retrieval_result = future.result()

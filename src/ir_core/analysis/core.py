@@ -128,8 +128,8 @@ class RetrievalAnalyzer:
         self.error_analyzer = ErrorAnalyzer()
         self.result_aggregator = ResultAggregator()
         self.retrieval_quality_analyzer = RetrievalQualityAnalyzer(cast(Dict[str, Any], OmegaConf.to_container(config)) if config else None)
-        self.enable_parallel = PARALLEL_PROCESSING_DEFAULTS.get("enable_parallel", True)
-        self.max_workers = PARALLEL_PROCESSING_DEFAULTS.get("max_workers_analysis", 4)
+        self.enable_parallel = getattr(config.analysis, 'enable_parallel', True) if config else PARALLEL_PROCESSING_DEFAULTS.get("enable_parallel", True)
+        self.max_workers = getattr(config.analysis, 'max_workers', None) if config else PARALLEL_PROCESSING_DEFAULTS.get("max_workers_analysis", 4)
 
     def analyze_batch(
         self,

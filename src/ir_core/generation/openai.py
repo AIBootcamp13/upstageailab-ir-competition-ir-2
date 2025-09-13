@@ -78,6 +78,11 @@ class OpenAIGenerator(BaseGenerator):
 
         try:
             full_prompt = self._render_prompt(query, context_docs, template_to_use)
+            # ===============================================================
+            # print("==================== FINAL PROMPT TO LLM ====================")
+            # print(full_prompt)
+            # print("=============================================================")
+            # ===============================================================
         except FileNotFoundError as e:
             print(e)
             return "오류: 프롬프트 템플릿을 찾을 수 없어 답변을 생성할 수 없습니다."

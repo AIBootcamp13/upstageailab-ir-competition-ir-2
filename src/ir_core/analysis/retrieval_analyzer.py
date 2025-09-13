@@ -397,14 +397,19 @@ class RetrievalQualityAnalyzer:
                     jaccard = len(ids_i & ids_j) / len(ids_i | ids_j)
                     jaccard_similarities.append(jaccard)
 
-                # Rank correlation (simplified)
+                # Rank correlation (FIXED: check for zero standard deviation)
                 if len(scores_i) > 1 and len(scores_j) > 1:
                     try:
-                        corr = np.corrcoef(scores_i[:min(len(scores_i), len(scores_j))],
-                                         scores_j[:min(len(scores_i), len(scores_j))])[0, 1]
-                        if not np.isnan(corr):
-                            rank_correlations.append(corr)
-                    except:
+                        # Convert to numpy arrays for std() check
+                        s1 = np.array(scores_i[:min(len(scores_i), len(scores_j))])
+                        s2 = np.array(scores_j[:min(len(scores_i), len(scores_j))])
+
+                        # Only calculate correlation if std is not zero for both arrays
+                        if s1.std() > 0 and s2.std() > 0:
+                            corr = np.corrcoef(s1, s2)[0, 1]
+                            if not np.isnan(corr):
+                                rank_correlations.append(corr)
+                    except Exception:
                         pass
 
                 # Score stability (coefficient of variation)

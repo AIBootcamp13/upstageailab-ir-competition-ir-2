@@ -252,7 +252,7 @@ PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.j
 제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
 
 ```bash
-python scripts/cli_menu.py
+poetry run python scripts/cli_menu.py
 ```
 
 다양한 모델 옵션(OpenAI, Qwen2, Llama 등)을 선택하여 제출 파일을 생성할 수 있습니다.
