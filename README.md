@@ -9,6 +9,7 @@
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
     </tr>
     <tr>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
@@ -44,71 +45,35 @@
 
 ## 🚀 빠른 시작
 
-이 프로젝트는 [Hydra](https://hydra.cc/)를 사용하여 설정을 관리합니다. 모든 스크립트는 프로젝트의 루트 디렉토리에서 실행합니다.
+이 프로젝트는 대화형 CLI 메뉴를 제공하여 일반적인 작업을 쉽게 실행할 수 있습니다. 모든 명령은 메뉴를 통해 실행할 수 있습니다.
 
-**1. 초기 설정 (최초 1회)**
-
-```bash
-# 의존성 설치
-poetry install
-
-# 환경 변수 설정 (이 파일을 열어 API 키를 추가하세요)
-cp .env.example .env
-
-# 로컬 Elasticsearch & Redis 다운로드 및 실행
-./scripts/execution/run-local.sh start
-````
-
-**2. 데이터 색인**
+**대화형 CLI 메뉴 실행**
 
 ```bash
-# Elasticsearch에 문서 데이터 색인
-PYTHONPATH=src poetry run python scripts/maintenance/reindex.py
+# 프로젝트 루트에서 실행
+python scripts/cli_menu.py
 ```
 
-**3. 검증 실험 실행**
+메뉴를 통해 다음 작업들을 수행할 수 있습니다:
+- 초기 설정 및 인프라 구축
+- 데이터 관리 및 색인
+- 실험 및 검증 실행
+- 평가 및 제출 파일 생성
+- 유틸리티 기능
 
-```bash
-# 기본 설정값으로 검증 스크립트 실행 (conf/model/default.yaml에 정의됨)
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
-
-# 파라미터(예: alpha)를 변경하고, 50개 샘플로 제한하여 실행
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py model.alpha=0.7 limit=50
-```
-
-**4. 제출 파일 생성**
-
-```bash
-# 공식 평가 데이터셋으로 평가 실행 후 outputs/ 디렉토리에 저장
-PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py
-```
-
-**🚀 고성능 분석 (병렬 처리)**
-
-```bash
-# 대규모 데이터셋 분석 시 자동 병렬 처리
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
-
-# 병렬 처리 설정 (8개 워커 사용)
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.max_workers=8
-
-# 병렬 처리 비활성화 (디버깅용)
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analysis.enable_parallel=false
-```
-
+> 자세한 메뉴 설명은 아래의 **사용법** 섹션을 참고하세요.
 > 실험 및 고급 사용법에 대한 더 자세한 안내는 **[워크플로우 가이드](docs/usage/workflow-guide.md)**를 참고하세요.
 > 병렬 처리에 대한 자세한 정보는 **[병렬 처리 가이드](docs/usage/parallel-processing-guide.md)**를 참고하세요.
 ## **🎯 개요**
 
 ### **환경 요구사항**
 
-```
 | 구분 | 사양 |
 | OS | Ubuntu 20.04 (권장) |
 | Python | 3.10 |
 | 의존성 관리 | Poetry |
 | 필수 도구 | curl, tar, make, gcc |
-```
+
 ### **주요 기능**
 
 * ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
@@ -163,8 +128,13 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py analys
 | 모듈 | 기능 | 주요 함수 |
 |------|------|-----------|
 | **api** | 메인 인터페이스 | `index_documents_from_jsonl()` |
-| **embeddings** | 임베딩 처리 | `encode_texts()`, `encode_query()` |
+| **embeddings** | 임베딩 처리 | `encode_texts()`, `encode_query()`, `load_model()` |
 | **retrieval** | 검색 엔진 | `sparse_retrieve()`, `dense_retrieve()`, `hybrid_retrieve()` |
+| **generation** | 텍스트 생성 | `get_generator()`, `get_query_rewriter()` |
+| **orchestration** | 파이프라인 조율 | `Pipeline`, `QueryRewriter` |
+| **tools** | 도구 스키마 | `ScientificSearchArgs`, `dispatcher()` |
+| **analysis** | 분석 및 시각화 | `QueryAnalyzer`, `RetrievalAnalyzer`, `Visualizer` |
+| **config** | 설정 관리 | `Settings` |
 | **infra** | 인프라 관리 | `get_es()`, `count_docs_with_embeddings()` |
 | **utils** | 유틸리티 | `read_jsonl()`, `write_jsonl()`, `configure_logging()` |
 | **evaluation** | 평가 메트릭 | `precision_at_k()`, `mrr()` |
@@ -238,84 +208,101 @@ poetry install
 
 ### **3️⃣ 서비스 시작**
 
-로컬 Elasticsearch와 Redis를 시작하려면:
+로컬 Elasticsearch와 Redis를 시작하려면 대화형 CLI 메뉴의 **Setup & Infrastructure** 카테고리를 사용하세요:
 
 ```bash
-./scripts/execution/run-local.sh start
+python scripts/cli_menu.py
 ```
 
-상태 확인:
-
-```bash
-./scripts/execution/run-local.sh status
-```
-
-중지:
-
-```bash
-./scripts/execution/run-local.sh stop
-```
+메뉴에서 다음 옵션들을 선택할 수 있습니다:
+- Start Local Services: 로컬 서비스 시작
+- Check Service Status: 서비스 상태 확인
+- Stop Local Services: 서비스 중지
 
 ### **4️⃣ 초기 데이터 인덱싱**
 
-- 프로젝트에 포함된 scripts/maintenance/reindex.py는 간단한 CLI 포맷을 제공합니다.
-- 프로젝트의 src/를 `PYTHONPATH에` 추가하여 사용 (스크립트를 직접 실행할 때 권장)
+데이터 색인은 대화형 CLI 메뉴의 **Data Management** 카테고리를 통해 수행합니다:
 
 ```bash
-PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
+python scripts/cli_menu.py
 ```
+
+**Reindex Documents** 옵션을 선택하여 Elasticsearch에 문서를 색인할 수 있습니다.
 
 환경 관련 팁:
 
 * 항상 `poetry run` 또는 `poetry shell`로 가상환경을 활성화하세요. 에디터가 가상환경을 사용하지 않으면 pydantic/tqdm 등이 "탐지되지 않음"으로 표시될 수 있습니다.
 * VSCode 사용 시, 왼쪽 하단 또는 Command Palette에서 Poetry 가상환경을 선택해 인터프리터를 맞추면 편리합니다.
 
-### 재인덱싱(재구축) 사용법 — CLI
+### 재인덱싱(재구축) 사용법
 
-- 프로젝트에 포함된 `scripts/maintenance/reindex.py`는 JSONL 파일을 Elasticsearch로 빠르게 재인덱싱하기 위한 간단한 CLI입니다.
+데이터 재색인은 CLI 메뉴의 **Data Management** 카테고리에서 **Reindex Documents** 옵션을 통해 쉽게 수행할 수 있습니다. 수동으로 실행해야 하는 경우:
 
-예시:
-
-권장: Poetry 환경에서 실행 (src를 PYTHONPATH에 추가)
 ```bash
 PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
-```
-
-또는 패키지를 편집 모드로 설치한 경우:
-```bash
-poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test
 ```
 
 팁:
 * 배치 사이즈(`--batch-size`)를 늘리면 네트워크 왕복 횟수가 줄어들어 전체 속도가 빨라질 수 있지만, 메모리/ES 부하를 고려하세요.
 * ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
 * 에디터에서 `elasticsearch`나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
-<!--
-### 5️⃣ 스모크 테스트
-
-```bash
-poetry run python scripts/evaluation/smoke_test.py
-```
-- 참고: `scripts/evaluation/smoke-test.sh` 래퍼는 이제 PID 파일을 확인하고 프로세스가 아직 실행 중인지 확인한 후에만 종료를 시도합니다. 이렇게 하면 서비스가 이미 종료된 경우 정리 중에 시끄러운 "No such process" 메시지를 방지합니다.
-
-래퍼의 플래그:
-
-* `--no-install`: apt/yum을 사용하여 패키지를 설치하지 않습니다. 상승된 설치가 바람직하지 않은 머신에서 유용합니다.
-* `--no-cleanup`: 테스트 후 서비스 중지를 건너뜁니다 (실행 중인 상태로 둡니다). -->
 
 ### 테스트 데이터 인프런스 (대회 제출용)
-```bash
-# 기본 설정
-PYTHONPATH=src poetry run python scripts/evaluate.py
 
-또는
-# 명시적 설정 사용
-PYTHONPATH=src poetry run python scripts/evaluate.py data/eval.jsonl outputs/submission.csv
+제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
+
+```bash
+python scripts/cli_menu.py
 ```
+
+다양한 모델 옵션(OpenAI, Qwen2, Llama 등)을 선택하여 제출 파일을 생성할 수 있습니다.
 
 ---
 
-## 📊 결과
+## � 사용법
+
+### 대화형 CLI 메뉴
+
+프로젝트의 모든 주요 작업은 대화형 CLI 메뉴를 통해 수행할 수 있습니다. 메뉴는 다음과 같은 카테고리로 구성되어 있습니다:
+
+#### 1. Setup & Infrastructure
+프로젝트 인프라 설정 및 관리 기능을 제공합니다. 의존성 설치, 환경 설정, 로컬 서비스(Elasticsearch, Redis) 시작/중지 등의 작업을 수행할 수 있습니다.
+
+<p align="center">
+  <img src="docs/assets/images/cli-menu/cli-menu-setup-infrastructure-option.png" alt="Setup & Infrastructure Menu" width="600">
+</p>
+
+#### 2. Data Management
+문서 데이터의 색인, 분석, 중복 검사 등의 데이터 관리 작업을 지원합니다. Elasticsearch에 문서를 효율적으로 색인하고 데이터 품질을 검증할 수 있습니다.
+
+<p align="center">
+  <img src="docs/assets/images/cli-menu/cli-menu-data-management-options.png" alt="Data Management Menu" width="600">
+</p>
+
+#### 3. Experiments & Validation
+검색 성능 검증 및 실험을 위한 다양한 옵션을 제공합니다. 기본 검증부터 Ollama 모델을 활용한 고급 실험까지 지원하며 병렬 처리도 가능합니다.
+
+<p align="center">
+  <img src="docs/assets/images/cli-menu/cli-menu-experiments-validation.png" alt="Experiments & Validation Menu" width="600">
+</p>
+
+#### 4. Evaluation & Submission
+대회 제출용 파일 생성 및 평가 작업을 수행합니다. 다양한 모델(OpenAI, Qwen2, Llama 등)을 선택하여 최적의 제출 파일을 생성할 수 있습니다.
+
+<p align="center">
+  <img src="docs/assets/images/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="600">
+</p>
+
+#### 5. Utilities
+시스템 상태 확인, 스크립트 목록 조회, Streamlit UI 실행 등의 유틸리티 기능을 제공합니다. 프로젝트 유지보수 및 모니터링에 유용합니다.
+
+<p align="center">
+  <img src="docs/assets/images/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="600">
+</p>
+
+---
+
+## �📊 결과
 
 ### 🏅 성능 지표
 

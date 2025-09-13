@@ -222,14 +222,15 @@ class CLIMenu:
                 },
                 {
                     "name": "Launch Streamlit UI",
-                    "command": "pkill -f streamlit; poetry run streamlit run scripts/visualize_submissions.py",
+                    "command": "poetry run streamlit run scripts/visualize_submissions.py",
                     "description": "Launch the Streamlit UI for visualizing RAG submission results",
                     "needs_params": False,
+                    "run_in_background": True,
                 },
             ],
         }
 
-    def _run_command(self, command: str, description: str) -> bool:
+    def _run_command(self, command: str, description: str, run_in_background: bool = False) -> bool:
         """Execute a command and display results."""
         console.print(f"\n[bold blue]Executing:[/bold blue] {description}")
         console.print(f"[dim]{command}[/dim]\n")
@@ -242,20 +243,89 @@ class CLIMenu:
             env = os.environ.copy()
             env["PYTHONPATH"] = str(self.project_root / "src")
 
-            # Run the command
-            result = subprocess.run(
-                command,
-                shell=True,
-                cwd=self.project_root,
-                env=env
-            )
+            if run_in_background:
+                # First, kill any existing streamlit processes
+                try:
+                    kill_result = subprocess.run(
+                        "pkill -f streamlit",
+                        shell=True,
+                        cwd=self.project_root,
+                        env=env,
+                        capture_output=True
+                    )
+                    if kill_result.returncode in [0, 1]:  # 0 = processes killed, 1 = no processes found
+                        console.print("[dim]Stopped any existing Streamlit processes[/dim]")
+                except Exception:
+                    pass  # Ignore errors from pkill
 
-            if result.returncode == 0:
-                console.print("[green]✓ Command completed successfully![/green]")
+                # Run command in background and capture initial output
+                import tempfile
+                import time
+
+                # Create a temporary file to capture output
+                with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log') as temp_file:
+                    temp_log = temp_file.name
+
+                # Start the command with output redirected to temp file
+                process = subprocess.Popen(
+                    command,
+                    shell=True,
+                    cwd=self.project_root,
+                    env=env,
+                    stdout=open(temp_log, 'w'),
+                    stderr=subprocess.STDOUT
+                )
+
+                # Wait a bit for streamlit to start up and print URLs
+                time.sleep(3)
+
+                # Read and display the captured output
+                try:
+                    with open(temp_log, 'r') as f:
+                        output = f.read()
+                        if output.strip():
+                            console.print("[cyan]Streamlit output:[/cyan]")
+                            console.print(output)
+                            # Extract and highlight URLs
+                            import re
+                            url_pattern = r'https?://[^\s]+'
+                            urls = re.findall(url_pattern, output)
+                            if urls:
+                                console.print("[green]🌐 Access URLs:[/green]")
+                                for url in urls:
+                                    console.print(f"  [bold blue]{url}[/bold blue]")
+                except Exception as e:
+                    console.print(f"[yellow]Could not read command output: {e}[/yellow]")
+
+                # Clean up temp file in background
+                import threading
+                def cleanup_temp_file():
+                    time.sleep(1)  # Give process time to fully start
+                    try:
+                        os.unlink(temp_log)
+                    except:
+                        pass
+                cleanup_thread = threading.Thread(target=cleanup_temp_file, daemon=True)
+                cleanup_thread.start()
+
+                console.print("[green]✓ Streamlit UI started successfully![/green]")
+                console.print("[dim]The app is running in the background. You can access it using the URLs shown above.[/dim]")
                 return True
             else:
-                console.print("[red]✗ Command failed![/red]")
-                return False
+                # Run the command
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=self.project_root,
+                    env=env
+                )
+
+                if result.returncode == 0:
+                    console.print("[green]✓ Command completed successfully![/green]")
+                    return True
+                else:
+                    console.print("[red]✗ Command failed![/red]")
+                    return False
 
         except Exception as e:
             console.print(f"[red]✗ Error executing command: {e}[/red]")
@@ -435,15 +505,20 @@ class CLIMenu:
                         command = selected_cmd["command"]
 
                     # Execute command
-                    success = self._run_command(command, selected_cmd["description"])
+                    run_in_background = selected_cmd.get("run_in_background", False)
+                    success = self._run_command(command, selected_cmd["description"], run_in_background)
 
                     if success:
-                        console.print("\n[green]✓ Command completed successfully![/green]")
+                        if run_in_background:
+                            console.print("\n[green]✓ Command started successfully in background![/green]")
+                        else:
+                            console.print("\n[green]✓ Command completed successfully![/green]")
                     else:
                         console.print("\n[red]✗ Command failed. Check the output above.[/red]")
 
-                    # Wait for user to continue
-                    questionary.press_any_key_to_continue().ask()
+                    # Wait for user to continue (only for non-background commands)
+                    if not run_in_background:
+                        questionary.press_any_key_to_continue().ask()
                 else:
                     console.print("[red]Invalid option. Please try again.[/red]")
             except ValueError:

@@ -82,7 +82,7 @@ docs/notes/debug/
 outputs/
 notebooks/
 *.ipynb
-
+dump.rdb
 # WanDB
 wandb/
 multirun/

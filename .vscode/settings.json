@@ -42,5 +42,8 @@
     "**/redis-*/**": true,
     // "**/multirun/**": true,
     // "**/notebooks/**": true
-  }
+  },
+  "editor.fontSize": 16,
+  "workbench.colorTheme": "Default Dark Modern",
+  "editor.defaultFormatter": "GitHub.copilot-chat"
 }
