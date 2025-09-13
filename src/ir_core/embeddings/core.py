@@ -4,12 +4,14 @@ from typing import List, Optional
 import numpy as np
 import torch
 from transformers import AutoModel, AutoTokenizer
+import threading
 
 from ..config import settings
 
 _tokenizer = None
 _model = None
 _device = None
+_lock = threading.Lock()
 
 
 def _get_device():
@@ -77,7 +79,8 @@ def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] =
 
             for k, v in encoded.items():
                 encoded[k] = v.to(dev)
-            out = model(**encoded)
+            with _lock:
+                out = model(**encoded)
             last_hidden = out.last_hidden_state
             emb = _mean_pool(last_hidden, encoded["attention_mask"])  # (batch, dim)
             emb = emb.cpu().numpy()

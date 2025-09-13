@@ -19,22 +19,22 @@ class Settings(BaseSettings):
 	Examples: ES_HOST, INDEX_NAME, EMBEDDING_MODEL, etc.
 	"""
 
-	ES_HOST: str
-	INDEX_NAME: str
-	EMBEDDING_MODEL: str
-	BM25_K: int
-	RERANK_K: int
-	ALPHA: float
-	REDIS_URL: str
-	USE_WANDB: bool
-	WANDB_PROJECT: str
+	ES_HOST: str = ""
+	INDEX_NAME: str = ""
+	EMBEDDING_MODEL: str = ""
+	BM25_K: int = 0
+	RERANK_K: int = 0
+	ALPHA: float = 0.0
+	REDIS_URL: str = ""
+	USE_WANDB: bool = False
+	WANDB_PROJECT: str = ""
 
 	# --- New Settings for the Generation Layer ---
-	GENERATOR_TYPE: str
-	GENERATOR_MODEL_NAME: str
-	PROMPT_TEMPLATE_PATH: str
-	GENERATOR_SYSTEM_MESSAGE_FILE: str
-	GENERATOR_SYSTEM_MESSAGE: str
+	GENERATOR_TYPE: str = ""
+	GENERATOR_MODEL_NAME: str = ""
+	PROMPT_TEMPLATE_PATH: str = ""
+	GENERATOR_SYSTEM_MESSAGE_FILE: str = ""
+	GENERATOR_SYSTEM_MESSAGE: str = ""
 
 	model_config = SettingsConfigDict(env_file=".env", extra='allow')
 
