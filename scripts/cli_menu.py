@@ -47,7 +47,17 @@ class CLIMenu:
         self.commands = self._get_commands()
 
     def _get_commands(self) -> Dict[str, List[Dict]]:
-        """Get all available commands organized by category."""
+        """
+        Get all available commands organized by category.
+
+        NOTE: When adding new major features that use CLI commands, update this menu
+        to include appropriate options in the relevant categories:
+        - Setup & Infrastructure: Infrastructure setup and management
+        - Data Management: Data processing and indexing
+        - Experiments & Validation: Model validation and testing
+        - Evaluation & Submission: Submission generation and evaluation
+        - Utilities: Testing, monitoring, and helper tools
+        """
         return {
             "Setup & Infrastructure": [
                 {
@@ -65,19 +75,19 @@ class CLIMenu:
                 {
                     "name": "Start Local Services",
                     "command": "./scripts/execution/run-local.sh start",
-                    "description": "Start Elasticsearch and Redis locally",
+                    "description": "Start Elasticsearch, Redis, and Kibana locally",
                     "needs_params": False,
                 },
                 {
                     "name": "Check Service Status",
                     "command": "./scripts/execution/run-local.sh status",
-                    "description": "Check status of local services",
+                    "description": "Check status of local services (Elasticsearch, Redis, Kibana)",
                     "needs_params": False,
                 },
                 {
                     "name": "Stop Local Services",
                     "command": "./scripts/execution/run-local.sh stop",
-                    "description": "Stop local Elasticsearch and Redis",
+                    "description": "Stop local Elasticsearch, Redis, and Kibana",
                     "needs_params": False,
                 },
             ],
@@ -144,10 +154,11 @@ class CLIMenu:
                     "params": ["experiment", "limit"],
                 },
                 {
-                    "name": "Domain Classification Validation",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_domain_classification.py --config-dir conf",
-                    "description": "Validate domain classification accuracy",
-                    "needs_params": False,
+                    "name": "Validate Retrieval (HuggingFace)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/validate_retrieval.py --config-dir conf pipeline=klue-roberta",
+                    "description": "Run retrieval validation using KLUE-RoBERTa for embeddings and generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
                 },
             ],
             "Evaluation & Submission": [
@@ -180,6 +191,13 @@ class CLIMenu:
                     "params": ["model.alpha", "limit"],
                 },
                 {
+                    "name": "Generate Submission (HuggingFace)",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=klue-roberta",
+                    "description": "Generate submission using KLUE-RoBERTa for embeddings and generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
+                },
+                {
                     "name": "Create Validation Set",
                     "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/data/create_validation_set.py --config-dir conf",
                     "description": "Create new validation dataset",
@@ -206,6 +224,12 @@ class CLIMenu:
                     "name": "Run Smoke Tests",
                     "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/smoke_test.py",
                     "description": "Run smoke tests to verify system health",
+                    "needs_params": False,
+                },
+                {
+                    "name": "Test HuggingFace Integration",
+                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/test_huggingface_integration.py",
+                    "description": "Test HuggingFace model integration for retrieval and generation",
                     "needs_params": False,
                 },
                 {

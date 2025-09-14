@@ -86,3 +86,6 @@ dump.rdb
 # WanDB
 wandb/
 multirun/
+
+# Kibana
+.local_kibana

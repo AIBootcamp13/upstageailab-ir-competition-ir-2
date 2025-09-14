@@ -16,7 +16,7 @@
 
 ES_HOST: "http://localhost:9200"
 INDEX_NAME: "test"
-EMBEDDING_MODEL: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+EMBEDDING_MODEL: "jhgan/ko-sroberta-multitask"
 BM25_K: 200
 RERANK_K: 10
 ALPHA: 0.0

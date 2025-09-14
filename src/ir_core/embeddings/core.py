@@ -11,6 +11,7 @@ from ..config import settings
 _tokenizer = None
 _model = None
 _device = None
+_current_model_name = None
 _lock = threading.Lock()
 
 
@@ -29,13 +30,19 @@ def load_model(name: Optional[str] = None):
     Returns:
         (tokenizer, model)
     """
-    global _tokenizer, _model
+    global _tokenizer, _model, _current_model_name
     model_name = name or settings.EMBEDDING_MODEL
-    if _tokenizer is None or _model is None:
-        _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-        _model = AutoModel.from_pretrained(model_name)
-        _model.to(_get_device())
-        _model.eval()
+
+    # Check if we need to reload the model
+    if _current_model_name != model_name or _tokenizer is None or _model is None:
+        with _lock:
+            if _current_model_name != model_name or _tokenizer is None or _model is None:
+                _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+                _model = AutoModel.from_pretrained(model_name)
+                _model.to(_get_device())
+                _model.eval()
+                _current_model_name = model_name
+
     return _tokenizer, _model
 
 

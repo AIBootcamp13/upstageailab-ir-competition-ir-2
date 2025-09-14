@@ -19,6 +19,7 @@ SCRIPT_DESCRIPTIONS = {
     "evaluation/validate_domain_classification.py": "Checks domain classification accuracy.",
     "evaluation/smoke_test.py": "Python-based smoke tests for the system.",
     "evaluation/smoke-test.sh": "Shell wrapper for smoke testing with service management.",
+    "test_huggingface_integration.py": "Tests HuggingFace model integration for retrieval and generation.",
     "data/analyze_data.py": "Analyzes document datasets for statistics (e.g., token counts).",
     "data/check_duplicates.py": "Detects duplicate entries in datasets.",
     "data/create_validation_set.py": "Generates validation datasets using LLM prompts.",

@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 from .base import BaseGenerator
 from .openai import OpenAIGenerator
 from .ollama import OllamaGenerator
+from .huggingface import HuggingFaceGenerator
+from .huggingface import HuggingFaceGenerator
 
 # TYPE_CHECKING 블록은 순환 참조 오류 없이 타입 힌트를 제공하기 위해 사용됩니다.
 if TYPE_CHECKING:
@@ -20,7 +22,7 @@ def get_generator(cfg: "DictConfig") -> BaseGenerator:
         ValueError: cfg.pipeline.generator_type이 알 수 없는 값일 경우 발생합니다.
 
     Returns:
-        BaseGenerator: 설정에 따라 초기화된 OpenAIGenerator 또는 OllamaGenerator 인스턴스.
+        BaseGenerator: 설정에 따라 초기화된 OpenAIGenerator, OllamaGenerator, HuggingFaceGenerator 또는  인스턴스.
     """
     # 설정에서 생성기 유형을 읽어옵니다.
     generator_type = cfg.pipeline.generator_type.lower()
@@ -37,6 +39,14 @@ def get_generator(cfg: "DictConfig") -> BaseGenerator:
         return OllamaGenerator(
             model_name=cfg.pipeline.generator_model_name,
             prompt_template_path=cfg.prompts.generation_qa
+        )
+    elif generator_type == "huggingface":
+        # Ollama 생성기 또한 일관성을 위해 설정 객체로부터 초기화되도록 수정합니다.
+        return HuggingFaceGenerator(
+            model_name=cfg.pipeline.generator_model_name,
+            prompt_template_path=cfg.prompts.generation_qa,
+            max_tokens=cfg.pipeline.huggingface.get("max_tokens", 512),
+            temperature=cfg.pipeline.huggingface.get("temperature", 0.1)
         )
     else:
         raise ValueError(f"알 수 없는 생성기 유형입니다: '{generator_type}'")

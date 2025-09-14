@@ -11,6 +11,9 @@ REDIS_VERSION=${REDIS_VERSION:-7.2.0}
 
 ES_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
 REDIS_DIR="$ROOT_DIR/redis-$REDIS_VERSION"
+KIBANA_VERSION=${KIBANA_VERSION:-8.9.0}
+KIBANA_DIR="$ROOT_DIR/.local_kibana/kibana-$KIBANA_VERSION"
+PIDFILE_KIBANA="$KIBANA_DIR/run/kibana.pid"
 
 PIDFILE_ES="$ES_DIR/run/elasticsearch.pid"
 PIDFILE_REDIS="$REDIS_DIR/run/redis.pid"
@@ -82,6 +85,29 @@ EOF
   sleep 1
 }
 
+download_kibana(){
+  if [ -d "$KIBANA_DIR" ]; then log "Kibana dir exists: $KIBANA_DIR"; return 0; fi
+  EXISTING_KIBANA_DIR=$(ls -d "$ROOT_DIR"/.local_kibana/kibana-* 2>/dev/null | head -1 || true)
+  if [ -n "$EXISTING_KIBANA_DIR" ]; then
+    KIBANA_DIR="$EXISTING_KIBANA_DIR"
+    log "Using existing Kibana dir: $KIBANA_DIR"
+    return 0
+  fi
+  TAR_NAME="kibana-${KIBANA_VERSION}-linux-x86_64.tar.gz"
+  URL="https://artifacts.elastic.co/downloads/kibana/${TAR_NAME}"
+  echo "Downloading Kibana $KIBANA_VERSION..."
+  mkdir -p "$ROOT_DIR/.local_kibana"
+  curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+  tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR/.local_kibana"
+  rm -f "/tmp/$TAR_NAME"
+  # Move extracted dir to expected name if necessary
+  MOVED_DIR=$(ls -d "$ROOT_DIR/.local_kibana/kibana-*" 2>/dev/null | head -1 || true)
+  if [ -n "$MOVED_DIR" ]; then
+    KIBANA_DIR="$MOVED_DIR"
+  fi
+  echo "Downloaded to $KIBANA_DIR"
+}
+
 start_redis(){
     # Add this check at the top
   if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
@@ -93,6 +119,28 @@ start_redis(){
   fi
 
   if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
+start_kibana(){
+  if [ -f "$PIDFILE_KIBANA" ] && kill -0 "$(cat "$PIDFILE_KIBANA")" >/dev/null 2>&1; then
+    echo "Kibana already running (pid $(cat $PIDFILE_KIBANA))"; return 0
+  fi
+  if [ ! -d "$KIBANA_DIR" ]; then download_kibana; fi
+  mkdir -p "$KIBANA_DIR/run" "$KIBANA_DIR/logs"
+  # Create minimal kibana.yml for local ES if not present
+  if [ ! -f "$KIBANA_DIR/config/kibana.yml" ]; then
+    cat > "$KIBANA_DIR/config/kibana.yml" <<'EOF'
+server.port: 5601
+server.host: "127.0.0.1"
+elasticsearch.hosts: ["http://127.0.0.1:9200"]
+# Disable security for local dev convenience (only do this on dev hosts)
+xpack.security.enabled: false
+EOF
+  fi
+  echo "Starting Kibana (logs -> $KIBANA_DIR/logs)"
+  export NODE_OPTIONS="--max-old-space-size=2048"
+  nohup "$KIBANA_DIR/bin/kibana" > "$KIBANA_DIR/logs/kibana.log" 2>&1 &
+  echo $! > "$PIDFILE_KIBANA"
+  sleep 1
+}
     echo "Redis already running (pid $(cat $PIDFILE_REDIS))"; return 0
   fi
   if [ ! -d "$REDIS_DIR" ]; then download_redis; fi
@@ -109,6 +157,17 @@ start_redis(){
 }
 
 stop_es(){
+stop_kibana(){
+  if [ -f "$PIDFILE_KIBANA" ]; then
+    pid=$(cat "$PIDFILE_KIBANA")
+    echo "Stopping Kibana pid $pid"
+    kill "$pid" || true
+    rm -f "$PIDFILE_KIBANA"
+  else
+    echo "No Kibana pidfile; attempting pkill for $KIBANA_DIR"
+    pkill -f "$KIBANA_DIR" || true
+  fi
+}
   if [ -f "$PIDFILE_ES" ]; then
     pid=$(cat "$PIDFILE_ES")
     echo "Stopping Elasticsearch pid $pid"
@@ -182,11 +241,13 @@ case "$action" in
   start)
     start_es
     start_redis
+    start_kibana
     echo "Started. Use 'scripts/execution/run-local.sh status' to check."
     ;;
   stop)
     stop_redis
     stop_es
+    stop_kibana
     ;;
   status)
     status
