@@ -1,6 +1,6 @@
 # src/ir_core/orchestration/pipeline.py
 
-from typing import List, Dict, Any, cast
+from typing import List, Dict, Any, cast, Optional
 import os
 import json
 import openai
@@ -8,30 +8,70 @@ import requests
 from openai.types.chat import ChatCompletionMessageToolCall
 
 from ..generation.base import BaseGenerator
+from ..generation import get_generator
 from ..tools.dispatcher import default_dispatcher, ToolDispatcher
 from ..tools.retrieval_tool import get_tool_definition
-from .rewriter_openai import BaseQueryRewriter # QueryRewriter를 임포트합니다.
+from ..query_enhancement.manager import QueryEnhancementManager
+from .rewriter_openai import BaseQueryRewriter # Keep for backward compatibility
 
 class RAGPipeline:
     """
-    QueryRewriter를 포함하여 전체 RAG 프로세스를 조율합니다.
+    Enhanced RAG pipeline with query enhancement capabilities.
     """
     def __init__(
         self,
-        generator: BaseGenerator,
-        query_rewriter: BaseQueryRewriter, # QueryRewriter 인스턴스를 받도록 __init__ 수정
-        tool_prompt_description: str,
-        tool_calling_model: str,
-        dispatcher: ToolDispatcher = default_dispatcher
+        generator: Optional[BaseGenerator] = None,
+        model_name: Optional[str] = None,
+        tool_prompt_description: str = "",
+        tool_calling_model: str = "gpt-3.5-turbo",
+        query_rewriter: Optional[BaseQueryRewriter] = None, # Made optional for backward compatibility
+        dispatcher: ToolDispatcher = default_dispatcher,
+        use_query_enhancement: bool = True
     ):
         """
-        RAG 파이프라인을 초기화합니다.
+        Initialize the RAG pipeline.
+        
+        Args:
+            generator: Pre-configured generator instance (optional)
+            model_name: Model name to create generator from (optional)
+            tool_prompt_description: Description for tool calling
+            tool_calling_model: Model to use for tool calling
+            query_rewriter: Legacy query rewriter (optional)
+            dispatcher: Tool dispatcher instance
+            use_query_enhancement: Whether to use query enhancement
         """
-        self.generator = generator
-        self.query_rewriter = query_rewriter # rewriter를 인스턴스 변수로 저장
+        # Create generator if model_name provided
+        if generator is None and model_name is not None:
+            # Create a minimal config for generator creation
+            from omegaconf import DictConfig, OmegaConf
+            cfg = OmegaConf.create({
+                "pipeline": {
+                    "generator_type": "ollama" if ":" in model_name else "openai",
+                    "generator_model_name": model_name
+                },
+                "prompts": {
+                    "generation_qa": "prompts/scientific_qa_v1.jinja2",
+                    "persona": "prompts/persona_qa.txt"
+                }
+            })
+            self.generator = get_generator(cfg)
+        elif generator is not None:
+            self.generator = generator
+        else:
+            raise ValueError("Either 'generator' or 'model_name' must be provided")
+            
+        self.query_rewriter = query_rewriter # Keep for backward compatibility
         self.dispatcher = dispatcher
         self.tool_prompt_description = tool_prompt_description
         self.tool_calling_model = tool_calling_model
+        self.use_query_enhancement = use_query_enhancement
+
+        # Initialize query enhancement manager if enabled
+        if use_query_enhancement:
+            self.enhancement_manager = QueryEnhancementManager(model_name=model_name)
+        else:
+            self.enhancement_manager = None
+
         # Determine if using OpenAI or Ollama for tool calling
         if ":" in tool_calling_model:  # Assume Ollama model (e.g., qwen2:7b)
             self.use_ollama = True
@@ -44,9 +84,20 @@ class RAGPipeline:
         """
         평가 목적으로 파이프라인의 검색 부분만 실행합니다.
         """
-        # --- 1단계: 쿼리 재작성 ---
-        rewritten_query = self.query_rewriter.rewrite_query(query)
-        print(f"원본 쿼리: '{query}' -> 재작성된 쿼리: '{rewritten_query}'")
+        # --- 1단계: 쿼리 개선 ---
+        if self.enhancement_manager:
+            # Use new query enhancement system
+            enhancement_result = self.enhancement_manager.enhance_query(query)
+            enhanced_query = enhancement_result.get('enhanced_query', query)
+            print(f"원본 쿼리: '{query}' -> 개선된 쿼리: '{enhanced_query}' (기법: {enhancement_result.get('technique_used', 'none')})")
+        elif self.query_rewriter:
+            # Fallback to old rewriter for backward compatibility
+            enhanced_query = self.query_rewriter.rewrite_query(query)
+            print(f"원본 쿼리: '{query}' -> 재작성된 쿼리: '{enhanced_query}'")
+        else:
+            # No enhancement
+            enhanced_query = query
+            print(f"쿼리 개선 없이 사용: '{query}'")
 
         tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 
@@ -56,7 +107,7 @@ class RAGPipeline:
                 tools = [get_tool_definition(self.tool_prompt_description)]
                 payload = {
                     "model": self.tool_calling_model,
-                    "messages": [{"role": "user", "content": rewritten_query}],
+                    "messages": [{"role": "user", "content": enhanced_query}],
                     "tools": tools,
                     "stream": False
                 }
@@ -78,7 +129,7 @@ class RAGPipeline:
                 tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
                 response = self.client.chat.completions.create(
                     model=self.tool_calling_model,
-                    messages=[{"role": "user", "content": rewritten_query}],
+                    messages=[{"role": "user", "content": enhanced_query}],
                     tools=tools,
                     tool_choice="auto"
                 )
@@ -97,12 +148,12 @@ class RAGPipeline:
                     tool_name=tool_name,
                     tool_args_json=tool_args_json
                 )
-                return [{"standalone_query": rewritten_query, "docs": tool_result}]
+                return [{"standalone_query": enhanced_query, "docs": tool_result}]
             else:
-                return [{"standalone_query": rewritten_query, "docs": []}]
+                return [{"standalone_query": enhanced_query, "docs": []}]
         except Exception as e:
             print(f"'{query}' 쿼리에 대한 검색 중 오류 발생: {e}")
-            return [{"standalone_query": rewritten_query, "docs": []}]
+            return [{"standalone_query": enhanced_query, "docs": []}]
 
     def run(self, query: str) -> str:
         """

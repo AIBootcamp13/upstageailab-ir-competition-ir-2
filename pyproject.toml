@@ -46,6 +46,15 @@ streamlit = "^1.49.1"
 pandas = "^2.3.2"
 accelerate = "^0.20.0"
 bitsandbytes = "^0.41.0"
+# googletrans = "4.0.0rc1"  # Commented out due to httpx compatibility issues
+nltk = "^3.8.1"
+tqdm = "^4.67.1"
+sacremoses = "^0.1.1"
+datasets = "^4.0.0"
+optimum = "^1.20.0"
+onnxruntime-gpu = "^1.18.0"
+onnx = "^1.16.2"
+googletrans = "4.0.2"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"

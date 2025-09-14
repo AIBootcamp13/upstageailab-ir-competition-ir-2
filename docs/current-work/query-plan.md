@@ -4,10 +4,45 @@
 
 This document provides a concrete implementation plan for the five query enhancement techniques outlined in `strategies-query.md`. Each technique includes detailed implementation steps, code examples, integration points with the existing RAG system, and testing strategies.
 
+## Current Implementation Status ✅
+
+### ✅ COMPLETED: Core Infrastructure (Phase 1-5)
+- **LLM Client Abstraction**: Implemented unified interface supporting OpenAI and Ollama/Qwen models
+- **Query Rewriting**: Fully implemented with multi-provider support (OpenAI + Qwen)
+- **Step-Back Prompting**: Implemented with LLM client integration
+- **Query Decomposition**: Implemented with sub-query generation and result aggregation
+- **HyDE (Hypothetical Document Embeddings)**: Implemented with hypothetical answer generation
+- **Query Translation**: Framework implemented (needs local model integration)
+
+### ✅ COMPLETED: Pipeline Integration
+- **RAG Pipeline**: Updated to support query enhancement manager
+- **Configuration**: Hydra-based configuration with model selection
+- **Validation**: Query rewriting confirmed working in logs (despite metric reporting issues)
+- **Multi-Provider Support**: Seamless switching between OpenAI GPT and Ollama Qwen models
+
+### 📊 Current Performance Results
+- **MAP Score**: 0.063 (slight improvement from 0.059 baseline)
+- **Rewrite Rate**: 0.0% (metric issue - logs show active rewriting)
+- **Retrieval Success Rate**: 10.4% (improvement from 8.5%)
+- **Query Enhancement**: Confirmed working in debug logs
+
+### 🔍 Known Issues & Next Steps
+- **Metric Detection**: Validation script reports 0.0% rewrite rate despite active rewriting in logs
+- **Domain Performance**: High error rates in biology (89.4%), physics (89.1%), chemistry (87.5%)
+- **Complex Queries**: 33 failures with multi-concept questions
+- **False Negatives**: 32 instances of incorrect negative results
+
+### 🎯 Immediate Priorities
+1. **Fix Rewrite Rate Detection**: Investigate validation metric calculation
+2. **Improve Domain-Specific Performance**: Address scientific terminology issues
+3. **Handle Complex Queries**: Implement better decomposition for multi-concept questions
+4. **Reduce False Negatives**: Improve document matching and retrieval logic
+
 ## Prerequisites
 
 ### Dependencies
 - OpenAI API access (already configured in the project)
+- Ollama with Qwen2:7B model (locally running)
 - Additional libraries to add to `pyproject.toml`:
   - `googletrans==4.0.0rc1` (for query translation)
   - `nltk` (for text processing, if needed)
@@ -19,6 +54,7 @@ query_enhancement:
   enabled: true
   default_technique: "rewriting"  # Options: rewriting, step_back, decomposition, hyde, translation
   openai_model: "gpt-3.5-turbo"
+  ollama_model: "qwen2:7b"
   max_tokens: 500
   temperature: 0.3
 ```
@@ -480,11 +516,24 @@ Add metrics to track enhancement effectiveness:
 
 ## Next Steps
 
-1. **Phase 1**: Implement Query Rewriting (highest impact, lowest complexity)
-2. **Phase 2**: Add Step-Back Prompting for ambiguous queries
-3. **Phase 3**: Implement Query Decomposition for complex questions
-4. **Phase 4**: Add HyDE for short queries
-5. **Phase 5**: Implement Query Translation for multilingual support
+### ✅ COMPLETED PHASES
+1. **Phase 1**: ✅ Query Rewriting (implemented, working with Qwen)
+2. **Phase 2**: ✅ Step-Back Prompting (implemented with LLM client)
+3. **Phase 3**: ✅ Query Decomposition (implemented with sub-query generation)
+4. **Phase 4**: ✅ HyDE (implemented with hypothetical answer generation)
+5. **Phase 5**: 🔄 Query Translation (framework ready, needs local model integration)
+
+### 🚀 IMMEDIATE NEXT STEPS
+1. **Fix Validation Metrics**: Debug why rewrite rate shows 0.0% despite working logs
+2. **Domain-Specific Optimization**: Improve performance for scientific domains (biology, physics, chemistry)
+3. **Complex Query Handling**: Enhance decomposition for multi-concept questions
+4. **Document Translation**: Implement local translation using open-source models
+5. **Language Strategy**: Evaluate English-only pipeline vs Korean-English hybrid
+
+### 📈 Performance Improvement Targets
+- **Current MAP**: 0.063 → **Target**: 0.70
+- **Current Rewrite Rate**: 0.0% (fix detection) → **Target**: >50%
+- **Domain Error Rates**: 87-89% → **Target**: <20%
 
 Each phase should include:
 - Implementation of the technique
@@ -493,11 +542,131 @@ Each phase should include:
 - Gradual rollout with monitoring
 - Documentation updates
 
-## Cost Considerations
+## Language Strategy & Translation Considerations
 
-- **OpenAI API Costs**: Each enhancement technique requires additional API calls
-- **Translation Services**: Google Translate API has usage limits
-- **Compute Overhead**: Multiple retrieval calls for decomposition
-- **Monitoring**: Additional logging and metrics collection
+### Current Language Dynamics
+- **Source Documents**: Korean language with Korean embeddings (snunlp/KR-SBERT-V40K-klueNLI-augSTS)
+- **Query Enhancement**: Currently using English prompts with Qwen model
+- **Evaluation**: Korean queries against Korean documents
+- **Submissions**: Must be in Korean format
 
-Budget for 2-3x increase in API usage when all techniques are enabled.
+### 🔍 Language Mismatch Analysis
+
+#### Query Rewriting in English
+**Potential Issues:**
+- **Embedding Mismatch**: English-enhanced queries vs Korean document embeddings
+- **Semantic Gap**: Loss of Korean-specific scientific terminology nuances
+- **Retrieval Degradation**: Cross-language similarity may be suboptimal
+
+**Current Evidence:**
+- Query rewriting confirmed working in logs
+- Slight MAP improvement (0.059 → 0.063)
+- High domain-specific error rates suggest terminology issues
+
+#### Translation Strategy Options
+
+**Option 1: Korean-Only Pipeline**
+- Keep all processing in Korean
+- Use Korean prompts for enhancement
+- Maintain language consistency
+- **Pros**: No translation loss, better terminology handling
+- **Cons**: Limited by Korean LLM capabilities, potential hallucinations
+
+**Option 2: English Translation Pipeline**
+- Translate documents to English using open-source models
+- Use English for all processing
+- Translate final answers back to Korean
+- **Pros**: Better LLM performance, more stable, access to English resources
+- **Cons**: Translation quality risks, final submission translation required
+
+**Option 3: Hybrid Approach**
+- Bilingual retrieval (search both languages)
+- Language-specific enhancement techniques
+- **Pros**: Best of both worlds
+- **Cons**: Complexity, computational overhead
+
+### 🎯 Recommended Approach: English Translation Pipeline
+
+**Rationale:**
+1. **LLM Performance**: English models generally more stable and capable
+2. **Scientific Terminology**: Better handling of technical terms in English
+3. **Resource Availability**: More tools and models available for English
+4. **Hallucination Reduction**: English processing typically more reliable
+
+**Implementation Plan:**
+1. **Document Translation**: Use open-source translation models locally
+2. **Embedding Recreation**: Generate English embeddings for translated documents
+3. **Pipeline Adaptation**: Modify all components for English processing
+4. **Final Translation**: Convert answers back to Korean for submission
+
+### Local Translation Implementation
+
+#### Using Open-Source Translation Models
+```python
+# Using Helsinki-NLP models (works offline)
+from transformers import pipeline
+
+class LocalTranslator:
+    def __init__(self):
+        # Korean to English translation
+        self.ko_en_translator = pipeline(
+            "translation", 
+            model="Helsinki-NLP/opus-mt-ko-en",
+            device="cuda" if torch.cuda.is_available() else "cpu"
+        )
+        
+        # English to Korean translation  
+        self.en_ko_translator = pipeline(
+            "translation",
+            model="Helsinki-NLP/opus-mt-en-ko", 
+            device="cuda" if torch.cuda.is_available() else "cpu"
+        )
+    
+    def translate_documents(self, documents_path: str, target_lang: str = "en"):
+        """Translate all documents in JSONL file"""
+        translated_docs = []
+        
+        with open(documents_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                doc = json.loads(line)
+                if target_lang == "en":
+                    translated_text = self.ko_en_translator(doc['content'])[0]['translation_text']
+                else:
+                    translated_text = self.en_ko_translator(doc['content'])[0]['translation_text']
+                
+                translated_doc = doc.copy()
+                translated_doc['original_content'] = doc['content']
+                translated_doc['content'] = translated_text
+                translated_doc['language'] = target_lang
+                
+                translated_docs.append(translated_doc)
+        
+        return translated_docs
+```
+
+#### Batch Processing for Large Datasets
+```python
+def batch_translate_documents(documents: List[Dict], batch_size: int = 32):
+    """Process documents in batches for efficiency"""
+    translated = []
+    
+    for i in range(0, len(documents), batch_size):
+        batch = documents[i:i + batch_size]
+        batch_texts = [doc['content'] for doc in batch]
+        
+        # Translate batch
+        translations = translator.ko_en_translator(
+            batch_texts, 
+            batch_size=batch_size,
+            truncation=True,
+            max_length=512
+        )
+        
+        # Update documents with translations
+        for doc, translation in zip(batch, translations):
+            new_doc = doc.copy()
+            new_doc['content'] = translation['translation_text']
+            translated.append(new_doc)
+    
+    return translated
+```

@@ -117,6 +117,7 @@ def run(cfg: DictConfig) -> None:
     generator = get_generator(cfg)
     pipeline = RAGPipeline(
         generator=generator,
+        model_name=cfg.pipeline.tool_calling_model,  # Pass model_name for query enhancement
         query_rewriter=query_rewriter,
         tool_prompt_description=tool_desc,
         tool_calling_model=cfg.pipeline.tool_calling_model,

@@ -41,3 +41,30 @@ USE_STOPWORD_FILTERING: false
 USE_DUPLICATE_FILTERING: true
 USE_NEAR_DUP_PENALTY: false
 PROFILE_REPORT_DIR: "outputs/reports/data_profile/latest"
+
+# --- Query Enhancement Configuration ---
+query_enhancement:
+  enabled: true
+  default_technique: "rewriting"  # Options: rewriting, step_back, decomposition, hyde, translation
+  openai_model: "gpt-3.5-turbo"
+  max_tokens: 500
+  temperature: 0.3
+  techniques:
+    rewriting:
+      enabled: true
+      priority: 1
+    step_back:
+      enabled: true
+      priority: 2
+    decomposition:
+      enabled: true
+      priority: 3
+    hyde:
+      enabled: true
+      priority: 4
+    translation:
+      enabled: true
+      priority: 5
+  translation:
+    fallback_on_error: true
+    bilingual_search: true

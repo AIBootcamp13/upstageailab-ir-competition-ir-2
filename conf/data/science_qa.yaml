@@ -7,7 +7,7 @@
 
 # --- 입력 데이터 (Input Data) ---
 documents_path: "data/documents.jsonl"       # 원본 문서 파일 경로
-validation_path: "data/validation.jsonl"    # 성능 검증용 데이터셋 경로
+validation_path: "data/validation_balanced.jsonl"    # 성능 검증용 데이터셋 경로
 evaluation_path: "data/eval.jsonl"          # 최종 제출물 생성을 위한 평가 데이터셋 경로
 
 # --- 출력 데이터 (Output Data) ---

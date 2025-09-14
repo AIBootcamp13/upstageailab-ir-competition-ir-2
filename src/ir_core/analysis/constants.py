@@ -213,34 +213,32 @@ def _load_persistent_terms_from_conf() -> List[str]:
         pass
     return []
 
-# Resolve scientific terms with the following precedence (no env required):
+# Resolve scientific terms with the following precedence (UPDATED: always merge for hybrid approach):
 # 1) If SCIENTIFIC_TERMS_MODE is set:
 #    - 'base_only' -> use base
 #    - 'dynamic_only' -> use dynamic artifact only
-# 2) Else (default 'merge'):
-#    - If conf/scientific_terms.json exists and non-empty -> use it as authoritative
-#    - Else -> merge base + dynamic artifact (if any), otherwise use base
+#    - 'merge' -> ALWAYS merge base + dynamic artifact (hybrid approach)
+# 2) If no mode set -> merge base + dynamic artifact (if any), otherwise use base
 _mode = os.environ.get("SCIENTIFIC_TERMS_MODE", "merge").lower()
 if _mode == "base_only":
     SCIENTIFIC_TERMS: List[str] = SCIENTIFIC_TERMS_BASE
 elif _mode == "dynamic_only":
     SCIENTIFIC_TERMS = _load_scientific_terms_from_artifact()
-else:
-    _conf_terms = _load_persistent_terms_from_conf()
-    if _conf_terms:
-        SCIENTIFIC_TERMS = _conf_terms
+else:  # merge mode (default) - ALWAYS merge for hybrid approach
+    _dynamic_terms = _load_scientific_terms_from_artifact()
+    if _dynamic_terms:
+        # Hybrid approach: merge base terms with dynamic terms
+        merged: List[str] = []
+        seen: Set[str] = set()
+        for t in (SCIENTIFIC_TERMS_BASE + _dynamic_terms):
+            if t and t not in seen:
+                seen.add(t)
+                merged.append(t)
+        SCIENTIFIC_TERMS = merged
+        print(f"🔄 Hybrid mode: Merged {len(SCIENTIFIC_TERMS_BASE)} base + {len(_dynamic_terms)} dynamic = {len(merged)} total terms")
     else:
-        _dynamic_terms = _load_scientific_terms_from_artifact()
-        if _dynamic_terms:
-            merged: List[str] = []
-            seen: Set[str] = set()
-            for t in (SCIENTIFIC_TERMS_BASE + _dynamic_terms):
-                if t and t not in seen:
-                    seen.add(t)
-                    merged.append(t)
-            SCIENTIFIC_TERMS = merged
-        else:
-            SCIENTIFIC_TERMS = SCIENTIFIC_TERMS_BASE
+        SCIENTIFIC_TERMS = SCIENTIFIC_TERMS_BASE
+        print(f"ℹ️ Hybrid mode: No dynamic terms found, using {len(SCIENTIFIC_TERMS_BASE)} base terms only")
 
 # Query type classification patterns
 QUERY_TYPE_PATTERNS: Dict[str, re.Pattern] = {
