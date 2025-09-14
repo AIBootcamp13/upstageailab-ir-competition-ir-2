@@ -14,6 +14,9 @@ Updated with insights from data profiling:
 
 from typing import Dict, List, Set, Any
 import re
+import os
+import json
+from pathlib import Path
 
 
 # Dataset source mapping based on profiling (63 unique sources total)
@@ -130,13 +133,114 @@ DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     ]
 }
 
+def _load_scientific_terms_from_artifact() -> List[str]:
+    """Attempt to load scientific terms extracted by LLM from profiling artifacts.
+
+    Looks for `${IR_PROFILE_REPORT_DIR or PROFILING_CONFIG['profile_report_dir']}/scientific_terms_extracted.json`.
+    Accepts either a list[str] or a mapping {src: list[str]} and flattens/dedupes.
+    Returns an empty list if not found or malformed.
+    """
+    try:
+        base_dir = os.environ.get("IR_PROFILE_REPORT_DIR", PROFILING_CONFIG.get("profile_report_dir", "outputs/reports/data_profile/latest"))
+        path = Path(base_dir) / "scientific_terms_extracted.json"
+        if not path.exists():
+            return []
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        terms: List[str] = []
+        if isinstance(data, list):
+            terms = [str(t).strip() for t in data if str(t).strip()]
+        elif isinstance(data, dict):
+            for _src, lst in data.items():
+                if isinstance(lst, list):
+                    terms.extend([str(t).strip() for t in lst if str(t).strip()])
+        # Deduplicate while preserving insertion order
+        seen = set()
+        deduped = []
+        for t in terms:
+            if t not in seen:
+                seen.add(t)
+                deduped.append(t)
+        return deduped
+    except Exception:
+        # Fail closed: just return empty and rely on static fallback
+        return []
+
 # Scientific terms for complexity scoring and feature extraction
-SCIENTIFIC_TERMS: List[str] = [
+# Base fallback list (expanded) covering major scientific domains in Korean
+SCIENTIFIC_TERMS_BASE: List[str] = [
+    # Core chemistry/physics/biology
     '원자', '분자', '세포', '유전자', '단백질', 'RNA', 'DNA', '화합물', '반응', '에너지', '힘',
-    '운동', '속도', '질량', '전자', '양성자', '중성자', '원소', '결합', '용액', '산', '염기', 'pH',
-    '파동', '광자', '중력', '블랙홀', '행성', '별', '은하', '우주', '암석', '광물', '지층',
-    '화산', '지진', '방정식', '확률', '통계', '미적분', '행렬', '대수', '기하'
+    '운동', '속도', '가속도', '질량', '밀도', '전자', '양성자', '중성자', '원소', '결합', '공유결합', '이온결합',
+    '용액', '용매', '용질', '농도', '몰농도', '산', '염기', 'pH', '산화', '환원', '촉매', '엔탈피', '엔트로피',
+    '압력', '온도', '열', '열용량', '상전이', '기체', '액체', '고체', '평형', '속도론',
+    # Physics
+    '파동', '주파수', '진폭', '광자', '광속', '굴절', '반사', '간섭', '회절', '중력', '일', '전력', '전압', '전류', '저항',
+    '자기장', '전기장', '쿨롱법칙', '로렌츠힘', '운동량', '충격량', '각운동량', '토크', '포텐셜', '보존법칙',
+    # Astronomy & earth science
+    '블랙홀', '행성', '별', '성단', '성운', '은하', '은하수', '우주', '우주배경복사', '적색편이', '허블법칙',
+    '암석', '광물', '지층', '퇴적암', '화성암', '변성암', '화산', '마그마', '용암', '지진', '판구조론', '단층', '습곡',
+    # Math & stats (common in MMLU/ARC)
+    '방정식', '부등식', '함수', '도함수', '적분', '극한', '행렬', '벡터', '통계', '평균', '분산', '표준편차', '확률',
+    '표본', '모수', '가설검정', '회귀',
+    # Biology & medicine
+    '미토콘드리아', '핵', '리보솜', '세포막', '세포벽', '염색체', '유전형', '표현형', '돌연변이', '분열', '감수분열',
+    '번식', '생식', '효소', '대사', '경로', '호흡', '광합성', '삼투', '확산', '항원', '항체', '백신', '병원체',
+    '영양소', '탄수화물', '지질', '아미노산', '핵산', '호르몬', '신경전달물질', '뉴런', '시냅스',
 ]
+
+def _load_persistent_terms_from_conf() -> List[str]:
+    """Load persistent curated terms from conf/scientific_terms.json if present.
+
+    Returns a list if the file exists and contains a non-empty list; otherwise returns [].
+    """
+    conf_path = Path("conf") / "scientific_terms.json"
+    try:
+        if conf_path.exists():
+            with conf_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list) and any(str(x).strip() for x in data):
+                # Normalize and dedupe while preserving order
+                seen = set()
+                out: List[str] = []
+                for x in data:
+                    s = str(x).strip()
+                    if s and s not in seen:
+                        seen.add(s)
+                        out.append(s)
+                return out
+    except Exception:
+        pass
+    return []
+
+# Resolve scientific terms with the following precedence (no env required):
+# 1) If SCIENTIFIC_TERMS_MODE is set:
+#    - 'base_only' -> use base
+#    - 'dynamic_only' -> use dynamic artifact only
+# 2) Else (default 'merge'):
+#    - If conf/scientific_terms.json exists and non-empty -> use it as authoritative
+#    - Else -> merge base + dynamic artifact (if any), otherwise use base
+_mode = os.environ.get("SCIENTIFIC_TERMS_MODE", "merge").lower()
+if _mode == "base_only":
+    SCIENTIFIC_TERMS: List[str] = SCIENTIFIC_TERMS_BASE
+elif _mode == "dynamic_only":
+    SCIENTIFIC_TERMS = _load_scientific_terms_from_artifact()
+else:
+    _conf_terms = _load_persistent_terms_from_conf()
+    if _conf_terms:
+        SCIENTIFIC_TERMS = _conf_terms
+    else:
+        _dynamic_terms = _load_scientific_terms_from_artifact()
+        if _dynamic_terms:
+            merged: List[str] = []
+            seen: Set[str] = set()
+            for t in (SCIENTIFIC_TERMS_BASE + _dynamic_terms):
+                if t and t not in seen:
+                    seen.add(t)
+                    merged.append(t)
+            SCIENTIFIC_TERMS = merged
+        else:
+            SCIENTIFIC_TERMS = SCIENTIFIC_TERMS_BASE
 
 # Query type classification patterns
 QUERY_TYPE_PATTERNS: Dict[str, re.Pattern] = {
