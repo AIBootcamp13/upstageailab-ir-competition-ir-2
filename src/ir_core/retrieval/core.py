@@ -2,10 +2,19 @@
 import redis
 import json
 import numpy as np
+from typing import Optional, List, Any, cast
 
 from ..infra import get_es
 from ..config import settings
 from ..embeddings.core import encode_texts
+from .boosting import load_keywords_per_src, build_boosted_query
+from .preprocessing import filter_stopwords
+from .deduplication import (
+    load_duplicates, 
+    build_duplicate_blacklist, 
+    filter_duplicates, 
+    apply_near_dup_penalty
+)
 
 # --- NEW: Initialize Redis Client for Caching ---
 # Create a Redis client instance from the URL in the settings.
@@ -19,16 +28,28 @@ except redis.ConnectionError as e:
     redis_client = None
 
 
-def sparse_retrieve(query: str, size: int = 10, index: str = None):
-    # ... (existing code is unchanged)
+def sparse_retrieve(query: str, size: int = 10, index: Optional[str] = None):
     es = get_es()
     idx = index or settings.INDEX_NAME
-    q = {"query": {"match": {"content": {"query": query}}}, "size": size}
+
+    # Optional query preprocessing
+    processed_query = query
+    if settings.USE_STOPWORD_FILTERING:
+        processed_query = filter_stopwords(query)
+
+    q = {"query": {"match": {"content": {"query": processed_query}}}, "size": size}
+
+    # Optional boosting using profiling artifacts
+    if settings.USE_SRC_BOOSTS and settings.PROFILE_REPORT_DIR:
+        kw = load_keywords_per_src(settings.PROFILE_REPORT_DIR)
+        if kw:
+            q = build_boosted_query(processed_query, size, kw)
+
     res = es.search(index=idx, body=q)
     return res.get("hits", {}).get("hits", [])
 
 
-def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: str = None):
+def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: Optional[str] = None):
     # ... (existing code is unchanged)
     es = get_es()
     idx = index or settings.INDEX_NAME
@@ -48,7 +69,12 @@ def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: str = None):
     return res.get("hits", {}).get("hits", [])
 
 
-def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha: float = None):
+def hybrid_retrieve(
+    query: str,
+    bm25_k: Optional[int] = None,
+    rerank_k: Optional[int] = None,
+    alpha: Optional[float] = None,
+):
     bm25_k = bm25_k or settings.BM25_K
     rerank_k = rerank_k or settings.RERANK_K
     alpha = settings.ALPHA if alpha is None else alpha
@@ -64,8 +90,8 @@ def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha:
 
     if redis_client:
         # 1. Try to fetch embeddings from Redis cache first
-        doc_ids = [h["_id"] for h in bm25_hits]
-        cached_embs_raw = redis_client.mget(doc_ids)
+        doc_ids = [h.get("_id") for h in bm25_hits]
+        cached_embs_raw = cast(List[Any], redis_client.mget(doc_ids))
 
         for i, emb_raw in enumerate(cached_embs_raw):
             if emb_raw:
@@ -152,4 +178,17 @@ def hybrid_retrieve(query: str, bm25_k: int = None, rerank_k: int = None, alpha:
         deduped.append(r)
 
     # Return top-k after deduplication
-    return deduped[:rerank_k]
+    final_results = deduped[:rerank_k]
+    
+    # Optional duplicate filtering using profiling artifacts
+    if settings.USE_DUPLICATE_FILTERING and settings.PROFILE_REPORT_DIR:
+        duplicates = load_duplicates(settings.PROFILE_REPORT_DIR)
+        if duplicates:
+            blacklist = build_duplicate_blacklist(duplicates)
+            final_results = filter_duplicates(final_results, blacklist)
+    
+    # Optional near-duplicate penalty
+    if settings.USE_NEAR_DUP_PENALTY and settings.PROFILE_REPORT_DIR:
+        final_results = apply_near_dup_penalty(final_results, penalty=0.1)
+    
+    return final_results

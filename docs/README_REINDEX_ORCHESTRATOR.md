@@ -50,3 +50,16 @@ Troubleshooting
 Security
 --------
 - The local sample configs used for Kibana and payloads disable some protections for local development convenience. Do not use those settings in production.
+
+Testing & Dry-run guidance
+--------------------------
+
+When developing or verifying the orchestrator, prefer `--dry-run` to show planned actions without modifying your ES cluster. This helps confirm index names, alias actions, and mapped fields before making changes.
+
+Small unit tests covering helper functions are located under `tests/`. The repository includes fast tests for alias action building and probe embedding dimension. Run only the new helper tests with:
+
+```bash
+poetry run pytest tests/test_reindex_orchestrator_helpers.py -q
+```
+
+For a safe smoke end-to-end test, run the orchestrator against a small disposable ES instance with `--verify --force` and confirm the alias swap in Kibana Index Management.

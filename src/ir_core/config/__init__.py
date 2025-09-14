@@ -29,6 +29,19 @@ class Settings(BaseSettings):
 	USE_WANDB: bool = False
 	WANDB_PROJECT: str = ""
 
+	# Index / orchestrator defaults
+	INDEX_ALIAS: str = ""
+	INDEX_NAME_PREFIX: str = ""
+	REINDEX_BATCH_SIZE: int = 500
+	KEEP_OLD_INDEX_DAYS: int = 3
+
+	# Retrieval tuning from profiling
+	USE_SRC_BOOSTS: bool = False  # enables boosted sparse retrieval using keywords_per_src.json
+	USE_STOPWORD_FILTERING: bool = False  # strip global stopwords from queries 
+	USE_DUPLICATE_FILTERING: bool = False  # filter exact duplicates using duplicates.json
+	USE_NEAR_DUP_PENALTY: bool = False  # penalize near-duplicates using near_duplicates.json
+	PROFILE_REPORT_DIR: str = ""
+
 	# --- New Settings for the Generation Layer ---
 	GENERATOR_TYPE: str = ""
 	GENERATOR_MODEL_NAME: str = ""

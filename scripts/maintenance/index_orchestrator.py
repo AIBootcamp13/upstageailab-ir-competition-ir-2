@@ -145,6 +145,47 @@ def count(es: str, index: str) -> int:
     return int(r.json().get('count', 0))
 
 
+def validate_index(es: str, index: str, limit: int = 50) -> dict:
+    """Run the repository validation script for a small sample against the given index.
+
+    This function invokes the existing validation script as a subprocess. It returns
+    a dict with {'map': float or None, 'total_queries': int, 'raw_output': str}.
+    """
+    import subprocess
+    import shlex
+
+    # Run the existing Hydra-based validation script but override es_host and index_name
+    # so it targets the freshly created index. We also pass the sample limit.
+    # Use Poetry to ensure environment consistency.
+    cmd = (
+        f"PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py "
+        f"+es_host={es} +index_name={index} limit={limit}"
+    )
+    print(f"Running validation command: {cmd}")
+    try:
+        proc = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        out = proc.stdout
+        map_val = None
+        total_q = None
+        for line in out.splitlines():
+            if 'MAP Score' in line:
+                try:
+                    # parse trailing number
+                    parts = line.strip().split()
+                    map_val = float(parts[-1])
+                except Exception:
+                    continue
+            if '검증된 쿼리 수' in line or 'Validated' in line:
+                try:
+                    total_q = int(line.strip().split()[-1])
+                except Exception:
+                    continue
+        return {'map': map_val, 'total_queries': total_q or limit, 'raw_output': out}
+    except subprocess.CalledProcessError as e:
+        print(f"Validation script failed: {e}")
+        return {'map': None, 'total_queries': 0, 'raw_output': getattr(e, 'output', '')}
+
+
 def build_alias_actions(alias: str, add_index: str, remove_indices: Optional[list] = None, keep_old: bool = False):
     actions = []
     if remove_indices and not keep_old:
@@ -183,15 +224,39 @@ def main(argv=None):
     parser.add_argument('--recompute-embeddings', action='store_true', help='Recompute embeddings for documents and bulk index into the target')
     parser.add_argument('--documents-path', help='Path to documents.jsonl to index when --recompute-embeddings is set', default='data/documents.jsonl')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size for recomputing embeddings')
+    parser.add_argument('--embedding-batch-size', type=int, default=32, help='Per-call batch size passed to the embedding function (helps control GPU memory)')
     parser.add_argument('--recompute-only', action='store_true', help='When set with --recompute-embeddings, skip the _reindex step and only use recomputed documents in target')
+    parser.add_argument('--ensure-audit-index', action='store_true', help='Create the reindex_audit index with mapping from docs/reindex_audit_mapping.json before writing audit docs')
+    parser.add_argument('--import-kibana-saved-objects', help='Path to a Kibana saved objects JSON file to import after a successful swap')
+    parser.add_argument('--kibana-url', help='Kibana base URL (e.g., http://localhost:5601) used when --import-kibana-saved-objects is set')
+    parser.add_argument('--kibana-api-key', help='Kibana API key for authentication (optional). If not set and kibana-url is provided, import will try unauthenticated POST.')
+    parser.add_argument('--validation', action='store_true', help='Run retrieval validation (MAP) against the target index before alias swap')
+    parser.add_argument('--validation-limit', type=int, default=50, help='Number of validation queries to run when --validation is set')
+    parser.add_argument('--min-map', type=float, default=0.0, help='Minimum MAP required to pass validation (default 0.0)')
 
     args = parser.parse_args(argv)
     es = args.es
     c_src = None
     c_tgt = None
 
+    # If alias/source not provided, try to use central settings defaults
     if not args.alias and not args.source:
-        fatal('Either --alias or --source must be provided')
+        try:
+            # Lazy import of project settings
+            from ir_core.config import settings as project_settings
+            default_alias = getattr(project_settings, 'INDEX_ALIAS', None) or None
+            default_index = getattr(project_settings, 'INDEX_NAME', None) or None
+            if default_alias:
+                args.alias = default_alias
+                print(f"Using default alias from settings: {args.alias}")
+            elif default_index:
+                args.source = default_index
+                print(f"Using default source index from settings: {args.source}")
+        except Exception:
+            pass
+
+    if not args.alias and not args.source:
+        fatal('Either --alias or --source must be provided (or set INDEX_ALIAS/INDEX_NAME in config)')
 
     if args.source:
         source = args.source
@@ -204,8 +269,19 @@ def main(argv=None):
     if args.target:
         target = args.target
     else:
+        # Use configured prefix if available
+        try:
+            from ir_core.config import settings as project_settings
+            prefix = getattr(project_settings, 'INDEX_NAME_PREFIX', None) or f"{source}-reindexed-"
+        except Exception:
+            prefix = f"{source}-reindexed-"
         ts = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-        target = f"{source}-reindexed-{ts}"
+        # if prefix looks like a full prefix (not containing source) just append timestamp
+        if prefix.endswith('-') or prefix.endswith('_'):
+            target = f"{prefix}{ts}"
+        else:
+            # make a sensible name: <prefix><timestamp>
+            target = f"{prefix}{ts}"
 
     print(f"Source index: {source}")
     print(f"Target index: {target}")
@@ -242,9 +318,25 @@ def main(argv=None):
             import scripts.maintenance.recompute as recompute
         except Exception as e:
             fatal(f"Recompute requested but recompute module not available: {e}")
-        print(f"Recomputing embeddings from {args.documents_path} into {target} (batch={args.batch_size})")
-        # Call stream_and_index on the recompute module
-        getattr(recompute, 'stream_and_index')(es, args.documents_path, target, batch_size=args.batch_size, dry_run=args.dry_run)
+        # Detect device: prefer cuda when available
+        device = None
+        try:
+            import torch
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        except Exception:
+            device = 'cpu'
+
+        print(f"Recomputing embeddings from {args.documents_path} into {target} (batch={args.batch_size}, embedding_batch_size={args.embedding_batch_size}, device={device})")
+        # Call stream_and_index on the recompute module and pass embedding parameters
+        getattr(recompute, 'stream_and_index')(
+            es,
+            args.documents_path,
+            target,
+            batch_size=args.batch_size,
+            dry_run=args.dry_run,
+            embedding_batch_size=args.embedding_batch_size,
+            device=device,
+        )
     # Unless recompute-only is set, start reindex as an asynchronous task and poll
     task_resp = {}
     if not (args.recompute_embeddings and args.recompute_only):
@@ -273,25 +365,51 @@ def main(argv=None):
         if not completed.get('completed'):
             fatal(f'Reindex task {task_id} did not complete successfully')
 
+    # Capture validation metrics if requested to include in audit entries
+    validation_result = None
     if args.verify and args.alias:
-        print('Verifying document counts...')
-        c_src = count(es, source)
-        c_tgt = count(es, target)
-        print(f'counts: source={c_src} target={c_tgt}')
-        if c_src != c_tgt:
-            # Optionally rollback by deleting the created target index
-            if args.rollback_on_failure:
-                print(f"Verification failed and --rollback-on-failure set: deleting target index {target}")
-                try:
-                    with_retries(lambda: _requests_delete(es.rstrip('/') + f'/{target}'), retries=2)
-                except Exception as e:
-                    print(f"Rollback deletion failed: {e}")
-            fatal('Document counts differ between source and target. Aborting alias swap.')
+        if args.validation:
+            print('Running retrieval validation (MAP) against the target index...')
+            val = validate_index(es, target, limit=args.validation_limit)
+            validation_result = val
+            print(f"Validation result: MAP={val.get('map')} total_queries={val.get('total_queries')}")
+            if val.get('map') is None or val.get('map', 0.0) < args.min_map:
+                if args.rollback_on_failure:
+                    print(f"Validation failed and --rollback-on-failure set: deleting target index {target}")
+                    try:
+                        with_retries(lambda: _requests_delete(es.rstrip('/') + f'/{target}'), retries=2)
+                    except Exception as e:
+                        print(f"Rollback deletion failed: {e}")
+                fatal('Validation failed (MAP below threshold). Aborting alias swap.')
+        else:
+            print('Verifying document counts...')
+            c_src = count(es, source)
+            c_tgt = count(es, target)
+            print(f'counts: source={c_src} target={c_tgt}')
+            if c_src != c_tgt:
+                # Optionally rollback by deleting the created target index
+                if args.rollback_on_failure:
+                    print(f"Verification failed and --rollback-on-failure set: deleting target index {target}")
+                    try:
+                        with_retries(lambda: _requests_delete(es.rstrip('/') + f'/{target}'), retries=2)
+                    except Exception as e:
+                        print(f"Rollback deletion failed: {e}")
+                fatal('Document counts differ between source and target. Aborting alias swap.')
 
     if args.alias:
         old_indices = resolve_alias(es, args.alias)
         # Write audit entry before swap
         try:
+            if args.ensure_audit_index:
+                try:
+                    # Load mapping from repo and create index if missing
+                    import json as _json
+                    with open('docs/reindex_audit_mapping.json', 'r', encoding='utf-8') as _fh:
+                        _mapping = _json.load(_fh)
+                    print('Ensuring reindex_audit index exists with recommended mapping')
+                    with_retries(lambda: _requests_put(es.rstrip('/') + '/reindex_audit', json_body=_mapping), retries=2)
+                except Exception as _e:
+                    print(f'Warning: failed to create reindex_audit index: {_e}')
             audit = {
                 'timestamp': datetime.utcnow().isoformat(),
                 'action': 'pre_swap',
@@ -299,6 +417,10 @@ def main(argv=None):
                 'old_indices': old_indices,
                 'new_index': target,
                 'counts': {'source': c_src if 'c_src' in locals() else None, 'target': c_tgt if 'c_tgt' in locals() else None},
+                'validation': {
+                    'map': (validation_result or {}).get('map') if validation_result else None,
+                    'total_queries': (validation_result or {}).get('total_queries') if validation_result else None,
+                },
             }
             with_retries(lambda: _requests_post(es.rstrip('/') + '/reindex_audit/_doc', json_body=audit), retries=2)
         except Exception:
@@ -313,10 +435,56 @@ def main(argv=None):
                 'alias': args.alias,
                 'old_indices': old_indices,
                 'new_index': target,
+                'validation': {
+                    'map': (validation_result or {}).get('map') if validation_result else None,
+                    'total_queries': (validation_result or {}).get('total_queries') if validation_result else None,
+                },
             }
+            if args.ensure_audit_index:
+                # best-effort: ensure index exists (ignore errors)
+                try:
+                    import json as _json
+                    with open('docs/reindex_audit_mapping.json', 'r', encoding='utf-8') as _fh:
+                        _mapping = _json.load(_fh)
+                    with_retries(lambda: _requests_put(es.rstrip('/') + '/reindex_audit', json_body=_mapping), retries=1)
+                except Exception:
+                    pass
             with_retries(lambda: _requests_post(es.rstrip('/') + '/reindex_audit/_doc', json_body=audit), retries=2)
         except Exception:
             print('Warning: failed to write post-swap audit entry')
+
+        # Optionally import Kibana saved objects (best-effort)
+        if args.import_kibana_saved_objects and args.kibana_url:
+            try:
+                path = args.import_kibana_saved_objects
+                with open(path, 'rb') as fh:
+                    payload = fh.read()
+                headers = {'kbn-xsrf': 'true', 'Content-Type': 'application/json'}
+                if args.kibana_api_key:
+                    headers['Authorization'] = f'ApiKey {args.kibana_api_key}'
+                url = args.kibana_url.rstrip('/') + '/api/saved_objects/_import?overwrite=true'
+                # Kibana import endpoint expects multipart/form-data file upload; fallback to bulk_create if import endpoint not available
+                try:
+                    # Try the import endpoint (file upload)
+                    files = {'file': (path, payload, 'application/json')}
+                    r = requests.post(url, headers={'kbn-xsrf': 'true'}, files=files, timeout=60)
+                    if not (200 <= r.status_code < 300):
+                        raise RuntimeError(f'Kibana import failed: {r.status_code} {r.text}')
+                    print('Kibana saved objects imported via /api/saved_objects/_import')
+                except Exception:
+                    # Fallback: POST objects to _bulk_create
+                    try:
+                        import json as _json
+                        objs = _json.loads(payload)
+                        bulk_url = args.kibana_url.rstrip('/') + '/api/saved_objects/_bulk_create?overwrite=true'
+                        r = requests.post(bulk_url, json=objs.get('objects', []), headers=headers, timeout=60)
+                        if not (200 <= r.status_code < 300):
+                            raise RuntimeError(f'Kibana bulk_create failed: {r.status_code} {r.text}')
+                        print('Kibana saved objects bulk-created')
+                    except Exception as e:
+                        print(f'Warning: failed to import Kibana saved objects: {e}')
+            except Exception as e:
+                print(f'Warning: Kibana import step failed: {e}')
 
     print('Index orchestrator completed successfully')
     return 0

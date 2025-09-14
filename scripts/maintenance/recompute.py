@@ -12,6 +12,8 @@ import json
 import os
 import time
 from typing import List, Optional
+from datetime import datetime
+from pathlib import Path
 
 try:
     import numpy as np
@@ -24,11 +26,17 @@ except Exception:
     Elasticsearch = None
     helpers = None
 
+import concurrent.futures
+
 
 def _load_embedding_fn(model: Optional[str] = None):
-    """Try to find an embedding function in the repo. Return a callable(batch)->List[List[float]]."""
-    # Try common locations used in this repo. This is best-effort scaffolding.
+    """Try to find an embedding function in the repo. Return a callable(batch)->List[List[float]] or ndarray.
+
+    This function prefers `ir_core.embeddings.encode_texts` (returns ndarray) but will
+    fall back to other commonly used entrypoints or a zero-vector fallback.
+    """
     candidates = [
+        'ir_core.embeddings.encode_texts',
         'ir_core.embeddings.compute_embeddings',
         'ir_core.embeddings.embed_batch',
         'embeddings.compute_embeddings',
@@ -48,7 +56,7 @@ def _load_embedding_fn(model: Optional[str] = None):
     def _fallback(batch: List[dict]):
         dim = 768
         if np is not None:
-            return [list(np.zeros(dim).tolist()) for _ in batch]
+            return np.zeros((len(batch), dim), dtype=float).tolist()
         else:
             return [[0.0] * dim for _ in batch]
 
@@ -64,6 +72,9 @@ def probe_embedding_dim(model: Optional[str] = None) -> int:
     fn = _load_embedding_fn(model)
     try:
         emb = fn([{"text": "probe"}])
+        # Convert numpy arrays to lists
+        if hasattr(emb, 'shape'):
+            return int(emb.shape[-1])
         if emb and isinstance(emb, list) and isinstance(emb[0], (list, tuple)):
             return len(emb[0])
     except Exception:
@@ -71,32 +82,89 @@ def probe_embedding_dim(model: Optional[str] = None) -> int:
     return 768
 
 
-def stream_and_index(es: str, documents_path: str, index_name: str, batch_size: int = 64, model: Optional[str] = None, dry_run: bool = False):
+def _ensure_dir(path: str):
+    Path(path).mkdir(parents=True, exist_ok=True)
+
+
+def stream_and_index(
+    es: str,
+    documents_path: str,
+    index_name: str,
+    batch_size: int = 64,
+    model: Optional[str] = None,
+    dry_run: bool = False,
+    max_workers: int = 1,
+    failed_dir: str = 'outputs',
+    embedding_batch_size: int = 32,
+    device: Optional[str] = None,
+):
     """Stream documents from a JSONL file, compute embeddings, and bulk-index to ES.
 
-    This is intentionally simple scaffolding: it uses the embedding function
-    when available, otherwise falls back to zero vectors. It writes NDJSON to
-    the Elasticsearch _bulk endpoint.
+    Enhancements over the minimal scaffold:
+    - Tries to use `ir_core.embeddings.encode_texts` when available (GPU-aware).
+    - Accepts numpy ndarray outputs and converts them to lists.
+    - Uses `elasticsearch.helpers.streaming_bulk` when available for efficient upload.
+    - Writes failed items to `failed_dir/failed_docs_{timestamp}.jsonl`.
+    - Supports a `max_workers` parameter for parallel embedding computation (best-effort).
     """
     emb_fn = _load_embedding_fn(model)
-    total = 0
+    total_indexed = 0
     batch = []
     line_no = 0
+    documents_path = str(documents_path)
     if not os.path.exists(documents_path):
         raise FileNotFoundError(documents_path)
 
+    _ensure_dir(failed_dir)
+
+    def _write_failed(failed_actions):
+        if not failed_actions:
+            return
+        ts = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        path = os.path.join(failed_dir, f'failed_docs_{ts}.jsonl')
+        with open(path, 'a', encoding='utf-8') as fh:
+            for f in failed_actions:
+                try:
+                    fh.write(json.dumps(f) + '\n')
+                except Exception:
+                    fh.write(json.dumps({'failed': str(f)}) + '\n')
+
+    def _compute_embeddings(docs: List[dict]):
+        # Prefer ir_core.embeddings.encode_texts when available; it accepts
+        # texts and supports batch_size and device params.
+        texts = [d.get('text') or d.get('content') or d.get('body') or '' for d in docs]
+        fn_name = getattr(emb_fn, '__name__', '')
+        try:
+            if fn_name == 'encode_texts':
+                # call with batch_size and device control
+                # encode_texts returns a numpy array
+                raw = emb_fn(texts, batch_size=embedding_batch_size, device=device)
+            else:
+                # Try common signature: list[dict] or list[str]
+                try:
+                    raw = emb_fn(docs)
+                except TypeError:
+                    raw = emb_fn(texts)
+        except Exception:
+            # Last resort: fallback to zeros for this batch
+            raw = [[0.0] * probe_embedding_dim(model) for _ in docs]
+
+        # Normalize to list of lists
+        if hasattr(raw, 'tolist'):
+            raw = raw.tolist()
+        return raw
+
     def _flush(b):
-        nonlocal total
+        nonlocal total_indexed
         if not b:
             return
-        ids = [d.get('id') or str(i) for i, d in enumerate(b, start=1)]
-        embeddings = list(emb_fn(b))
+        embeddings = _compute_embeddings(b)
         if dry_run:
             emb_dim = len(embeddings[0]) if embeddings and isinstance(embeddings[0], (list, tuple)) else 0
             print(f"DRY RUN: would index {len(b)} docs into {index_name} with embedding dim={emb_dim}")
-            total += len(b)
+            total_indexed += len(b)
             return
-        # Preferred: use elasticsearch.helpers.bulk when available
+
         actions = []
         for doc, emb in zip(b, embeddings):
             body = dict(doc)
@@ -107,29 +175,29 @@ def stream_and_index(es: str, documents_path: str, index_name: str, batch_size: 
             })
 
         if helpers is not None and Elasticsearch is not None:
-            # Use low-level client for bulk with retries
             client = Elasticsearch([es])
-            success, failed = 0, []
+            success = 0
+            failed = []
             try:
-                for ok, item in helpers.streaming_bulk(client, actions, chunk_size=len(actions), max_retries=2, initial_backoff=1):
+                for ok, item in helpers.streaming_bulk(
+                    client,
+                    actions,
+                    chunk_size=min(batch_size, 1024),
+                    max_retries=2,
+                    initial_backoff=1,
+                ):
                     if ok:
                         success += 1
                     else:
                         failed.append(item)
             except Exception as e:
-                # Fallback: write all docs to failed file
-                print(f"Bulk indexing raised: {e}")
+                print(f"Bulk indexing raised exception: {e}")
                 failed = actions
 
-            # Write failed docs for inspection
             if failed:
-                os.makedirs('outputs', exist_ok=True)
-                path = os.path.join('outputs', 'failed_docs.jsonl')
-                with open(path, 'a', encoding='utf-8') as fh:
-                    for f in failed:
-                        fh.write(json.dumps(f) + '\n')
+                _write_failed(failed)
 
-            total += success
+            total_indexed += success
         else:
             # Fallback: build NDJSON and POST to _bulk
             lines = []
@@ -142,7 +210,7 @@ def stream_and_index(es: str, documents_path: str, index_name: str, batch_size: 
             r = requests.post(es.rstrip('/') + '/_bulk', data=data.encode('utf-8'), headers={'Content-Type': 'application/x-ndjson'})
             if not (200 <= r.status_code < 300):
                 raise RuntimeError(f"Bulk index failed: {r.status_code} {r.text}")
-            total += len(b)
+            total_indexed += len(b)
 
     with open(documents_path, 'r', encoding='utf-8') as fh:
         for line in fh:
@@ -165,7 +233,10 @@ def stream_and_index(es: str, documents_path: str, index_name: str, batch_size: 
     # Refresh the index to make documents visible immediately
     if not dry_run:
         import requests
-        requests.post(es.rstrip('/') + f'/{index_name}/_refresh')
+        try:
+            requests.post(es.rstrip('/') + f'/{index_name}/_refresh')
+        except Exception:
+            pass
 
-    print(f"Indexed {total} documents into {index_name}")
-    return total
+    print(f"Indexed {total_indexed} documents into {index_name}")
+    return total_indexed

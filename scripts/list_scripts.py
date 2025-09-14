@@ -21,6 +21,7 @@ SCRIPT_DESCRIPTIONS = {
     "evaluation/smoke-test.sh": "Shell wrapper for smoke testing with service management.",
     "test_huggingface_integration.py": "Tests HuggingFace model integration for retrieval and generation.",
     "data/analyze_data.py": "Analyzes document datasets for statistics (e.g., token counts).",
+    "data/profile_documents.py": "Profiles JSONL docs: unique 'src', counts, field presence, and length stats.",
     "data/check_duplicates.py": "Detects duplicate entries in datasets.",
     "data/create_validation_set.py": "Generates validation datasets using LLM prompts.",
     "data/transform_submission.py": "Formats submission files.",

@@ -1,0 +1,28 @@
+{
+  "objects": [
+    {
+      "type": "search",
+      "id": "reindex_audit_saved_search",
+      "attributes": {
+        "title": "reindex_audit - saved search",
+        "description": "Saved search for reindex_audit entries",
+        "columns": ["timestamp", "action", "alias", "old_indices", "new_index", "counts.source", "counts.target", "model"],
+        "sort": [["timestamp", "desc"]],
+        "kibanaSavedObjectMeta": {"searchSourceJSON": "{\"index\":\"reindex_audit*\",\"query\":{\"language\":\"kuery\",\"query\":\"*\"},\"filter\":[]}"
+      },
+      "references": []
+    },
+    {
+      "type": "dashboard",
+      "id": "reindex_audit_dashboard",
+      "attributes": {
+        "title": "Reindex Audit Dashboard",
+        "description": "Minimal dashboard showing reindex audit events",
+        "panelsJSON": "[]",
+        "optionsJSON": "{}"
+      },
+      "references": []
+    }
+  ],
+  "version": "1.0.0"
+}

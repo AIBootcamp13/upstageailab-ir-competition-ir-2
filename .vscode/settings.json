@@ -1,4 +1,30 @@
 {
+  "files.exclude": {
+    "**/.git": true,
+    "**/.pytest_cache": true,
+    "**/__pycache__": true,
+    "wandb": true,
+    "outputs": false,
+    "elasticsearch-8.9.0": true,
+    "redis-7.2.0": true
+  },
+  "search.exclude": {
+    "wandb": true,
+    "outputs/**": true,
+    "elasticsearch-8.9.0/**": true,
+    "redis-7.2.0/**": true
+  },
+  "python.analysis.exclude": [
+    "elasticsearch-8.9.0",
+    "redis-7.2.0",
+    "wandb",
+    "local_kibana",
+    "outputs"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false
+}
+{
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "editor.formatOnSave": true,

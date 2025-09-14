@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Test (fast)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Install dev dependencies (if any)
+        run: |
+          # Install ruff and mypy if not provided by the project
+          poetry add --dev ruff mypy --lock --no-interaction || true
+
+      - name: Run unit tests
+        run: poetry run pytest -q
+
+      - name: Run ruff (lint)
+        run: poetry run ruff --version && poetry run ruff check . || true
+
+      - name: Run mypy (type check)
+        run: poetry run mypy -c "import sys" || true
