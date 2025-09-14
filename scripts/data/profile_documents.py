@@ -97,6 +97,8 @@ def profile(
     per_src_stopwords_top_n: int = 50,
     near_dup: bool = True,
     near_dup_hamming: int = 3,
+    embedding_health: bool = False,
+    embedding_outlier_threshold: float = 3.0,
 ) -> Dict[str, Any]:
     start = time.time()
     file_path = str(file_path)
@@ -124,6 +126,10 @@ def profile(
     token_counts_overall: List[int] = []
     token_counts_per_src: defaultdict[str, List[int]] = defaultdict(list)
     tokenizer = None
+    # embedding health checks
+    embedding_norms: List[float] = []
+    embedding_outliers: List[Dict[str, Any]] = []
+    embeddings_computed: List[np.ndarray] = []
 
     n_docs = 0
     for doc in _read_jsonl(file_path):
@@ -178,6 +184,32 @@ def profile(
                             token_counts_per_src[src].append(token_len)
                     except Exception:
                         pass
+
+            # Optional embedding health checks
+            if embedding_health and len(content) > 10:  # Skip very short content
+                try:
+                    from ir_core.embeddings.core import encode_texts  # type: ignore
+                    
+                    emb = encode_texts([content])[0]
+                    if emb is not None and len(emb) > 0:
+                        norm = float(np.linalg.norm(emb))
+                        embedding_norms.append(norm)
+                        embeddings_computed.append(emb)
+                        
+                        # Check for outliers (very high or low norms)
+                        if len(embedding_norms) > 10:  # Need some baseline
+                            mean_norm = np.mean(embedding_norms)
+                            std_norm = np.std(embedding_norms)
+                            if abs(norm - mean_norm) > embedding_outlier_threshold * std_norm:
+                                embedding_outliers.append({
+                                    "docid": docid,
+                                    "src": src,
+                                    "norm": norm,
+                                    "z_score": (norm - mean_norm) / std_norm if std_norm > 0 else 0,
+                                    "content_preview": content[:100] + "..." if len(content) > 100 else content
+                                })
+                except Exception:
+                    pass  # Graceful failure for embedding health checks
 
     # Summaries
     field_length_stats: Dict[str, Dict[str, Any]] = {}

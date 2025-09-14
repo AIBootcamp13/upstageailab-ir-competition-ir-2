@@ -5,11 +5,96 @@ Constants and configuration values for the Scientific QA retrieval analysis modu
 
 This module centralizes all hardcoded values, thresholds, and domain-specific
 keywords to improve maintainability and reduce duplication across the codebase.
+
+Updated with insights from data profiling:
+- Actual source distribution (ko_ai2_arc, ko_mmlu domains)
+- Dataset-specific thresholds based on profiling outputs
+- Profiling-enhanced retrieval configuration constants
 """
 
 from typing import Dict, List, Set, Any
 import re
 
+
+# Dataset source mapping based on profiling (63 unique sources total)
+DATASET_SOURCES: Dict[str, List[str]] = {
+    "arc_challenge": [
+        "ko_ai2_arc__ARC_Challenge__test",
+        "ko_ai2_arc__ARC_Challenge__train", 
+        "ko_ai2_arc__ARC_Challenge__validation"
+    ],
+    "mmlu_biology": [
+        "ko_mmlu__anatomy__test", "ko_mmlu__anatomy__train", "ko_mmlu__anatomy__validation",
+        "ko_mmlu__college_biology__test", "ko_mmlu__college_biology__train", "ko_mmlu__college_biology__validation",
+        "ko_mmlu__high_school_biology__test", "ko_mmlu__high_school_biology__train", "ko_mmlu__high_school_biology__validation",
+        "ko_mmlu__human_aging__test", "ko_mmlu__human_aging__train", "ko_mmlu__human_aging__validation",
+        "ko_mmlu__human_sexuality__test", "ko_mmlu__human_sexuality__train", "ko_mmlu__human_sexuality__validation",
+        "ko_mmlu__medical_genetics__test", "ko_mmlu__medical_genetics__train", "ko_mmlu__medical_genetics__validation",
+        "ko_mmlu__nutrition__test", "ko_mmlu__nutrition__train", "ko_mmlu__nutrition__validation",
+        "ko_mmlu__virology__test", "ko_mmlu__virology__train", "ko_mmlu__virology__validation"
+    ],
+    "mmlu_physics": [
+        "ko_mmlu__conceptual_physics__test", "ko_mmlu__conceptual_physics__train", "ko_mmlu__conceptual_physics__validation",
+        "ko_mmlu__college_physics__test", "ko_mmlu__college_physics__train", "ko_mmlu__college_physics__validation",
+        "ko_mmlu__high_school_physics__test", "ko_mmlu__high_school_physics__train", "ko_mmlu__high_school_physics__validation",
+        "ko_mmlu__electrical_engineering__test", "ko_mmlu__electrical_engineering__train", "ko_mmlu__electrical_engineering__validation"
+    ],
+    "mmlu_chemistry": [
+        "ko_mmlu__college_chemistry__test", "ko_mmlu__college_chemistry__train", "ko_mmlu__college_chemistry__validation",
+        "ko_mmlu__high_school_chemistry__test", "ko_mmlu__high_school_chemistry__train", "ko_mmlu__high_school_chemistry__validation"
+    ],
+    "mmlu_computer_science": [
+        "ko_mmlu__college_computer_science__test", "ko_mmlu__college_computer_science__train", "ko_mmlu__college_computer_science__validation",
+        "ko_mmlu__high_school_computer_science__test", "ko_mmlu__high_school_computer_science__train", "ko_mmlu__high_school_computer_science__validation",
+        "ko_mmlu__computer_security__test", "ko_mmlu__computer_security__train", "ko_mmlu__computer_security__validation"
+    ],
+    "mmlu_astronomy": [
+        "ko_mmlu__astronomy__test", "ko_mmlu__astronomy__train", "ko_mmlu__astronomy__validation"
+    ],
+    "mmlu_medicine": [
+        "ko_mmlu__college_medicine__test", "ko_mmlu__college_medicine__train", "ko_mmlu__college_medicine__validation"
+    ],
+    "mmlu_other": [
+        "ko_mmlu__global_facts__test", "ko_mmlu__global_facts__train", "ko_mmlu__global_facts__validation"
+    ]
+}
+
+# Source distribution insights from profiling (4272 total documents)
+SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = {
+    "total_docs": 4272,
+    "unique_sources": 63,
+    "largest_sources": [
+        ("ko_ai2_arc__ARC_Challenge__test", 943),      # 22% of corpus
+        ("ko_ai2_arc__ARC_Challenge__train", 866),     # 20% of corpus  
+        ("ko_ai2_arc__ARC_Challenge__validation", 238), # 6% of corpus
+    ],
+    "arc_dominance": 0.48,  # ARC represents ~48% of total documents
+    "mmlu_fragmentation": 0.52,  # MMLU spread across many small datasets
+    "train_test_imbalance": True,  # Most MMLU sources have very few train examples (1-5)
+}
+
+# Profiling-enhanced retrieval configuration
+PROFILING_CONFIG: Dict[str, Any] = {
+    "use_src_boosts": True,           # Enable per-source keyword boosting
+    "use_stopword_filtering": False,   # Conservative: disable by default  
+    "use_duplicate_filtering": True,   # Safe: enable exact duplicate removal
+    "use_near_dup_penalty": False,    # Experimental: disable by default
+    "profile_report_dir": "outputs/reports/data_profile/latest",
+    
+    # TF-IDF keyword extraction settings
+    "keywords_top_k": 20,
+    "min_df": 2, 
+    "max_features": 20000,
+    
+    # Stopword extraction settings
+    "stopwords_top_n": 200,
+    "per_src_stopwords_top_n": 50,
+    
+    # Near-duplicate detection settings  
+    "near_dup_hamming_threshold": 3,
+    "simhash_bits": 64,
+    "lsh_bands": 4,
+}
 
 # Scientific domain keywords for classification (Korean)
 DOMAIN_KEYWORDS: Dict[str, List[str]] = {
@@ -66,7 +151,7 @@ QUERY_TYPE_PATTERNS: Dict[str, re.Pattern] = {
 # Default K values for precision/recall calculations
 DEFAULT_K_VALUES: List[int] = [1, 3, 5, 10]
 
-# Analysis thresholds and defaults
+# Analysis thresholds updated with profiling insights
 ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "map_score_low": 0.5,
     "retrieval_success_rate_low": 0.7,
@@ -74,7 +159,48 @@ ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "rewrite_rate_low": 0.1,
     "low_relevance_threshold": 0.3,
     "query_complexity_change_threshold": 0.1,
-    "significant_complexity_change": 0.2
+    "significant_complexity_change": 0.2,
+    
+    # Dataset-specific thresholds based on profiling
+    "arc_chunk_size_threshold": 256,      # ARC docs tend to be shorter
+    "mmlu_chunk_size_threshold": 768,     # MMLU docs vary more in length
+    "duplicate_score_penalty": 0.1,      # Penalty for exact duplicates
+    "near_dup_score_penalty": 0.05,      # Lighter penalty for near-duplicates
+    "src_boost_weight": 0.1,             # Conservative boosting weight
+}
+
+# Source-aware chunking recommendations based on profiling
+CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
+    "ko_ai2_arc": {
+        "recommended_chunk_size": 256,
+        "overlap_ratio": 0.1, 
+        "reasoning": "ARC challenges are typically shorter, focused questions"
+    },
+    "ko_mmlu_biology": {
+        "recommended_chunk_size": 512,
+        "overlap_ratio": 0.15,
+        "reasoning": "Biology content varies; moderate chunks work well"
+    },
+    "ko_mmlu_physics": {
+        "recommended_chunk_size": 512, 
+        "overlap_ratio": 0.15,
+        "reasoning": "Physics often includes formulas; moderate overlap helps"
+    },
+    "ko_mmlu_chemistry": {
+        "recommended_chunk_size": 384,
+        "overlap_ratio": 0.2,
+        "reasoning": "Chemistry includes complex reactions; higher overlap"
+    },
+    "ko_mmlu_medicine": {
+        "recommended_chunk_size": 768,
+        "overlap_ratio": 0.1,
+        "reasoning": "Medical content tends to be longer and detailed"
+    },
+    "default": {
+        "recommended_chunk_size": 512,
+        "overlap_ratio": 0.1,
+        "reasoning": "General fallback for unknown sources"
+    }
 }
 
 # Parallel processing defaults
@@ -109,7 +235,7 @@ ERROR_ANALYSIS_DOMAIN_CHECKS: Dict[str, List[str]] = {
     "general": ["과학", "연구", "실험", "관찰", "측정", "계산", "현상", "원리", "분석", "이론"]
 }
 
-# Enhanced error analysis thresholds
+# Enhanced error analysis thresholds with profiling insights
 ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "ambiguous_query_threshold": 0.3,  # Low confidence in query understanding
     "out_of_domain_threshold": 0.1,    # Very few domain matches
@@ -119,7 +245,13 @@ ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "ranking_error_threshold": 0.5,    # Ground truth not in top positions
     "temporal_degradation_threshold": 0.1,  # Performance drop over time
     "pattern_significance_threshold": 0.05,  # Statistical significance for patterns
-    "domain_error_threshold": 0.15  # Domain-specific error rate threshold
+    "domain_error_threshold": 0.15,    # Domain-specific error rate threshold
+    
+    # Source distribution-aware thresholds
+    "arc_bias_threshold": 0.6,         # Alert if >60% results from ARC (bias detection)
+    "mmlu_fragmentation_threshold": 0.8, # Alert if results too scattered across MMLU sources
+    "source_diversity_threshold": 0.3,  # Minimum source diversity in top results
+    "duplicate_contamination_threshold": 0.1,  # Alert if >10% results are duplicates
 }
 
 # Error category definitions for comprehensive analysis
@@ -164,6 +296,26 @@ ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "indicators": ["ground_truth_low_rank", "wrong_order", "ranking_inconsistency"]
     },
 
+    # Retrieval Quality Failures  
+    "source_bias": {
+        "description": "Results heavily skewed toward certain sources (e.g., ARC dominance)",
+        "category": "retrieval",
+        "severity": "medium", 
+        "indicators": ["arc_over_representation", "mmlu_under_representation", "source_imbalance"]
+    },
+    "duplicate_contamination": {
+        "description": "Retrieved results contain multiple copies of same content",
+        "category": "retrieval",
+        "severity": "low",
+        "indicators": ["exact_duplicates", "near_duplicates", "content_repetition"]
+    },
+    "keyword_boost_failure": {
+        "description": "Source-specific keyword boosting not working as expected",
+        "category": "retrieval", 
+        "severity": "medium",
+        "indicators": ["boost_not_applied", "wrong_source_boosted", "boost_ineffective"]
+    },
+
     # System Failures
     "timeout_error": {
         "description": "Query processing exceeded time limits",
@@ -185,14 +337,20 @@ ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = {
     }
 }
 
-# Pattern detection configurations
+# Pattern detection configurations with profiling insights
 PATTERN_DETECTION_CONFIG: Dict[str, Any] = {
     "min_pattern_occurrences": 3,      # Minimum occurrences to consider a pattern
     "correlation_threshold": 0.6,      # Minimum correlation for pattern significance
     "temporal_window_days": 7,         # Time window for temporal analysis
     "domain_error_threshold": 0.15,    # Domain-specific error rate threshold
     "query_length_bins": [10, 20, 30, 50],  # Bins for query length analysis
-    "complexity_score_bins": [0.2, 0.4, 0.6, 0.8]  # Bins for complexity analysis
+    "complexity_score_bins": [0.2, 0.4, 0.6, 0.8],  # Bins for complexity analysis
+    
+    # Source distribution patterns from profiling
+    "expected_arc_ratio": 0.48,        # Expected ARC representation in corpus
+    "expected_mmlu_fragmentation": 0.52, # Expected MMLU distribution
+    "source_balance_tolerance": 0.1,    # Acceptable deviation from expected ratios
+    "duplicate_detection_threshold": 2, # Minimum cluster size for duplicate detection
 }
 
 # Query length normalization factors
@@ -203,12 +361,28 @@ QUERY_LENGTH_NORMALIZATION: Dict[str, float] = {
     "clause_count_factor": 3.0
 }
 
-# Validation set generation domains
+# Validation set generation domains updated with actual source distribution
 VALIDATION_DOMAINS: Dict[str, str] = {
-    "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등)",
-    "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등)",
-    "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등)",
-    "astronomy": "천문학 (별, 행성, 은하, 우주, 태양 등)",
-    "geology": "지질학 (암석, 광물, 지층, 화산, 지진 등)",
-    "mathematics": "수학 (방정식, 계산, 확률, 통계, 기하 등)"
+    "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등) - ko_mmlu conceptual/college/high_school physics",
+    "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등) - ko_mmlu college/high_school chemistry", 
+    "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등) - ko_mmlu anatomy/biology/genetics/aging/nutrition/virology",
+    "astronomy": "천문학 (별, 행성, 은하, 우주, 태양 등) - ko_mmlu astronomy",
+    "computer_science": "컴퓨터과학 (알고리즘, 보안, 프로그래밍 등) - ko_mmlu computer_science/security",
+    "medicine": "의학 (진단, 치료, 인체, 질병 등) - ko_mmlu college_medicine", 
+    "general_science": "일반과학 (과학적 사고, 실험, 관찰 등) - ko_ai2_arc ARC_Challenge",
+    "global_facts": "일반상식 (사실, 지식, 정보 등) - ko_mmlu global_facts"
+}
+
+# Profiling artifacts reference paths (for runtime loading)
+PROFILING_ARTIFACTS: Dict[str, str] = {
+    "unique_sources": "unique_src.json",
+    "source_counts": "src_counts.json", 
+    "keywords_per_src": "keywords_per_src.json",
+    "stopwords_global": "stopwords_global.json",
+    "per_src_stopwords": "per_src_stopwords.json",
+    "duplicates": "duplicates.json",
+    "near_duplicates": "near_duplicates.json",
+    "per_src_length_stats": "per_src_length_stats.json",
+    "field_presence": "field_presence.json",
+    "summary": "summary.json"
 }
