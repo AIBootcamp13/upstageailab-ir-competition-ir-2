@@ -42,6 +42,17 @@ USE_DUPLICATE_FILTERING: true
 USE_NEAR_DUP_PENALTY: false
 PROFILE_REPORT_DIR: "outputs/reports/data_profile/latest"
 
+# --- Profiling Insights Integration ---
+profiling_insights:
+  enabled: true  # Master switch for all profiling insights features
+  use_query_expansion: true  # Use vocabulary overlap for query expansion
+  use_domain_routing: true  # Use source clustering for domain-based routing
+  use_dynamic_chunking: true  # Use long document analysis for chunking
+  use_memory_optimization: true  # Use token statistics for batch sizing
+  cache_ttl_seconds: 300  # How long to cache profiling insights (5 minutes)
+  query_expansion_terms: 3  # Number of expansion terms to add
+  memory_batch_fallback: 16  # Fallback batch size when no stats available
+
 # --- Query Enhancement Configuration ---
 query_enhancement:
   enabled: true

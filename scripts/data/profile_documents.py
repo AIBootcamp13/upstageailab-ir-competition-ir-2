@@ -23,6 +23,19 @@ Optional args:
     --keywords_top_k 20   # number of top tf-idf terms per src
     --min_df 2            # min_df for TfidfVectorizer
     --max_features 20000  # max features for TfidfVectorizer
+    --stopwords_top_n 200 # number of global stopwords to extract
+    --per_src_stopwords_top_n 50 # per-src stopwords to extract
+    --near_dup 1          # enable near-duplicate detection
+    --near_dup_hamming 3  # hamming distance threshold for near-dups
+    --embedding_health 0  # enable embedding health checks
+    --embedding_outlier_threshold 3.0 # z-score threshold for outliers
+    # Phase 1: Per-source document stats (depth)
+    --tokenizer whitespace|project # tokenizer for token stats (default: whitespace)
+    --long_doc_pct 0.9    # percentile for long document threshold (default: 0.9)
+    --vocab_overlap 0     # compute vocabulary overlap between sources
+    --vocab_clustering 0  # perform source clustering by vocabulary
+    --max_clusters 5      # maximum number of clusters for vocab clustering
+    --vocab_sample_size 10000 # max features for vocab overlap computation
 """
 from __future__ import annotations
 
@@ -32,7 +45,7 @@ import json
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Set, Tuple
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
@@ -99,6 +112,13 @@ def profile(
     near_dup_hamming: int = 3,
     embedding_health: bool = False,
     embedding_outlier_threshold: float = 3.0,
+    # Phase 1: Per-source document stats (depth)
+    tokenizer: str = "whitespace",
+    long_doc_pct: float = 0.9,
+    vocab_overlap: bool = False,
+    vocab_clustering: bool = False,
+    max_clusters: int = 5,
+    vocab_sample_size: int = 10000,
 ) -> Dict[str, Any]:
     start = time.time()
     file_path = str(file_path)
@@ -125,11 +145,26 @@ def profile(
     # optional token stats
     token_counts_overall: List[int] = []
     token_counts_per_src: defaultdict[str, List[int]] = defaultdict(list)
-    tokenizer = None
+    tokenizer_obj = None
+    if tokenizer == "project":
+        try:
+            from ir_core.embeddings.core import load_model  # type: ignore
+            tokenizer_obj, _ = load_model()
+        except Exception:
+            tokenizer_obj = None  # fallback to whitespace
+    elif tokenizer == "whitespace":
+        tokenizer_obj = "whitespace"  # sentinel for whitespace tokenization
     # embedding health checks
     embedding_norms: List[float] = []
     embedding_outliers: List[Dict[str, Any]] = []
     embeddings_computed: List[np.ndarray] = []
+
+    # Phase 1: Per-source document stats (depth)
+    per_src_tokens: defaultdict[str, List[int]] = defaultdict(list)
+    vocab_sets: Dict[str, Set[str]] = {}
+    overlap_matrix: Dict[str, Dict[str, float]] = {}
+    long_doc_thresholds: Dict[str, int] = {}
+    long_doc_fractions: Dict[str, float] = {}
 
     n_docs = 0
     for doc in _read_jsonl(file_path):
@@ -167,35 +202,33 @@ def profile(
             duplicate_map[key].append(docid)
 
             # Optional token stats
-            if token_stats:
-                if tokenizer is None:
-                    # lazy-load tokenizer
-                    try:
-                        from ir_core.embeddings.core import load_model  # type: ignore
+            if tokenizer_obj is not None:
+                try:
+                    if tokenizer_obj == "whitespace":
+                        token_len = len(content.split())
+                    elif hasattr(tokenizer_obj, "encode"):
+                        token_len = len(tokenizer_obj.encode(content))
+                    else:
+                        token_len = len(content.split())  # fallback
 
-                        tokenizer, _ = load_model()
-                    except Exception:
-                        tokenizer = False  # sentinel for failure
-                if tokenizer and hasattr(tokenizer, "encode"):
-                    try:
-                        token_len = len(tokenizer.encode(content))
-                        token_counts_overall.append(token_len)
-                        if isinstance(src, str):
-                            token_counts_per_src[src].append(token_len)
-                    except Exception:
-                        pass
+                    token_counts_overall.append(token_len)
+                    if isinstance(src, str):
+                        token_counts_per_src[src].append(token_len)
+                        per_src_tokens[src].append(token_len)
+                except Exception:
+                    pass
 
             # Optional embedding health checks
             if embedding_health and len(content) > 10:  # Skip very short content
                 try:
                     from ir_core.embeddings.core import encode_texts  # type: ignore
-                    
+
                     emb = encode_texts([content])[0]
                     if emb is not None and len(emb) > 0:
                         norm = float(np.linalg.norm(emb))
                         embedding_norms.append(norm)
                         embeddings_computed.append(emb)
-                        
+
                         # Check for outliers (very high or low norms)
                         if len(embedding_norms) > 10:  # Need some baseline
                             mean_norm = np.mean(embedding_norms)
@@ -225,6 +258,24 @@ def profile(
             "content_chars": _summarize(per_src_chars.get(s, [])),
             "content_words": _summarize(per_src_words.get(s, [])),
         }
+
+        # Add token stats if available
+        if s in per_src_tokens and per_src_tokens[s]:
+            per_src_length_stats[s]["content_tokens"] = _summarize(per_src_tokens[s])
+
+        # Compute long document fraction
+        if s in per_src_words and per_src_words[s]:
+            word_counts = sorted(per_src_words[s])
+            if word_counts:
+                threshold_idx = int(len(word_counts) * long_doc_pct)
+                long_threshold = word_counts[threshold_idx] if threshold_idx < len(word_counts) else word_counts[-1]
+                long_docs = sum(1 for wc in word_counts if wc >= long_threshold)
+                long_fraction = long_docs / len(word_counts)
+
+                per_src_length_stats[s]["long_doc_fraction"] = long_fraction
+                per_src_length_stats[s]["long_doc_threshold"] = long_threshold
+                long_doc_thresholds[s] = long_threshold
+                long_doc_fractions[s] = long_fraction
 
     # Duplicate groups (>1 only)
     duplicate_groups = [
@@ -369,6 +420,106 @@ def profile(
         except Exception:
             pass
 
+    # Phase 1: Build vocabulary sets for overlap analysis
+    if vocab_overlap and texts:
+        try:
+            # Use the same vectorizer as keywords but limit features
+            vocab_vectorizer = TfidfVectorizer(
+                min_df=min_df,
+                max_features=min(vocab_sample_size, max_features),
+                ngram_range=(1, 2)
+            )
+            vocab_X = vocab_vectorizer.fit_transform(texts)
+            vocab_features = np.array(vocab_vectorizer.get_feature_names_out())
+
+            # Build per-source vocabulary sets
+            for s, idxs in rows_by_src.items():
+                if not idxs:
+                    vocab_sets[s] = set()
+                    continue
+
+                # Get top terms for this source
+                sub = vocab_X[np.array(idxs), :]
+                weights = np.asarray(sub.sum(axis=0)).ravel()
+                if weights.size:
+                    top_idx = np.argsort(weights)[::-1][:keywords_top_k]
+                    vocab_sets[s] = set(vocab_features[top_idx])
+
+            # Compute pairwise Jaccard overlap
+            src_list = sorted(vocab_sets.keys())
+            for i, src1 in enumerate(src_list):
+                overlap_matrix[src1] = {}
+                set1 = vocab_sets[src1]
+                if not set1:
+                    continue
+                for j, src2 in enumerate(src_list):
+                    if i >= j:  # Only compute upper triangle
+                        continue
+                    set2 = vocab_sets[src2]
+                    if not set2:
+                        continue
+                    intersection = len(set1 & set2)
+                    union = len(set1 | set2)
+                    if union > 0:
+                        jaccard = intersection / union
+                        overlap_matrix[src1][src2] = jaccard
+                        # Add symmetric entry
+                        if src2 not in overlap_matrix:
+                            overlap_matrix[src2] = {}
+                        overlap_matrix[src2][src1] = jaccard
+        except Exception:
+            pass
+
+    # Phase 1: Source clustering by vocabulary overlap
+    src_clusters = []
+    if vocab_clustering and overlap_matrix:
+        try:
+            from scipy.cluster.hierarchy import linkage, fcluster
+            from scipy.spatial.distance import squareform
+
+            # Convert overlap matrix to distance matrix
+            src_list = sorted(overlap_matrix.keys())
+            n_src = len(src_list)
+            distance_matrix = np.ones((n_src, n_src))
+
+            # Set diagonal to 0 (distance to self is 0)
+            np.fill_diagonal(distance_matrix, 0)
+
+            for i, src1 in enumerate(src_list):
+                for j, src2 in enumerate(src_list):
+                    if i != j and src2 in overlap_matrix.get(src1, {}):
+                        # Convert Jaccard similarity to distance
+                        similarity = overlap_matrix[src1][src2]
+                        distance_matrix[i, j] = 1.0 - similarity
+                        distance_matrix[j, i] = 1.0 - similarity  # Ensure symmetry
+
+            # Perform hierarchical clustering
+            if n_src > 1:
+                condensed_dist = squareform(distance_matrix)
+                linkage_matrix = linkage(condensed_dist, method='average')
+
+                # Cut tree at max_clusters
+                cluster_labels = fcluster(linkage_matrix, max_clusters, criterion='maxclust')
+
+                # Group sources by cluster
+                cluster_groups = defaultdict(list)
+                for src, cluster_id in zip(src_list, cluster_labels):
+                    cluster_groups[cluster_id].append(src)
+
+                # Build cluster summary
+                for cluster_id, sources in cluster_groups.items():
+                    if sources:
+                        # Find representative terms (intersection of vocabularies)
+                        common_vocab = set.intersection(*[vocab_sets.get(s, set()) for s in sources])
+                        src_clusters.append({
+                            "id": int(cluster_id),
+                            "sources": sources,
+                            "size": len(sources),
+                            "common_terms": list(common_vocab)[:10] if common_vocab else []
+                        })
+        except Exception:
+            pass
+
     summary: Dict[str, Any] = {
         "file_path": file_path,
         "n_docs": n_docs,
@@ -380,6 +531,14 @@ def profile(
             {"src": s, "count": int(c)} for s, c in src_counts.most_common(50)
         ],
         "elapsed_sec": round(time.time() - start, 3),
+        # Phase 1 additions
+        "tokenizer_used": tokenizer,
+        "vocab_overlap_computed": bool(overlap_matrix),
+        "src_clustering_performed": bool(src_clusters),
+        "long_doc_analysis": {
+            "threshold_percentile": long_doc_pct,
+            "sources_analyzed": len(long_doc_fractions)
+        }
     }
 
     # Save artifacts
@@ -426,6 +585,30 @@ def profile(
         if near_duplicates:
             with (out_dir_ts / "near_duplicates.json").open("w", encoding="utf-8") as f:
                 json.dump(near_duplicates, f, ensure_ascii=False, indent=2)
+        # Phase 1: Save new artifacts
+        if overlap_matrix:
+            with (out_dir_ts / "vocab_overlap_matrix.json").open("w", encoding="utf-8") as f:
+                json.dump(overlap_matrix, f, ensure_ascii=False, indent=2)
+        if src_clusters:
+            with (out_dir_ts / "src_clusters_by_vocab.json").open("w", encoding="utf-8") as f:
+                json.dump({"clusters": src_clusters}, f, ensure_ascii=False, indent=2)
+        if long_doc_fractions:
+            long_doc_summary = {
+                "analysis_config": {
+                    "long_doc_percentile": long_doc_pct,
+                    "field_used": "content_words"
+                },
+                "per_source": {
+                    src: {
+                        "long_doc_fraction": fraction,
+                        "long_doc_threshold": long_doc_thresholds.get(src, 0),
+                        "total_docs": len(per_src_words.get(src, []))
+                    }
+                    for src, fraction in long_doc_fractions.items()
+                }
+            }
+            with (out_dir_ts / "long_doc_analysis.json").open("w", encoding="utf-8") as f:
+                json.dump(long_doc_summary, f, ensure_ascii=False, indent=2)
         with (out_dir_ts / "summary.json").open("w", encoding="utf-8") as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
         # Maintain a 'latest' symlink to this report dir

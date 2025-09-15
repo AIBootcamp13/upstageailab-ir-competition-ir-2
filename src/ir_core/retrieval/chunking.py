@@ -1,6 +1,6 @@
 """Chunking guidance based on per-source length statistics.
 
-Provides recommended chunk sizes and overlap ratios based on 
+Provides recommended chunk sizes and overlap ratios based on
 document length distributions from profiling data.
 """
 from __future__ import annotations
@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from ..config import settings
+from .insights_manager import get_chunking_recommendation
 
 
 def load_per_src_length_stats(report_dir: str | None = None) -> Dict[str, Dict[str, Any]]:
@@ -26,23 +27,23 @@ def load_per_src_length_stats(report_dir: str | None = None) -> Dict[str, Dict[s
         return {}
 
 
-def recommend_chunk_size(src: str, 
+def recommend_chunk_size(src: str,
                         default_size: int = 512,
                         length_stats: Optional[Dict[str, Dict[str, Any]]] = None) -> int:
     """Recommend chunk size for a given source based on content length stats."""
     if length_stats is None:
         length_stats = load_per_src_length_stats()
-    
+
     if not length_stats or src not in length_stats:
         return default_size
-    
+
     stats = length_stats[src]
     char_stats = stats.get("content_chars", {})
     word_stats = stats.get("content_words", {})
-    
+
     # Get median word count
     median_words = word_stats.get("p50", 100)
-    
+
     # Heuristic: for short docs (< 200 words), use smaller chunks
     # for long docs (> 1000 words), use larger chunks
     if median_words < 200:
@@ -59,16 +60,16 @@ def recommend_overlap_ratio(src: str,
     """Recommend overlap ratio based on document variance."""
     if length_stats is None:
         length_stats = load_per_src_length_stats()
-    
+
     if not length_stats or src not in length_stats:
         return default_ratio
-    
+
     stats = length_stats[src]
     word_stats = stats.get("content_words", {})
-    
+
     mean_words = word_stats.get("mean", 100)
     p90_words = word_stats.get("p90", 200)
-    
+
     # Higher overlap for more variable content
     if p90_words > 2 * mean_words:  # high variance
         return min(0.2, default_ratio * 2)
@@ -77,19 +78,36 @@ def recommend_overlap_ratio(src: str,
 
 
 def get_chunking_config(src: str) -> Dict[str, Any]:
-    """Get complete chunking configuration for a source."""
+    """Get complete chunking configuration for a source using profiling insights."""
     length_stats = load_per_src_length_stats()
-    
+
+    # Try to get enhanced recommendations from insights manager first
+    try:
+        enhanced_rec = get_chunking_recommendation(src)
+        if enhanced_rec.get("recommendation") != "Default chunking (no profiling data)":
+            return {
+                "chunk_size": enhanced_rec["chunk_size"],
+                "overlap_ratio": enhanced_rec["overlap"] / enhanced_rec["chunk_size"],  # Convert to ratio
+                "long_doc_fraction": enhanced_rec.get("long_doc_fraction"),
+                "recommendation": enhanced_rec["recommendation"],
+                "has_stats": True,
+                "source": "insights_manager"
+            }
+    except Exception as e:
+        print(f"Warning: Failed to get enhanced chunking recommendation: {e}")
+
+    # Fall back to basic length-based recommendations
     return {
         "chunk_size": recommend_chunk_size(src, length_stats=length_stats),
         "overlap_ratio": recommend_overlap_ratio(src, length_stats=length_stats),
-        "has_stats": src in length_stats if length_stats else False
+        "has_stats": src in length_stats if length_stats else False,
+        "source": "length_stats"
     }
 
 
 __all__ = [
     "load_per_src_length_stats",
-    "recommend_chunk_size", 
+    "recommend_chunk_size",
     "recommend_overlap_ratio",
     "get_chunking_config"
 ]

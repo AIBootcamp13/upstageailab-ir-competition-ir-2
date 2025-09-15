@@ -10,10 +10,17 @@ from ..embeddings.core import encode_texts
 from .boosting import load_keywords_per_src, build_boosted_query
 from .preprocessing import filter_stopwords
 from .deduplication import (
-    load_duplicates, 
-    build_duplicate_blacklist, 
-    filter_duplicates, 
+    load_duplicates,
+    build_duplicate_blacklist,
+    filter_duplicates,
     apply_near_dup_penalty
+)
+from .insights_manager import (
+    insights_manager,
+    get_chunking_recommendation,
+    get_domain_cluster,
+    get_memory_recommendation,
+    get_query_expansion_terms
 )
 
 # --- NEW: Initialize Redis Client for Caching ---
@@ -74,19 +81,103 @@ def hybrid_retrieve(
     bm25_k: Optional[int] = None,
     rerank_k: Optional[int] = None,
     alpha: Optional[float] = None,
+    use_profiling_insights: bool = True,
 ):
+    """
+    Enhanced hybrid retrieval with profiling insights integration.
+
+    Args:
+        query: Search query string
+        bm25_k: Number of BM25 results to retrieve
+        rerank_k: Number of final results to return
+        alpha: Weight for BM25 vs dense retrieval (0.0 = dense only, 1.0 = BM25 only)
+        use_profiling_insights: Whether to apply profiling-based optimizations
+    """
     bm25_k = bm25_k or settings.BM25_K
     rerank_k = rerank_k or settings.RERANK_K
     alpha = settings.ALPHA if alpha is None else alpha
 
-    bm25_hits = sparse_retrieve(query, size=bm25_k)
+    # --- NEW: Apply profiling insights for query enhancement ---
+    enhanced_query = query
+    query_expansion_terms = []
+    domain_routing = None
+
+    # Get profiling insights configuration
+    insights_config = getattr(settings, 'profiling_insights', {})
+    use_query_expansion = insights_config.get('use_query_expansion', True)
+    use_domain_routing = insights_config.get('use_domain_routing', True)
+    use_memory_optimization = insights_config.get('use_memory_optimization', True)
+    query_expansion_terms_count = insights_config.get('query_expansion_terms', 3)
+
+    if use_profiling_insights and settings.PROFILE_REPORT_DIR and use_query_expansion:
+        try:
+            # Get query expansion terms based on vocabulary overlap
+            # Use a representative source or try multiple sources
+            insights = insights_manager.get_insights()
+            vocab_sources = list(insights.get('vocab_overlap', {}).keys())
+
+            if vocab_sources:
+                # Use the first source as representative for query expansion
+                representative_src = vocab_sources[0]
+                query_expansion_terms = get_query_expansion_terms(representative_src, top_k=query_expansion_terms_count)
+
+                # Enhance query with expansion terms if they seem relevant
+                if query_expansion_terms:
+                    # Simple relevance check: if expansion terms appear in query, boost them
+                    query_lower = query.lower()
+                    relevant_terms = [term for term in query_expansion_terms
+                                    if term.lower() in query_lower or
+                                       any(word in query_lower for word in term.split())]
+
+                    if relevant_terms:
+                        enhanced_query = f"{query} {' '.join(relevant_terms)}"
+                        print(f"Enhanced query with expansion terms: {enhanced_query}")
+
+        except Exception as e:
+            print(f"Warning: Failed to apply query expansion: {e}")
+
+    # Use enhanced query for BM25 retrieval
+    bm25_hits = sparse_retrieve(enhanced_query, size=bm25_k)
+
+    # --- NEW: Apply domain-based filtering if routing was determined ---
+    if use_profiling_insights and domain_routing and use_domain_routing:
+        try:
+            # Filter results to preferred domains based on clustering
+            filtered_hits = []
+            for hit in bm25_hits:
+                src = hit.get("_source", {}).get("src", "")
+                if src:
+                    cluster_info = get_domain_cluster(src)
+                    if cluster_info.get("cluster_id") == domain_routing.get("target_cluster"):
+                        filtered_hits.append(hit)
+
+            # If we have filtered results, use them; otherwise fall back to all
+            if filtered_hits:
+                bm25_hits = filtered_hits[:bm25_k]  # Maintain original size limit
+                print(f"Applied domain routing: {len(filtered_hits)} results from target cluster")
+        except Exception as e:
+            print(f"Warning: Failed to apply domain filtering: {e}")
+
     if not bm25_hits:
         return []
 
-    # --- Caching Logic ---
+    # --- Enhanced Caching Logic with Memory Optimization ---
     doc_embs = []
     texts_to_encode = []
     indices_to_encode = [] # Keep track of which documents need encoding
+
+    # Determine optimal batch size based on profiling insights
+    optimal_batch_size = insights_config.get('memory_batch_fallback', 16)  # default from config
+    if use_profiling_insights and bm25_hits and use_memory_optimization:
+        try:
+            # Get memory recommendations from a sample source
+            sample_src = bm25_hits[0].get("_source", {}).get("src", "")
+            if sample_src:
+                memory_rec = get_memory_recommendation(sample_src)
+                optimal_batch_size = memory_rec.get("batch_size", optimal_batch_size)
+                print(f"Using optimized batch size: {optimal_batch_size} (based on {memory_rec.get('avg_tokens', 'N/A')} avg tokens)")
+        except Exception as e:
+            print(f"Warning: Failed to get memory optimization: {e}")
 
     if redis_client:
         # 1. Try to fetch embeddings from Redis cache first
@@ -179,16 +270,16 @@ def hybrid_retrieve(
 
     # Return top-k after deduplication
     final_results = deduped[:rerank_k]
-    
+
     # Optional duplicate filtering using profiling artifacts
     if settings.USE_DUPLICATE_FILTERING and settings.PROFILE_REPORT_DIR:
         duplicates = load_duplicates(settings.PROFILE_REPORT_DIR)
         if duplicates:
             blacklist = build_duplicate_blacklist(duplicates)
             final_results = filter_duplicates(final_results, blacklist)
-    
+
     # Optional near-duplicate penalty
     if settings.USE_NEAR_DUP_PENALTY and settings.PROFILE_REPORT_DIR:
         final_results = apply_near_dup_penalty(final_results, penalty=0.1)
-    
+
     return final_results

@@ -7,14 +7,24 @@ from ..retrieval import hybrid_retrieve
 class ScientificSearchArgs(BaseModel):
     query: str
     top_k: int = 5
+    use_profiling_insights: bool = True
 
-def scientific_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+def scientific_search(query: str, top_k: int = 5, use_profiling_insights: bool = True) -> List[Dict[str, Any]]:
     """
     특정 쿼리와 관련된 과학 문서를 검색합니다.
     사용자가 과학적 주제, 개념 또는 사실에 대해 질문할 때 이 도구를 사용합니다.
+
+    Args:
+        query: 검색 쿼리
+        top_k: 반환할 상위 문서 수
+        use_profiling_insights: 프로파일링 인사이트를 사용할지 여부
     """
-    print(f"Executing scientific_search with query: '{query}'")
-    retrieved_hits = hybrid_retrieve(query=query, rerank_k=top_k)
+    print(f"Executing scientific_search with query: '{query}' (profiling_insights: {use_profiling_insights})")
+    retrieved_hits = hybrid_retrieve(
+        query=query,
+        rerank_k=top_k,
+        use_profiling_insights=use_profiling_insights
+    )
 
     formatted_results = []
     for hit in retrieved_hits:
@@ -70,6 +80,11 @@ def get_tool_definition(prompt_description: str):
                         "type": "integer",
                         "description": "검색할 문서 수 (예: 3 또는 5)",
                         "default": 5,
+                    },
+                    "use_profiling_insights": {
+                        "type": "boolean",
+                        "description": "프로파일링 인사이트를 사용하여 검색 최적화 여부",
+                        "default": True,
                     }
                 },
                 "required": ["query"],
