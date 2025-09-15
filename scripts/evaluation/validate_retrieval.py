@@ -37,7 +37,7 @@ from ir_core.utils.wandb import generate_run_name
 # --- Hydra 데코레이터 적용 (Applying the Hydra Decorator) ---
 # @hydra.main은 이 스크립트의 진입점을 정의하며, 설정 파일의 경로를 지정합니다.
 # 이제 이 스크립트는 'fire' 대신 Hydra를 통해 실행됩니다.
-@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name="settings", version_base=None)
 def run(cfg: DictConfig) -> None:
     """
     Hydra 설정을 사용하여 검증 데이터셋에 대한 검색 파이프라인을 평가하고,

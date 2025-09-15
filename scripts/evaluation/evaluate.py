@@ -24,7 +24,7 @@ def _add_src_to_path():
 
 from ir_core.utils.wandb import generate_run_name
 
-@hydra.main(config_path="../../conf", config_name="config", version_base=None)
+@hydra.main(config_path="../../conf", config_name="settings", version_base=None)
 def run(cfg: DictConfig) -> None:
     _add_src_to_path()
 

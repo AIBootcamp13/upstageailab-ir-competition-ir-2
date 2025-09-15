@@ -1,4 +1,0 @@
-alpha: 0.0
-bm25_k: 200
-embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
-rerank_k: 10

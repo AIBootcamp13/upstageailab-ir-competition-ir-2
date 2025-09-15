@@ -186,7 +186,6 @@ wandb:
 # -------------------------
 defaults:
   - data: science_qa_ko        # Default data configuration
-  - model: default          # Default model configuration
   - pipeline: default       # Default pipeline configuration
   - prompts: default        # Default prompt configuration
   - optional experiment:       # Optional experiment overrides
