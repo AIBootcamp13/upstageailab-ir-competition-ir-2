@@ -12,6 +12,12 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any
 from omegaconf import OmegaConf
+from ruamel.yaml import YAML
+
+# Initialize ruamel.yaml with formatting preservation
+yaml_handler = YAML()
+yaml_handler.preserve_quotes = True
+yaml_handler.indent(mapping=2, sequence=4, offset=2)
 
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""
@@ -28,6 +34,12 @@ def load_settings() -> Dict[str, Any]:
     config = OmegaConf.create(yaml.safe_load(content))
     return OmegaConf.to_container(config, resolve=True)  # type: ignore
 
+def load_settings_preserve_format():
+    """Load settings while preserving YAML structure and comments"""
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'r', encoding='utf-8') as f:
+        return yaml_handler.load(f)
+
 def load_model_config() -> Dict[str, Any]:
     """Load current model configuration from consolidated settings.yaml"""
     settings = load_settings()
@@ -41,37 +53,58 @@ def save_model_config(config: Dict[str, Any]) -> None:
     save_settings(settings)
 
 def save_settings(settings: Dict[str, Any]) -> None:
-    """Save settings to settings.yaml"""
+    """Save settings to settings.yaml while preserving formatting and comments"""
     settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+
+    # Load the current file with ruamel.yaml to preserve structure
+    with open(settings_file, 'r', encoding='utf-8') as f:
+        current_data = yaml_handler.load(f)
+
+    # Update only the specific settings that need to change
+    _update_nested_dict(current_data, settings)
+
+    # Write back with preserved formatting
     with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml.dump(settings, f, default_flow_style=False, allow_unicode=True)
+        yaml_handler.dump(current_data, f)
+
+def _update_nested_dict(base_dict, updates):
+    """Recursively update nested dictionary with new values"""
+    for key, value in updates.items():
+        if isinstance(value, dict) and key in base_dict and isinstance(base_dict[key], dict):
+            _update_nested_dict(base_dict[key], value)
+        else:
+            base_dict[key] = value
 
 def switch_to_korean():
     """Switch configuration to Korean setup"""
     print("🔄 Switching to Korean configuration...")
 
-    settings = load_settings()
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
 
-    # Update embedding model in settings
-    settings['EMBEDDING_MODEL'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['EMBEDDING_DIMENSION'] = 768
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+        'EMBEDDING_DIMENSION': 768,
+        'INDEX_NAME': "documents_ko_with_embeddings_new",
+        'model': {
+            'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
 
-    # Update model configuration
-    if 'model' not in settings:
-        settings['model'] = {}
-    settings['model']['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['model']['alpha'] = 0.4
-    settings['model']['bm25_k'] = 200
-    settings['model']['rerank_k'] = 10
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
 
-    # Update index name (use Korean-specific index)
-    settings['INDEX_NAME'] = "documents_ko_with_embeddings_new"
-
-    # Update translation settings
-    if 'translation' in settings:
-        settings['translation']['enabled'] = False  # No need for translation with Korean model
-
-    save_settings(settings)
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
 
     # Update data configuration to use Korean data
     update_data_config("ko")
@@ -87,28 +120,32 @@ def switch_to_english():
     """Switch configuration to English setup"""
     print("🔄 Switching to English configuration...")
 
-    settings = load_settings()
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
 
-    # Update embedding model in settings (using Korean model for English content)
-    settings['EMBEDDING_MODEL'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['EMBEDDING_DIMENSION'] = 768
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+        'EMBEDDING_DIMENSION': 768,
+        'INDEX_NAME': "documents_en_with_embeddings_new",
+        'model': {
+            'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': True
+        }
+    }
 
-    # Update model configuration
-    if 'model' not in settings:
-        settings['model'] = {}
-    settings['model']['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['model']['alpha'] = 0.4
-    settings['model']['bm25_k'] = 200
-    settings['model']['rerank_k'] = 10
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
 
-    # Update index name (use English-specific index)
-    settings['INDEX_NAME'] = "documents_en_with_embeddings_new"
-
-    # Update translation settings
-    if 'translation' in settings:
-        settings['translation']['enabled'] = True  # Enable translation for Korean queries
-
-    save_settings(settings)
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
 
     # Update data configuration to use English data
     update_data_config("en")
@@ -123,28 +160,32 @@ def switch_to_bilingual():
     """Switch configuration to Bilingual setup"""
     print("🔄 Switching to Bilingual configuration...")
 
-    settings = load_settings()
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
 
-    # Update embedding model (use Korean model for bilingual content)
-    settings['EMBEDDING_MODEL'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['EMBEDDING_DIMENSION'] = 768
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+        'EMBEDDING_DIMENSION': 768,
+        'INDEX_NAME': "documents_bilingual_with_embeddings_new",
+        'model': {
+            'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
 
-    # Update model configuration
-    if 'model' not in settings:
-        settings['model'] = {}
-    settings['model']['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    settings['model']['alpha'] = 0.4
-    settings['model']['bm25_k'] = 200
-    settings['model']['rerank_k'] = 10
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
 
-    # Update index name (use bilingual index)
-    settings['INDEX_NAME'] = "documents_bilingual_with_embeddings_new"
-
-    # Update translation settings
-    if 'translation' in settings:
-        settings['translation']['enabled'] = False  # Bilingual content doesn't need translation
-
-    save_settings(settings)
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
 
     # Update data configuration to use bilingual data
     update_data_config("bilingual")
@@ -156,9 +197,7 @@ def switch_to_bilingual():
     print("   - Translation: disabled")
 
 def update_data_config(language):
-    """Update the data configuration in consolidated settings.yaml"""
-    settings = load_settings()
-
+    """Update the data configuration in consolidated settings.yaml while preserving formatting"""
     # Define the mapping of language to data config name
     data_configs = {
         "ko": "science_qa_ko",
@@ -172,17 +211,23 @@ def update_data_config(language):
 
     target_config = data_configs[language]
 
-    # Update the defaults section in settings
-    if 'defaults' in settings:
-        for i, default_entry in enumerate(settings['defaults']):
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update the defaults section
+    if 'defaults' in current_data:
+        for i, default_entry in enumerate(current_data['defaults']):
             if isinstance(default_entry, str) and default_entry.startswith('data:'):
-                settings['defaults'][i] = f"data: {target_config}"
+                current_data['defaults'][i] = f"data: {target_config}"
                 break
             elif isinstance(default_entry, dict) and 'data' in default_entry:
-                settings['defaults'][i]['data'] = target_config
+                current_data['defaults'][i]['data'] = target_config
                 break
 
-    save_settings(settings)
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
 
 def show_current_config():
     """Show current configuration"""

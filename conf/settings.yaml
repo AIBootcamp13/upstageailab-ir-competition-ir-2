@@ -1,71 +1,207 @@
-ALPHA: 0.4
-BM25_K: 200
-DEFAULT_TOP_K: 5
-DOCUMENTS_PATH: data/documents_bilingual.jsonl
-EMBEDDING_DIMENSION: 768
-EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS
-ES_HOST: http://localhost:9200
-EVALUATION_PATH: outputs/eval_en.jsonl
-GENERATOR_MODEL_NAME: gpt-3.5-turbo
-GENERATOR_SYSTEM_MESSAGE: ''
-GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt
-GENERATOR_TYPE: openai
-HUGGINGFACE_MAX_TOKENS: 512
-HUGGINGFACE_TEMPERATURE: 0.1
-INDEX_ALIAS: documents
-INDEX_NAME: documents_en_with_embeddings_new
-INDEX_NAME_PREFIX: documents_v
-KEEP_OLD_INDEX_DAYS: 3
-OUTPUT_PATH: outputs/submission.csv
-PROFILE_REPORT_DIR: outputs/reports/data_profile/latest
-PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2
-QUERY_REWRITER_TYPE: openai
-REDIS_URL: redis://localhost:6379/0
-REINDEX_BATCH_SIZE: 500
-RERANK_K: 10
-REWRITER_MAX_TOKENS: 150
-REWRITER_MODEL: gpt-4o-mini
-REWRITER_TEMPERATURE: 0.0
-TOOL_CALLING_MODEL: gpt-3.5-turbo-1106
-USE_DUPLICATE_FILTERING: true
-USE_NEAR_DUP_PENALTY: false
-USE_SRC_BOOSTS: true
-USE_STOPWORD_FILTERING: false
-USE_WANDB: false
-VALIDATION_PATH: data/validation_balanced_en.jsonl
-WANDB_PROJECT: ir-rag
-analysis:
-  enable_parallel: true
-  max_workers: null
-create_validation_set:
-  sample_size: 50
-debug: false
-debug_limit: 3
-defaults:
-- data: science_qa
-- model: default
-- pipeline: default
-- prompts: default
-- optional experiment: null
-- _self_
-evaluate:
-  max_workers: null
-  topk: 5
-limit: null
-model:
-  alpha: 0.4
-  bm25_k: 200
-  embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
-  rerank_k: 10
+# =================================================================
+# INFORMATION RETRIEVAL RAG SYSTEM CONFIGURATION
+# =================================================================
+#
+# This file contains all configuration settings for the RAG system.
+# Settings are organized into logical sections for easy navigation.
+#
+# TABLE OF CONTENTS:
+#   1. CORE SYSTEM SETTINGS     - Retrieval, embedding, infrastructure
+#   2. GENERATION SETTINGS      - LLM and generation configuration
+#   3. PIPELINE SETTINGS        - Orchestration and workflow
+#   4. DATA PATHS              - File locations and datasets
+#   5. ADVANCED FEATURES       - Query enhancement, translation
+#   6. MONITORING & LOGGING    - Experiment tracking and metrics
+#   7. HYDRA COMPATIBILITY     - Evaluation script settings
+#   8. DEVELOPMENT SETTINGS    - Debug and development options
+#
+# =================================================================
+
+# =================================================================
+# 1. CORE SYSTEM SETTINGS
+# =================================================================
+# Basic system configuration for retrieval and infrastructure
+
+# Retrieval Configuration
+# ----------------------
+ALPHA: 0.4                    # Balance between BM25 (0.0) and dense retrieval (1.0)
+BM25_K: 200                   # Number of documents to retrieve with BM25
+RERANK_K: 10                  # Number of documents to rerank with dense retrieval
+
+# Embedding Configuration
+# ----------------------
+EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS  # Sentence transformer model
+EMBEDDING_DIMENSION: 768      # Vector dimension (768 for Korean, 384 for English)
+
+# Infrastructure Configuration
+# ---------------------------
+ES_HOST: http://localhost:9200  # Elasticsearch endpoint
+REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
+
+# Index Management
+# ---------------
+INDEX_NAME: documents_ko_with_embeddings_new        # Current active index
+INDEX_ALIAS: documents         # Index alias for seamless switching
+INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
+KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
+
+# =================================================================
+# 2. GENERATION SETTINGS
+# =================================================================
+# Configuration for language model generation
+
+# Primary Generator Configuration
+# ------------------------------
+GENERATOR_TYPE: openai         # Generator backend: 'openai', 'ollama', or 'huggingface'
+GENERATOR_MODEL_NAME: gpt-3.5-turbo  # Model name/identifier
+GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt  # System prompt file
+GENERATOR_SYSTEM_MESSAGE: ''   # Override system message (empty = use file)
+
+# Tool Calling Configuration
+# -------------------------
+TOOL_CALLING_MODEL: gpt-3.5-turbo-1106  # Model for tool calling and orchestration
+
+# Query Rewriting Configuration
+# ----------------------------
+QUERY_REWRITER_TYPE: openai    # Rewriter backend: 'openai' or 'ollama'
+REWRITER_MODEL: gpt-4o-mini    # Model for query rewriting
+REWRITER_MAX_TOKENS: 150       # Max tokens for rewritten queries
+REWRITER_TEMPERATURE: 0.0      # Temperature for deterministic rewriting
+
+# HuggingFace Configuration (if using local models)
+# ------------------------
+HUGGINGFACE_MAX_TOKENS: 512    # Max tokens for HF generation
+HUGGINGFACE_TEMPERATURE: 0.1   # Temperature for HF models
+
+# =================================================================
+# 3. PIPELINE SETTINGS
+# =================================================================
+# Orchestration and workflow configuration
+
+# Retrieval Pipeline
+# -----------------
+DEFAULT_TOP_K: 5              # Default number of documents to return
+
+# =================================================================
+# 4. DATA PATHS
+# =================================================================
+# File locations for datasets and outputs
+
+# Input Data Files
+# ---------------
+DOCUMENTS_PATH: data/documents_bilingual.jsonl     # Main document collection
+VALIDATION_PATH: data/validation_balanced_en.jsonl  # Validation dataset
+EVALUATION_PATH: outputs/eval_en.jsonl             # Evaluation dataset
+
+# Output Data Files
+# ----------------
+OUTPUT_PATH: outputs/submission.csv  # Final submission file
+
+# =================================================================
+# 5. ADVANCED FEATURES
+# =================================================================
+# Optional features for enhanced retrieval and processing
+
+# Query Enhancement System
+# -----------------------
+query_enhancement:
+  enabled: true               # Enable query enhancement
+  default_technique: decomposition # Default enhancement technique
+  max_tokens: 500            # Max tokens for enhancement
+  temperature: 0.3           # Temperature for enhancement models
+  openai_model: gpt-3.5-turbo # Model for enhancement
+
+  # Available enhancement techniques (ordered by priority)
+  techniques:
+    rewriting:                # Query rewriting for clarity
+      enabled: true
+      priority: 1
+    step_back:               # Step back prompting
+      enabled: true
+      priority: 2
+    decomposition:           # Query decomposition
+      enabled: true
+      priority: 3
+    hyde:                    # Hypothetical document embedding
+      enabled: true
+      priority: 4
+    translation:             # Cross-language translation
+      enabled: true
+      priority: 5
+
+# Translation System
+# -----------------
+translation:
+  enabled: false              # Enable translation features
+  source_lang: ko            # Source language (ko=en, en=ko)
+  target_lang: en            # Target language
+  batch_size: 100            # Batch size for translation
+  cache_enabled: true        # Enable translation caching
+  cache_ttl_days: 30         # Cache TTL in days
+  temperature: 0.3           # Translation temperature
+  use_uv: true               # Use UV for translation
+
+  # Bilingual search settings
+  bilingual_search:
+    enabled: true            # Enable bilingual search
+    fallback_on_error: true  # Fallback on translation errors
+
+# Profiling and Optimization
+# -------------------------
 profiling_insights:
-  cache_ttl_seconds: 300
-  enabled: false
-  memory_batch_fallback: 16
-  query_expansion_terms: 3
-  use_domain_routing: true
-  use_dynamic_chunking: true
-  use_memory_optimization: true
-  use_query_expansion: true
+  enabled: false             # Enable profiling insights
+  cache_ttl_seconds: 300     # Cache TTL for profiling data
+  memory_batch_fallback: 16  # Memory optimization batch size
+  query_expansion_terms: 3   # Number of expansion terms
+  use_domain_routing: true   # Route queries by domain
+  use_dynamic_chunking: true # Dynamic document chunking
+  use_memory_optimization: true  # Memory optimization
+  use_query_expansion: true  # Query expansion
+
+# =================================================================
+# 6. MONITORING & LOGGING
+# =================================================================
+# Experiment tracking and performance monitoring
+
+# Weights & Biases Configuration
+# -----------------------------
+USE_WANDB: false             # Enable W&B experiment tracking
+WANDB_PROJECT: ir-rag        # W&B project name
+
+# Detailed W&B Configuration
+wandb:
+  entity:                    # W&B entity/team (null = personal)
+  log_config_path: true      # Log configuration file
+  project: scientific-qa-rag # Full project name
+  run_name:
+    evaluate: eval           # Run name prefix for evaluation
+    validate: val            # Run name prefix for validation
+
+# =================================================================
+# 7. HYDRA COMPATIBILITY
+# =================================================================
+# Settings for Hydra-based evaluation scripts
+
+# Hydra Configuration Groups
+# -------------------------
+defaults:
+  - data: science_qa_ko        # Default data configuration
+  - model: default          # Default model configuration
+  - pipeline: default       # Default pipeline configuration
+  - prompts: default        # Default prompt configuration
+  - optional experiment:       # Optional experiment overrides
+  - _self_                  # Include this config file
+
+# Model Configuration (Hydra-compatible)
+# -------------------------------------
+model:
+  alpha: 0.4                # Retrieval alpha parameter
+  bm25_k: 200               # BM25 retrieval count
+  embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  rerank_k: 10              # Reranking count
+
+# Prompt Template Paths
+# --------------------
 prompts:
   conversational: prompts/conversational_v1.jinja2
   generation_qa: prompts/scientific_qa_v1.jinja2
@@ -73,46 +209,57 @@ prompts:
   question_generation: prompts/question_generation_v1.jinja2
   rephrase_query: prompts/rewrite_query2.jinja2
   tool_description: prompts/tool_desc_recall_v1.txt
-query_enhancement:
-  default_technique: rewriting
-  enabled: true
-  max_tokens: 500
-  openai_model: gpt-3.5-turbo
-  techniques:
-    decomposition:
-      enabled: true
-      priority: 3
-    hyde:
-      enabled: true
-      priority: 4
-    rewriting:
-      enabled: true
-      priority: 1
-    step_back:
-      enabled: true
-      priority: 2
-    translation:
-      enabled: true
-      priority: 5
-  temperature: 0.3
+
+# =================================================================
+# 8. DEVELOPMENT SETTINGS
+# =================================================================
+# Settings for development, debugging, and testing
+
+# Debug Configuration
+# ------------------
+debug: false                # Enable debug mode
+debug_limit: 3              # Limit for debug operations
+
+# Analysis Configuration
+# ---------------------
+analysis:
+  enable_parallel: true     # Enable parallel processing
+  max_workers:              # Number of parallel workers (null = auto)
+
+# Evaluation Configuration
+# -----------------------
+evaluate:
+  max_workers:              # Workers for evaluation
+  topk: 5                   # Top-K for evaluation metrics
+
+# Validation Set Creation
+# ----------------------
+create_validation_set:
+  sample_size: 50           # Sample size for validation sets
+
+# Processing Limits
+# ----------------
+limit:                      # Global processing limit (null = no limit)
+
+# =================================================================
+# DATA PROCESSING SETTINGS
+# =================================================================
+# Configuration for data processing and indexing
+
+# Reindexing Configuration
+# -----------------------
+REINDEX_BATCH_SIZE: 500     # Batch size for reindexing operations
 reindex:
-  batch_size: 500
-translation:
-  batch_size: 100
-  bilingual_search:
-    enabled: true
-    fallback_on_error: true
-  cache_enabled: true
-  cache_ttl_days: 30
-  enabled: true
-  source_lang: ko
-  target_lang: en
-  temperature: 0.3
-  use_uv: true
-wandb:
-  entity: null
-  log_config_path: true
-  project: scientific-qa-rag
-  run_name:
-    evaluate: eval
-    validate: val
+  batch_size: 500           # Alternative batch size specification
+
+# Document Processing
+# ------------------
+USE_DUPLICATE_FILTERING: true   # Filter duplicate documents
+USE_NEAR_DUP_PENALTY: false     # Penalize near-duplicates
+USE_SRC_BOOSTS: true            # Enable source-based boosting
+USE_STOPWORD_FILTERING: false   # Filter stopwords
+
+# Report Configuration
+# -------------------
+PROFILE_REPORT_DIR: outputs/reports/data_profile/latest  # Profile report location
+PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2    # Main prompt template
