@@ -31,7 +31,7 @@ cp .env.example .env
 ./scripts/execution/run-local.sh start
 
 # Use interactive CLI for operations
-python scripts/cli_menu.py
+poetry run python scripts/cli_menu.py
 ```
 
 ### Running Scripts

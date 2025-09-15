@@ -154,7 +154,10 @@ def run(cfg: DictConfig) -> None:
 
     # Use parallel processing for retrieval if enabled
     if cfg.analysis.enable_parallel and len(validation_data) > 1:
-        max_workers = cfg.analysis.max_workers or 4
+        max_workers = cfg.analysis.max_workers
+        if max_workers is None:
+            # Auto-determine workers: use min(sample_size, reasonable_max)
+            max_workers = min(len(validation_data), 4)
         print(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
 
         def process_single_query(item, idx=0):

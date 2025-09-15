@@ -7,95 +7,180 @@ Tests the translation functionality with a small sample before running full tran
 
 import json
 import sys
+import asyncio
+from pathlib import Path
+
+#!/usr/bin/env python3
+"""
+Test script for document translation
+
+Tests the translation functionality with a small sample before running full translation.
+"""
+
+import json
+import sys
+import asyncio
 from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from scripts.translation.translate_documents import LocalDocumentTranslator, TranslationConfig
+# Import translators using absolute paths
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from translate_documents_ollama import OllamaTranslator
+from translate_documents_google import GoogleTranslator
 
 
-def test_translation():
-    """Test translation with a few sample documents."""
-
-    # Sample Korean scientific documents
-    test_docs = [
-        {
-            "docid": "test_001",
-            "content": "건강한 사람이 에너지 균형을 평형 상태로 유지하는 것은 중요합니다. 에너지 균형은 에너지 섭취와 에너지 소비의 수학적 동등성을 의미합니다.",
-            "src": "test"
-        },
-        {
-            "docid": "test_002",
-            "content": "수소, 산소, 질소 가스의 혼합물에서 평균 속도가 가장 빠른 분자는 수소입니다. 수소 분자는 가장 가볍고 작은 원자로 구성되어 있기 때문에 다른 분자들보다 더 빠르게 움직입니다.",
-            "src": "test"
-        },
-        {
-            "docid": "test_003",
-            "content": "마이애미파랑나비는 남부 플로리다에서 멸종 위기에 처한 종입니다. 이 나비의 개체수 감소를 초래했을 가능성이 가장 높은 요인은 주택 건설 증가입니다.",
-            "src": "test"
-        }
-    ]
-
-    print("Testing document translation...")
-    print("=" * 50)
-
-    # Create translator with conservative settings for testing
-    config = TranslationConfig(
-        model_name="Helsinki-NLP/opus-mt-ko-en",
-        batch_size=2,  # Small batch for testing
-        max_length=256  # Shorter for testing
-    )
+async def test_ollama_translation():
+    """Test translation using Ollama (preferred local method)."""
+    print("Testing Ollama translation...")
 
     try:
-        translator = LocalDocumentTranslator(config)
-        print("✓ Translation model loaded successfully")
+        async with OllamaTranslator() as translator:
+            # Test with a simple Korean text
+            test_text = "안녕하세요, 오늘 날씨가 좋네요."
+            translated = await translator.translate_text(test_text)
+
+            if translated and translated != test_text:
+                print(f"✓ Ollama translation successful:")
+                print(f"  Original: {test_text}")
+                print(f"  Translated: {translated}")
+                return True
+            else:
+                print("✗ Ollama translation failed - no translation produced")
+                return False
+
     except Exception as e:
-        print(f"✗ Failed to load translation model: {e}")
+        print(f"✗ Ollama translation failed: {e}")
         return False
 
-    # Test translation
-    translated_docs = []
-    for i, doc in enumerate(test_docs, 1):
-        print(f"\nTranslating document {i}/{len(test_docs)}...")
-        print(f"Original: {doc['content'][:100]}...")
 
-        translated_doc = translator.translate_document(doc)
-        translated_docs.append(translated_doc)
+async def test_google_translation():
+    """Test translation using Google Translate (fallback method)."""
+    print("Testing Google Translate...")
 
-        print(f"Translated: {translated_doc['content'][:100]}...")
-        print(f"Status: {translated_doc.get('translation_status', 'unknown')}")
+    try:
+        translator = GoogleTranslator()
+        test_text = "안녕하세요, 오늘 날씨가 좋네요."
+        translated = await translator.translate_text(test_text)
 
-        if translated_doc.get('translation_status') != 'success':
-            print(f"✗ Translation failed: {translated_doc.get('translation_error', 'Unknown error')}")
+        if translated and translated != test_text:
+            print(f"✓ Google translation successful:")
+            print(f"  Original: {test_text}")
+            print(f"  Translated: {translated}")
+            return True
+        else:
+            print("✗ Google translation failed - no translation produced")
             return False
 
-    print("\n" + "=" * 50)
-    print("✓ All translations completed successfully!")
-    print("\nDetailed Results:")
-    print("=" * 50)
+    except Exception as e:
+        print(f"✗ Google translation failed: {e}")
+        return False
 
-    for i, (original, translated) in enumerate(zip(test_docs, translated_docs), 1):
-        print(f"\nDocument {i}:")
-        print(f"Original:  {original['content']}")
-        print(f"Translated: {translated['content']}")
-        print(f"Status: {translated.get('translation_status')}")
 
-    # Save test results
-    output_file = Path(__file__).parent / "translation_test_results.jsonl"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for doc in translated_docs:
-            f.write(json.dumps(doc, ensure_ascii=False) + '\n')
+async def test_batch_translation():
+    """Test batch translation with sample data."""
+    print("Testing batch translation with sample data...")
 
-    print(f"\n✓ Test results saved to: {output_file}")
-    return True
+    # Load a few sample documents
+    data_file = Path(__file__).parent.parent.parent / "data" / "validation_balanced.jsonl"
+
+    if not data_file.exists():
+        print(f"✗ Sample data file not found: {data_file}")
+        return False
+
+    sample_docs = []
+    with open(data_file, 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            if i >= 3:  # Test with first 3 documents
+                break
+            try:
+                doc = json.loads(line.strip())
+                sample_docs.append(doc)
+            except json.JSONDecodeError:
+                continue
+
+    if not sample_docs:
+        print("✗ No valid sample documents found")
+        return False
+
+    print(f"Loaded {len(sample_docs)} sample documents")
+
+    # Try Ollama first, then Google as fallback
+    translator = None
+    try:
+        translator = OllamaTranslator()
+        async with translator:
+            # Test batch translation
+            results = await translator.translate_batch(sample_docs[:1])  # Test with just one doc
+
+        if results and len(results) > 0:
+            original_content = sample_docs[0]['msg'][0]['content'][:100] + "..."
+            translated_content = results[0]['msg'][0]['content'][:100] + "..."
+
+            if translated_content != original_content:
+                print("✓ Batch translation successful")
+                print(f"  Original: {original_content}")
+                print(f"  Translated: {translated_content}")
+                return True
+            else:
+                print("✗ Batch translation failed - content unchanged")
+                return False
+
+    except Exception as e:
+        print(f"✗ Batch translation with Ollama failed: {e}")
+
+        # Try Google as fallback
+        try:
+            translator = GoogleTranslator()
+            results = await translator.translate_batch(sample_docs[:1])
+
+            if results and len(results) > 0:
+                original_content = sample_docs[0]['msg'][0]['content'][:100] + "..."
+                translated_content = results[0]['msg'][0]['content'][:100] + "..."
+
+                if translated_content != original_content:
+                    print("✓ Batch translation successful (Google fallback)")
+                    print(f"  Original: {original_content}")
+                    print(f"  Translated: {translated_content}")
+                    return True
+                else:
+                    print("✗ Batch translation failed - content unchanged")
+                    return False
+        except Exception as e2:
+            print(f"✗ Batch translation with Google also failed: {e2}")
+            return False
+
+
+async def test_translation():
+    """Test translation with a few sample documents."""
+    print("🚀 Starting translation functionality test...\n")
+
+    # Test 1: Single text translation with Ollama
+    ollama_success = await test_ollama_translation()
+    print()
+
+    # Test 2: Single text translation with Google (if Ollama failed)
+    google_success = False
+    if not ollama_success:
+        google_success = await test_google_translation()
+        print()
+
+    # Test 3: Batch translation
+    batch_success = await test_batch_translation()
+    print()
+
+    # Overall result
+    if ollama_success or google_success or batch_success:
+        print("🎉 Translation test passed! Ready to run full translation.")
+        return True
+    else:
+        print("❌ All translation tests failed. Please check your setup:")
+        print("  - For Ollama: Ensure Ollama is running with a translation model")
+        print("  - For Google: Ensure googletrans library is installed")
+        return False
 
 
 if __name__ == "__main__":
-    success = test_translation()
-    if success:
-        print("\n🎉 Translation test passed! Ready to run full translation.")
-        sys.exit(0)
-    else:
-        print("\n❌ Translation test failed. Please check the errors above.")
-        sys.exit(1)
+    success = asyncio.run(test_translation())
+    sys.exit(0 if success else 1)

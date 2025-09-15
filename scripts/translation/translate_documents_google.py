@@ -108,7 +108,7 @@ class GoogleTranslator:
 
         return results
 
-    async def translate_file(self, input_file: str, output_file: str, batch_size: int = 10, max_docs: Optional[int] = None):
+    async def translate_file(self, input_file: str, output_file: str, batch_size: int = 10, max_docs: Optional[int] = None, start_from: int = 0):
         """Translate documents from input file to output file."""
         input_path = Path(input_file)
         output_path = Path(output_file)
@@ -121,22 +121,34 @@ class GoogleTranslator:
         if max_docs:
             total_docs = min(total_docs, max_docs)
 
-        logger.info(f"Found {total_docs} documents to translate using Google Translate")
+        # Adjust for start_from
+        if start_from > 0:
+            total_docs = max(0, total_docs - start_from)
+            logger.info(f"Starting from document {start_from}, {total_docs} documents remaining to translate using Google Translate")
+        else:
+            logger.info(f"Found {total_docs} documents to translate using Google Translate")
 
         with open(input_path, 'r', encoding='utf-8') as f_in, \
-             open(output_path, 'w', encoding='utf-8') as f_out:
+             open(output_path, 'a' if start_from > 0 else 'w', encoding='utf-8') as f_out:
 
             batch = []
             processed = 0
+            doc_count = 0
 
             with tqdm(total=total_docs, desc="Translating with Google") as pbar:
                 for line_num, line in enumerate(f_in):
+                    # Skip documents before start_from
+                    if doc_count < start_from:
+                        doc_count += 1
+                        continue
+                        
                     if max_docs and processed >= max_docs:
                         break
 
                     try:
                         doc = json.loads(line.strip())
                         batch.append(doc)
+                        doc_count += 1
 
                         # Check if we should process this batch
                         if len(batch) >= batch_size or (max_docs and processed + len(batch) >= max_docs):
@@ -185,11 +197,12 @@ async def main():
     parser.add_argument("--target-lang", "-t", default="en", help="Target language code")
     parser.add_argument("--batch-size", "-b", type=int, default=10, help="Batch size for processing")
     parser.add_argument("--max-docs", type=int, help="Maximum number of documents to process")
+    parser.add_argument("--start-from", type=int, default=0, help="Start processing from document number (0-based)")
 
     args = parser.parse_args()
 
     translator = GoogleTranslator(args.source_lang, args.target_lang)
-    await translator.translate_file(args.input, args.output, args.batch_size, args.max_docs)
+    await translator.translate_file(args.input, args.output, args.batch_size, args.max_docs, args.start_from)
 
 if __name__ == "__main__":
     asyncio.run(main())

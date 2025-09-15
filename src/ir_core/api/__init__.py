@@ -78,7 +78,7 @@ def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 50
         # The original code only looked for "id" or "_id".
         # This updated line also checks for "docid", which matches the format
         # in your documents.jsonl file. This ensures the correct ID is used.
-        doc_id = doc.get("docid") or doc.get("id") or doc.get("_id")
+        doc_id = doc.get("docid") or doc.get("id") or doc.get("_id") or doc.get("eval_id")
 
         # If dedupe requested and we've already seen this docid, skip it
         if dedupe and doc_id in seen_docids:

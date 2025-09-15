@@ -8,12 +8,12 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 import numpy as np
 
-from src.ir_core.query_enhancement.rewriter import QueryRewriter
-from src.ir_core.query_enhancement.step_back import StepBackPrompting
-from src.ir_core.query_enhancement.decomposer import QueryDecomposer
-from src.ir_core.query_enhancement.hyde import HyDE
-from src.ir_core.query_enhancement.translator import QueryTranslator
-from src.ir_core.query_enhancement.manager import QueryEnhancementManager
+from ir_core.query_enhancement.rewriter import QueryRewriter
+from ir_core.query_enhancement.step_back import StepBackPrompting
+from ir_core.query_enhancement.decomposer import QueryDecomposer
+from ir_core.query_enhancement.hyde import HyDE
+from ir_core.query_enhancement.translator import QueryTranslator
+from ir_core.query_enhancement.manager import QueryEnhancementManager
 
 
 class TestQueryRewriter:

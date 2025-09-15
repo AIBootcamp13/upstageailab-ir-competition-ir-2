@@ -6,7 +6,7 @@ Unit tests for utility functions.
 
 import pytest
 
-from src.ir_core.analysis.utils import (
+from ir_core.analysis.utils import (
     find_rank_of_ground_truth,
     calculate_top_k_precision
 )

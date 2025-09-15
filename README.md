@@ -51,7 +51,7 @@
 
 ```bash
 # 프로젝트 루트에서 실행
-poetry run poetry run python scripts/cli_menu.py
+poetry run python scripts/cli_menu.py
 ```
 
 메뉴를 통해 다음 작업들을 수행할 수 있습니다:
@@ -59,6 +59,7 @@ poetry run poetry run python scripts/cli_menu.py
 - 데이터 관리 및 색인
 - 실험 및 검증 실행
 - 평가 및 제출 파일 생성
+- **번역 기능** (한국어-영어 변환, 캐시 관리)
 - 유틸리티 기능
 
 > 자세한 메뉴 설명은 아래의 **사용법** 섹션을 참고하세요.
@@ -119,6 +120,13 @@ poetry run poetry run python scripts/cli_menu.py
 │       ├── 📄 screenshots.md
 │       └── 📄 development-plans.md
 ├── 📂 scripts/
+        scripts/translation/
+        ├── integrate_translation.py     # Main integration script with Redis caching
+        ├── translate_validation.sh      # Simple validation data translation
+        ├── validate_with_translation.py # Validation with automatic translation
+        ├── translate_documents_ollama.py # Ollama-based translation
+        ├── translate_documents_google.py # Google Translate API
+        └── test_translation.py          # Translation testing utilities
 ├── 📂 src/
 ├── 📂 tests/
 └── ... (other standard dirs)
@@ -252,7 +260,7 @@ PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.j
 제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
 
 ```bash
-poetry run poetry run python scripts/cli_menu.py
+poetry run python scripts/cli_menu.py
 ```
 
 다양한 모델 옵션(OpenAI, Qwen2, Llama 등)을 선택하여 제출 파일을 생성할 수 있습니다.
@@ -270,6 +278,7 @@ poetry run poetry run python scripts/cli_menu.py
 > - **Data Management**: 데이터 처리 및 색인
 > - **Experiments & Validation**: 모델 검증 및 테스트
 > - **Evaluation & Submission**: 제출 파일 생성 및 평가
+> - **Translation**: 번역 기능 및 캐시 관리
 > - **Utilities**: 테스트, 모니터링 및 헬퍼 도구
 
 #### 1. Setup & Infrastructure
@@ -300,7 +309,16 @@ poetry run poetry run python scripts/cli_menu.py
   <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="600">
 </p>
 
-#### 5. Utilities
+#### 5. Translation
+번역 관련 기능을 제공합니다. 한국어 질의를 영어로 번역하고, 문서 번역, 캐시 관리 등의 기능을 지원합니다.
+
+**주요 기능:**
+- **Translate Validation Data**: 검증 데이터를 한국어에서 영어로 번역
+- **Translate Documents (Ollama/Google)**: Ollama 또는 Google Translate를 사용한 문서 번역
+- **Validate with Translation**: 번역과 함께 검증 파이프라인 실행
+- **Cache Management**: Redis 캐시 조회, 정리, 모니터링
+
+#### 6. Utilities
 시스템 상태 확인, 스크립트 목록 조회, Streamlit UI 실행 등의 유틸리티 기능을 제공합니다. 프로젝트 유지보수 및 모니터링에 유용합니다.
 
 <p align="center">

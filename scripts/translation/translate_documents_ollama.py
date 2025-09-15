@@ -79,83 +79,141 @@ Only provide the translated text, no explanations or additional content:
         return text  # Return original text if translation fails
 
     async def translate_batch(self, batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Translate a batch of documents."""
-        tasks = []
+        """Translate a batch of documents in parallel."""
+        # Collect all translation tasks
+        all_tasks = []
+        task_metadata = []  # Store metadata for each task
+        
         for doc in batch:
             # Handle different document formats
             if "content" in doc and doc["content"].strip():
                 # Document format: translate content field
                 content = doc.get("content", "")
                 task = self.translate_text(content)
-                tasks.append((task, "content", doc))
+                all_tasks.append(task)
+                task_metadata.append(("content", doc))
             elif "msg" in doc:
                 # Eval format: translate content in each message
                 msg_tasks = []
+                msg_metadata = []
                 for i, msg in enumerate(doc["msg"]):
                     if "content" in msg and msg["content"].strip():
                         task = self.translate_text(msg["content"])
-                        msg_tasks.append((task, i, msg))
+                        msg_tasks.append(task)
+                        msg_metadata.append((i, msg))
                     else:
-                        msg_tasks.append((None, i, msg))
-                tasks.append((msg_tasks, "msg", doc))
+                        msg_tasks.append(None)
+                        msg_metadata.append((i, msg))
+                all_tasks.append(msg_tasks)  # Store list of tasks for this doc
+                task_metadata.append(("msg", doc, msg_metadata))
             else:
                 # No translatable content
-                tasks.append((None, None, doc))
+                all_tasks.append(None)
+                task_metadata.append((None, doc))
 
-        # Process all tasks
-        results = []
-        for task_info in tasks:
-            if task_info[1] == "content":
-                task, field, doc = task_info
+        # Execute all translation tasks in parallel
+        if all_tasks:
+            # Flatten tasks for parallel execution, but keep track of structure
+            flat_tasks = []
+            task_indices = []
+            
+            for i, task_info in enumerate(all_tasks):
+                if isinstance(task_info, list):  # msg format with multiple tasks
+                    for j, task in enumerate(task_info):
+                        if task is not None:
+                            flat_tasks.append(task)
+                            task_indices.append((i, j))  # (doc_index, msg_index)
+                elif task_info is not None:  # single content task
+                    flat_tasks.append(task_info)
+                    task_indices.append((i, None))  # (doc_index, None)
+            
+            # Execute all tasks in parallel
+            if flat_tasks:
                 try:
-                    translated = await task
-                    new_doc = doc.copy()
-                    new_doc["content"] = translated
-                    new_doc["original_content"] = doc.get("content", "")
-                    new_doc["translation_model"] = self.model_name
-                    new_doc["translation_status"] = "success" if translated != doc.get("content", "") else "failed"
-                    results.append(new_doc)
+                    translated_results = await asyncio.gather(*flat_tasks, return_exceptions=True)
                 except Exception as e:
-                    logger.error(f"Translation failed for doc {doc.get('docid')}: {e}")
-                    new_doc = doc.copy()
-                    new_doc["translation_status"] = "failed"
-                    results.append(new_doc)
-                    
-            elif task_info[1] == "msg":
-                msg_tasks, field, doc = task_info
-                new_doc = doc.copy()
-                new_doc["msg"] = []
-                success_count = 0
-                
-                for msg_task_info in msg_tasks:
-                    task, idx, msg = msg_task_info
-                    if task is None:
-                        new_doc["msg"].append(msg)
-                    else:
+                    logger.error(f"Batch translation failed: {e}")
+                    # Fall back to sequential processing on error
+                    translated_results = []
+                    for task in flat_tasks:
                         try:
-                            translated = await task
+                            result = await task
+                            translated_results.append(result)
+                        except Exception as task_e:
+                            logger.error(f"Individual task failed: {task_e}")
+                            translated_results.append("")  # Empty string on failure
+            else:
+                translated_results = []
+            
+            # Reconstruct results
+            result_index = 0
+            results = []
+            
+            for i, (field_type, doc, *extra) in enumerate(task_metadata):
+                if field_type == "content":
+                    # Single content translation
+                    if (i, None) in task_indices:
+                        idx = task_indices.index((i, None))
+                        if idx < len(translated_results):
+                            result = translated_results[idx]
+                            if isinstance(result, Exception):
+                                logger.error(f"Translation failed for doc {doc.get('docid')}: {result}")
+                                translated = doc.get("content", "")
+                            else:
+                                translated = result
+                        else:
+                            translated = doc.get("content", "")
+                        
+                        new_doc = doc.copy()
+                        new_doc["content"] = translated
+                        new_doc["original_content"] = doc.get("content", "")
+                        new_doc["translation_model"] = self.model_name
+                        new_doc["translation_status"] = "success" if translated != doc.get("content", "") else "failed"
+                        results.append(new_doc)
+                    
+                elif field_type == "msg":
+                    # Multiple message translations
+                    msg_metadata = extra[0] if extra else []
+                    new_doc = doc.copy()
+                    new_doc["msg"] = []
+                    success_count = 0
+                    
+                    for msg_idx, (orig_idx, msg) in enumerate(msg_metadata):
+                        if (i, msg_idx) in task_indices:
+                            task_idx = task_indices.index((i, msg_idx))
+                            if task_idx < len(translated_results):
+                                result = translated_results[task_idx]
+                                if isinstance(result, Exception):
+                                    logger.error(f"Translation failed for msg {orig_idx} in doc {doc.get('eval_id')}: {result}")
+                                    translated = msg.get("content", "")
+                                else:
+                                    translated = result
+                            else:
+                                translated = msg.get("content", "")
+                            
                             new_msg = msg.copy()
                             new_msg["content"] = translated
                             new_msg["original_content"] = msg.get("content", "")
                             new_doc["msg"].append(new_msg)
-                            success_count += 1
-                        except Exception as e:
-                            logger.error(f"Translation failed for msg {idx} in doc {doc.get('eval_id')}: {e}")
-                            new_msg = msg.copy()
-                            new_msg["translation_status"] = "failed"
-                            new_doc["msg"].append(new_msg)
-                
-                new_doc["translation_model"] = self.model_name
-                new_doc["translation_status"] = "success" if success_count > 0 else "failed"
-                results.append(new_doc)
-            else:
-                # No translatable content
-                task, field, doc = task_info
-                new_doc = doc.copy()
-                new_doc["translation_status"] = "no_content"
-                results.append(new_doc)
-
-        return results
+                            if translated != msg.get("content", ""):
+                                success_count += 1
+                        else:
+                            # No translation needed
+                            new_doc["msg"].append(msg)
+                    
+                    new_doc["translation_model"] = self.model_name
+                    new_doc["translation_status"] = "success" if success_count > 0 else "failed"
+                    results.append(new_doc)
+                    
+                else:
+                    # No translatable content
+                    new_doc = doc.copy()
+                    new_doc["translation_status"] = "no_content"
+                    results.append(new_doc)
+            
+            return results
+        else:
+            return []
 
     async def translate_file(self, input_file: str, output_file: str, batch_size: int = 10, max_docs: Optional[int] = None, resume: bool = False):
         """Translate documents from input file to output file."""
@@ -236,8 +294,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Translate documents using Ollama")
     parser.add_argument("--input", "-i", required=True, help="Input JSONL file")
     parser.add_argument("--output", "-o", required=True, help="Output JSONL file")
-    parser.add_argument("--model", "-m", default="qwen2:7b", help="Ollama model name")
-    parser.add_argument("--batch-size", "-b", type=int, default=10, help="Batch size for parallel processing")
+    parser.add_argument("--model", "-m", default="qwen2:1.5b", help="Ollama model name")
+    parser.add_argument("--batch-size", "-b", type=int, default=20, help="Batch size for parallel processing")
     parser.add_argument("--max-docs", type=int, help="Maximum number of documents to process")
     parser.add_argument("--base-url", default="http://localhost:11434", help="Ollama base URL")
     parser.add_argument("--resume", action="store_true", help="Resume translation from existing output file")

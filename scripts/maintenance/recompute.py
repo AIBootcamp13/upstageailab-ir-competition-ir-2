@@ -168,7 +168,7 @@ def stream_and_index(
         actions = []
         for doc, emb in zip(b, embeddings):
             body = dict(doc)
-            body['embedding'] = emb
+            body['embeddings'] = emb
             actions.append({
                 '_index': index_name,
                 '_source': body,
@@ -240,3 +240,32 @@ def stream_and_index(
 
     print(f"Indexed {total_indexed} documents into {index_name}")
     return total_indexed
+
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Recompute embeddings for documents and index them")
+    parser.add_argument("--es", default="http://localhost:9200", help="Elasticsearch URL")
+    parser.add_argument("--documents-path", required=True, help="Path to JSONL file with documents")
+    parser.add_argument("--index-name", required=True, help="Target index name")
+    parser.add_argument("--batch-size", type=int, default=64, help="Batch size for processing")
+    parser.add_argument("--model", help="Embedding model name")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without actually doing it")
+    parser.add_argument("--max-workers", type=int, default=1, help="Max workers for parallel processing")
+    parser.add_argument("--embedding-batch-size", type=int, default=32, help="Batch size for embedding computation")
+    parser.add_argument("--device", help="Device for embedding computation (cpu/cuda)")
+    
+    args = parser.parse_args()
+    
+    stream_and_index(
+        es=args.es,
+        documents_path=args.documents_path,
+        index_name=args.index_name,
+        batch_size=args.batch_size,
+        model=args.model,
+        dry_run=args.dry_run,
+        max_workers=args.max_workers,
+        embedding_batch_size=args.embedding_batch_size,
+        device=args.device,
+    )

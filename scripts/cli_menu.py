@@ -1,23 +1,6 @@
 #!/usr/bin/env python3
 """
-Interactive CLI Menu for RAG Project Ope                {
-                    "name": "Reinde                {
-                    "name": "Generate Submission",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/evaluate.py",
-                    "description": "Generate submission file for evaluation",
-                    "needs_params": True,
-                    "params": ["model.alpha"],
-                },
-                {
-                    "name": "Create Validation Set",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/data/create_validation_set.py",
-                    "description": "Create new validation dataset",
-                    "needs_params": True,
-                    "params": ["create_validation_set.sample_size"],
-                },                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/maintenance/reindex.py",
-                    "description": "Reindex documents to Elasticsearch",
-                    "needs_params": False,
-                },s
+Interactive CLI Menu for RAG Project Operations
 
 This script provides a user-friendly interface to execute common project commands
 with colored output and interactive prompts for parameters.
@@ -35,6 +18,80 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
 
+# Import modular menu components
+def integrate_translation_menu(commands_dict, project_root):
+    """Integrate translation commands into CLI menu."""
+    translation_commands = {
+        "Translation": [
+            {
+                "name": "Translate Validation Data",
+                "command": f"PYTHONPATH={project_root}/src bash scripts/translation/translate_validation.sh",
+                "description": "Translate Korean validation queries to English using cached translation system",
+                "needs_params": False,
+            },
+            {
+                "name": "Translate Validation (Advanced)",
+                "command": f"PYTHONPATH={project_root}/src poetry run python scripts/translation/integrate_translation.py",
+                "description": "Advanced translation with custom input/output files and caching options",
+                "needs_params": True,
+                "params": ["--input", "--output", "--cache"],
+            },
+            {
+                "name": "Validate with Translation",
+                "command": f"PYTHONPATH={project_root}/src poetry run python scripts/translation/validate_with_translation.py",
+                "description": "Run validation pipeline with automatic query translation",
+                "needs_params": False,
+            },
+            {
+                "name": "Translate Documents (Ollama)",
+                "command": f"PYTHONPATH={project_root}/src poetry run python scripts/translation/translate_documents_ollama.py",
+                "description": "Translate documents using local Ollama models (high quality, offline)",
+                "needs_params": True,
+                "params": ["--input", "--output", "--model", "--batch-size"],
+            },
+            {
+                "name": "Translate Documents (Google)",
+                "command": f"PYTHONPATH={project_root}/src poetry run python scripts/translation/translate_documents_google.py",
+                "description": "Translate documents using Google Translate API (requires API access)",
+                "needs_params": True,
+                "params": ["--input", "--output", "--batch-size"],
+            },
+            {
+                "name": "Test Translation Setup",
+                "command": f"PYTHONPATH={project_root}/src poetry run python scripts/translation/test_translation.py",
+                "description": "Test translation functionality with sample data",
+                "needs_params": False,
+            },
+            {
+                "name": "Check Translation Cache",
+                "command": "redis-cli keys 'translation:*' | wc -l",
+                "description": "Check number of cached translations in Redis",
+                "needs_params": False,
+            },
+            {
+                "name": "Clear Translation Cache",
+                "command": "redis-cli del $(redis-cli keys 'translation:*' | tr '\\n' ' ')",
+                "description": "Clear all cached translations from Redis",
+                "needs_params": False,
+            },
+            {
+                "name": "Monitor Translation Cache",
+                "command": "redis-cli monitor | grep translation",
+                "description": "Monitor translation cache operations in real-time",
+                "needs_params": False,
+                "run_in_background": True,
+            },
+        ]
+    }
+
+    # Merge translation commands into existing structure
+    for category, cmds in translation_commands.items():
+        if category in commands_dict:
+            commands_dict[category].extend(cmds)
+        else:
+            commands_dict[category] = cmds
+
+    return commands_dict
 
 console = Console()
 
@@ -58,7 +115,8 @@ class CLIMenu:
         - Evaluation & Submission: Submission generation and evaluation
         - Utilities: Testing, monitoring, and helper tools
         """
-        return {
+        # Get base commands
+        commands = {
             "Setup & Infrastructure": [
                 {
                     "name": "Install Dependencies",
@@ -234,7 +292,7 @@ class CLIMenu:
                 },
                 {
                     "name": "List All Scripts",
-                    "command": "python scripts/list_scripts.py",
+                    "command": "poetry run python scripts/list_scripts.py",
                     "description": "List all available scripts with descriptions",
                     "needs_params": False,
                 },
@@ -253,6 +311,15 @@ class CLIMenu:
                 },
             ],
         }
+
+        # Integrate translation commands
+        commands = integrate_translation_menu(commands, self.project_root)
+
+        return commands
+
+        # Integrate translation commands
+        commands = integrate_translation_menu(commands, self.project_root)
+        return commands
 
     def _run_command(self, command: str, description: str, run_in_background: bool = False) -> bool:
         """Execute a command and display results."""

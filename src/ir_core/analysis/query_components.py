@@ -250,7 +250,7 @@ class BatchQueryProcessor:
         # Use parallel processing for batches larger than threshold
         if len(queries) > 10 and self.enable_parallel and max_workers != 0:  # Allow disabling with max_workers=0
             if max_workers is None:
-                max_workers = self.max_workers or min(32, len(queries))
+                max_workers = self.max_workers or min(4, len(queries))  # More conservative default
 
             print(f"🔄 Analyzing {len(queries)} queries using {max_workers} parallel workers...")
 

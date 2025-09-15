@@ -8,7 +8,7 @@ from elasticsearch import Elasticsearch
 from tqdm.auto import tqdm
 
 # Import the high-level API from your project
-from src.ir_core import api
+from ir_core import api
 
 # Define a unique index name for this test to avoid conflicts
 TEST_INDEX = "test-integration-pipeline"
@@ -54,7 +54,7 @@ def live_services():
     # Wait for services to be ready using the project's ES helper which has
     # conservative retry/timeouts. Fail fast if ES never becomes reachable so
     # the test run doesn't trigger thousands of low-level client retries.
-    from src.ir_core.infra import get_es
+    from ir_core.infra import get_es
 
     es_client = get_es()
     retries = 10

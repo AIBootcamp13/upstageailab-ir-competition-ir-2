@@ -1,6 +1,6 @@
 # conf/config.yaml
 
-# =================================================================
+# =============================
 # 기본 설정 (Main Configuration)
 # =================================================================
 # 이 파일은 Hydra의 기본 진입점 역할을 하며, 다른 설정 파일들을 조합합니다.
@@ -22,7 +22,7 @@ debug_limit: 3  # Number of queries to debug in detail
 # --- 인프라 설정 (Infrastructure Settings) ---
 # .env 파일 또는 환경 변수에서 값을 가져옵니다.
 es_host: ${env:ES_HOST, "http://localhost:9200"}
-index_name: ${env:INDEX_NAME, "test"}
+index_name: ${env:INDEX_NAME, "documents_en_with_embeddings"}
 redis_url: ${env:REDIS_URL, "redis://localhost:6379/0"}
 
 # --- 실험 추적 설정 (Experiment Tracking - WandB) ---
@@ -44,12 +44,12 @@ reindex:
 
 evaluate:
   topk: 3
-  max_workers: 16
+  max_workers: null
 
 create_validation_set:
   sample_size: 50 # 생성할 질문-문서 쌍의 수
 
 # --- 분석 설정 (Analysis Settings) ---
 analysis:
-  max_workers: 16        # Maximum parallel workers for analysis (set to null for auto-detection)
+  max_workers: null        # Maximum parallel workers for analysis (set to null for auto-detection)
   enable_parallel: true  # 병렬 처리 활성화 여부

@@ -4,10 +4,10 @@ Index orchestrator: reindex an Elasticsearch index and atomically swap an alias.
 
 Usage examples:
   # Reindex alias 'papers' into a new index and swap alias atomically (dry-run shows actions):
-  python scripts/maintenance/index_orchestrator.py --alias papers --dry-run
+  poetry run python scripts/maintenance/index_orchestrator.py --alias papers --dry-run
 
   # Create a timestamped target index, reindex, verify counts, then swap alias:
-  python scripts/maintenance/index_orchestrator.py --alias papers --verify
+  poetry run python scripts/maintenance/index_orchestrator.py --alias papers --verify
 
 This script is conservative: it will fetch the source index settings/mappings and recreate
 them on the target index before reindexing. It supports dry-run, verification, timeout, and

@@ -76,34 +76,22 @@ class QueryTranslator:
         """
         Translate query to English.
 
+        For now, return the original query to avoid async issues.
+        Translation can be implemented later with a synchronous approach.
+
         Args:
             query: Query in any language
 
         Returns:
-            Query translated to English
+            Query (currently returns original, translation disabled)
         """
-        if not self.translator:
-            return query  # Return original if translator not available
-
-        try:
-            translation = self.translator.translate(query, src='auto', dest='en')
-            translated_text = translation.text
-
-            if not translated_text or translated_text.strip() == "":
-                return query  # Fallback to original
-
-            return translated_text.strip()
-
-        except Exception as e:
-            print(f"Translation failed: {e}")
-            if self.fallback_on_error:
-                return query  # Fallback to original query
-            else:
-                raise e
+        # Temporarily disable translation to avoid async issues
+        # TODO: Implement synchronous translation
+        return query
 
     def detect_language(self, query: str) -> str:
         """
-        Detect the language of the query.
+        Detect the language of the query using a simple heuristic approach.
 
         Args:
             query: Query text
@@ -111,15 +99,36 @@ class QueryTranslator:
         Returns:
             Language code (e.g., 'en', 'ko', 'ja')
         """
-        if not self.translator:
+        # Simple language detection based on character sets
+        # This is a fallback when googletrans async issues occur
+
+        # Korean characters (Hangul)
+        korean_chars = sum(1 for char in query if '\uac00' <= char <= '\ud7a3')
+
+        # Chinese characters
+        chinese_chars = sum(1 for char in query if '\u4e00' <= char <= '\u9fff')
+
+        # Japanese characters (Hiragana, Katakana, Kanji)
+        japanese_chars = sum(1 for char in query if ('\u3040' <= char <= '\u309f') or ('\u30a0' <= char <= '\u30ff') or ('\u4e00' <= char <= '\u9fff'))
+
+        total_chars = len(query.replace(' ', ''))
+
+        if total_chars == 0:
             return 'unknown'
 
-        try:
-            detection = self.translator.detect(query)
-            return detection.lang
-        except Exception as e:
-            print(f"Language detection failed: {e}")
-            return 'unknown'
+        # Determine language based on character ratios
+        korean_ratio = korean_chars / total_chars
+        chinese_ratio = chinese_chars / total_chars
+        japanese_ratio = japanese_chars / total_chars
+
+        if korean_ratio > 0.1:
+            return 'ko'
+        elif chinese_ratio > 0.1:
+            return 'zh'
+        elif japanese_ratio > 0.1:
+            return 'ja'
+        else:
+            return 'en'  # Default to English
 
     def bilingual_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """

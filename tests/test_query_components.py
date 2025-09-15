@@ -7,7 +7,7 @@ Unit tests for query components.
 import pytest
 from omegaconf import DictConfig
 
-from src.ir_core.analysis.query_components import (
+from ir_core.analysis.query_components import (
     QueryFeatureExtractor,
     BatchQueryProcessor,
     QueryFeatures

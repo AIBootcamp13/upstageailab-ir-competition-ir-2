@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 from omegaconf import DictConfig
 
-from src.ir_core.analysis.components import (
+from ir_core.analysis.components import (
     MetricCalculator,
     QueryBatchProcessor,
     ErrorAnalyzer,

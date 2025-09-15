@@ -15,8 +15,8 @@
 # - 실험별로 다른 설정을 사용하려면 HYDRA 설정을 수정하세요
 
 ES_HOST: "http://localhost:9200"
-INDEX_NAME: "test"
-EMBEDDING_MODEL: "snunlp/KR-SBERT-V40K-klueNLI-augSTS" # "jhgan/ko-sroberta-multitask"
+INDEX_NAME: "documents_en_with_embeddings"
+EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2" # English embedding model
 BM25_K: 200
 RERANK_K: 10
 ALPHA: 0.0
@@ -48,6 +48,16 @@ query_enhancement:
   default_technique: "rewriting"  # Options: rewriting, step_back, decomposition, hyde, translation
   openai_model: "gpt-3.5-turbo"
   max_tokens: 500
+
+# --- Translation Configuration ---
+translation:
+  enabled: false  # Enable translation for validation queries
+  cache_enabled: true  # Use Redis caching for translations
+  source_lang: "ko"  # Source language
+  target_lang: "en"  # Target language
+  cache_ttl_days: 30  # Cache TTL in days
+  batch_size: 100  # Batch size for processing
+  use_uv: true  # Use uv-powered translation system
   temperature: 0.3
   techniques:
     rewriting:

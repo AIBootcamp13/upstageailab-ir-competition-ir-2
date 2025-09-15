@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from src.ir_core import retrieval
-from src.ir_core import embeddings
+from ir_core import retrieval
+from ir_core import embeddings
 
 # Define a set of mock documents that our fake functions will return
 MOCK_BM25_HITS = [

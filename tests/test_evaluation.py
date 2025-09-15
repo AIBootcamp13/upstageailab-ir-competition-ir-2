@@ -1,5 +1,5 @@
 import pytest
-from src.ir_core.evaluation.core import precision_at_k, mrr
+from ir_core.evaluation.core import precision_at_k, mrr
 
 # --- Tests for precision_at_k ---
 

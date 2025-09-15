@@ -9,9 +9,9 @@ import os
 import json
 from unittest.mock import patch, Mock
 
-from src.ir_core.orchestration.pipeline import RAGPipeline
-from src.ir_core.generation.openai import OpenAIGenerator
-from src.ir_core.query_enhancement.manager import QueryEnhancementManager
+from ir_core.orchestration.pipeline import RAGPipeline
+from ir_core.generation.openai import OpenAIGenerator
+from ir_core.query_enhancement.manager import QueryEnhancementManager
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration
