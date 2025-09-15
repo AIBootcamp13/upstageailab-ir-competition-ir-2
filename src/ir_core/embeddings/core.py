@@ -53,16 +53,16 @@ def _mean_pool(last_hidden, attention_mask):
     return summed / counts
 
 
-def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] = None) -> np.ndarray:
+def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] = None, model_name: Optional[str] = None) -> np.ndarray:
     if not texts:
         try:
-            _, m = load_model()
+            _, m = load_model(model_name)
             dim = m.config.hidden_size
         except Exception:
             dim = 768
         return np.zeros((0, dim), dtype=np.float32)
 
-    tokenizer, model = load_model()
+    tokenizer, model = load_model(model_name)
     dev = torch.device(device) if device else _get_device()
 
     all_embs = []

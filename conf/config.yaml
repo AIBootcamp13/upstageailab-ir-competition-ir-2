@@ -1,55 +1,80 @@
-# conf/config.yaml
-
-# =============================
-# 기본 설정 (Main Configuration)
-# =================================================================
-# 이 파일은 Hydra의 기본 진입점 역할을 하며, 다른 설정 파일들을 조합합니다.
-
+# =============================================================================
+# DEFAULT CONFIGURATION GROUPS
+# These specify the base configurations for data, model, pipeline, prompts, and experiments.
+# Hydra will merge these from conf/ subdirectories.
+# =============================================================================
 defaults:
-  - data: science_qa    # conf/data/science_qa.yaml 파일을 기본값으로 포함
-  - model: default      # conf/model/default.yaml 파일을 기본값으로 포함
-  - pipeline: default  # 파이프라인 설정 추가
-  - prompts: default   # 프롬프트 설정 추가
-  - optional experiment: ~ # "experiment" 그룹이 존재하지만, 기본적으로 아무것도 로드하지 않도록 설정
-  - _self_              # 이 파일 자체의 설정을 마지막에 적용
+- data: science_qa_bilingual
+- model: default
+- pipeline: default
+- prompts: default
+- optional experiment: null  # Optional experiment overrides; set to null if not used
+- _self_
 
-limit: null # 빠른 테스트를 위한 샘플 데이터 수 제한 (null일 경우 전체 데이터 사용)
-
-# Debug options for validation
-debug: false  # Enable debug mode to log prompts and answers
-debug_limit: 3  # Number of queries to debug in detail
-
-# --- 인프라 설정 (Infrastructure Settings) ---
-# .env 파일 또는 환경 변수에서 값을 가져옵니다.
-es_host: ${env:ES_HOST, "http://localhost:9200"}
-index_name: ${env:INDEX_NAME, "documents_en_with_embeddings"}
-redis_url: ${env:REDIS_URL, "redis://localhost:6379/0"}
-
-# --- 실험 추적 설정 (Experiment Tracking - WandB) ---
+# =============================================================================
+# WEIGHTS & BIASES (WANDB) INTEGRATION
+# Configuration for experiment tracking and logging.
+# =============================================================================
 wandb:
-  project: "scientific-qa-rag" # WandB 프로젝트 이름
-  entity: ${env:WANDB_ENTITY}  # WandB 사용자 또는 팀 이름
-
-  # 스크립트 유형별로 실행 이름 접두사를 설정합니다.
+  entity: ${env:WANDB_ENTITY}  # Your WandB entity/username from environment
+  log_config_path: true  # Log the full config path for reproducibility
+  project: scientific-qa-rag  # Project name for tracking runs
   run_name:
-    validate: "val"      # 검증 스크립트용 접두사
-    evaluate: "eval"     # 평가(제출) 스크립트용 접두사
+    evaluate: eval  # Run name prefix for evaluation tasks
+    validate: val  # Run name prefix for validation tasks
 
-  # 설정 파일 경로 로깅 (Config File Path Logging)
-  log_config_path: true  # WandB에 병합된 설정 파일 경로를 로깅할지 여부
-
-# --- 스크립트별 설정 (Script-Specific Settings) ---
-reindex:
-  batch_size: 500
-
-evaluate:
-  topk: 3
-  max_workers: null
-
-create_validation_set:
-  sample_size: 50 # 생성할 질문-문서 쌍의 수
-
-# --- 분석 설정 (Analysis Settings) ---
+# =============================================================================
+# ANALYSIS SETTINGS
+# Controls parallel processing for analysis operations.
+# =============================================================================
 analysis:
-  max_workers: null        # Maximum parallel workers for analysis (set to null for auto-detection)
-  enable_parallel: true  # 병렬 처리 활성화 여부
+  enable_parallel: true  # Enable parallel execution for analysis tasks
+  max_workers: null  # Number of workers; null uses default (e.g., CPU count)
+
+# =============================================================================
+# VALIDATION SET CREATION
+# Parameters for generating a validation dataset.
+# =============================================================================
+create_validation_set:
+  sample_size: 50  # Number of samples to include in the validation set
+
+# =============================================================================
+# DEBUG SETTINGS
+# Global debug flags and limits for development/testing.
+# =============================================================================
+debug: false  # Enable debug mode (affects logging and limits)
+debug_limit: 3  # Limit number of items processed in debug mode
+
+# =============================================================================
+# ELASTICSEARCH SETTINGS
+# Connection details for the Elasticsearch service.
+# =============================================================================
+es_host: ${env:ES_HOST, "http://localhost:9200"}  # ES host URL; defaults to localhost
+
+# =============================================================================
+# EVALUATION SETTINGS
+# Parameters for evaluation pipelines.
+# =============================================================================
+evaluate:
+  max_workers: null  # Workers for evaluation; null uses default
+  topk: 3  # Number of top results to evaluate (e.g., top-3 retrieval)
+
+# =============================================================================
+# INDEXING SETTINGS
+# Global index name and processing limits.
+# =============================================================================
+index_name: ${env:INDEX_NAME, "documents_en_with_embeddings"}  # ES index name; override via env
+limit: null  # Global limit on items processed; null means no limit
+
+# =============================================================================
+# REDIS SETTINGS
+# Connection URL for Redis caching.
+# =============================================================================
+redis_url: ${env:REDIS_URL, "redis://localhost:6379/0"}  # Redis URL; defaults to localhost
+
+# =============================================================================
+# REINDEXING SETTINGS
+# Parameters for reindexing operations.
+# =============================================================================
+reindex:
+  batch_size: 500  # Batch size for reindexing documents

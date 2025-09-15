@@ -37,7 +37,27 @@ class Settings(BaseSettings):
 
 	# Retrieval tuning from profiling
 	USE_SRC_BOOSTS: bool = False  # enables boosted sparse retrieval using keywords_per_src.json
-	USE_STOPWORD_FILTERING: bool = False  # strip global stopwords from queries 
+	USE_STOPWORD_FILTERING: bool = False  # strip global stopwords from queries
+	USE_DUPLICATE_FILTERING: bool = False  # filter exact duplicates using duplicates.json
+	USE_NEAR_DUP_PENALTY: bool = False  # penalize near-duplicates using near_duplicates.json
+	PROFILE_REPORT_DIR: str = ""
+
+	# --- New Settings for the Generation Layer ---
+	GENERATOR_TYPE: str = ""
+	GENERATOR_MODEL_NAME: str = ""
+	PROMPT_TEMPLATE_PATH: str = ""
+	GENERATOR_SYSTEM_MESSAGE_FILE: str = ""
+	GENERATOR_SYSTEM_MESSAGE: str = ""
+
+	# Index / orchestrator defaults
+	INDEX_ALIAS: str = ""
+	INDEX_NAME_PREFIX: str = ""
+	REINDEX_BATCH_SIZE: int = 500
+	KEEP_OLD_INDEX_DAYS: int = 3
+
+	# Retrieval tuning from profiling
+	USE_SRC_BOOSTS: bool = False  # enables boosted sparse retrieval using keywords_per_src.json
+	USE_STOPWORD_FILTERING: bool = False  # strip global stopwords from queries
 	USE_DUPLICATE_FILTERING: bool = False  # filter exact duplicates using duplicates.json
 	USE_NEAR_DUP_PENALTY: bool = False  # penalize near-duplicates using near_duplicates.json
 	PROFILE_REPORT_DIR: str = ""
@@ -50,6 +70,72 @@ class Settings(BaseSettings):
 	GENERATOR_SYSTEM_MESSAGE: str = ""
 
 	model_config = SettingsConfigDict(env_file=".env", extra='allow')
+
+	def validate_configuration(self) -> list[str]:
+		"""
+		Validate configuration for consistency and compatibility.
+		Returns a list of warning/error messages.
+		"""
+		warnings = []
+
+		# Check embedding model and index compatibility
+		embedding_model = self.EMBEDDING_MODEL.lower()
+		index_name = self.INDEX_NAME.lower()
+
+		# Define expected dimensions for each model
+		model_dimensions = {
+			'sentence-transformers/all-minilm-l6-v2': 384,
+			'snunlp/kr-sbert-v40k-kluenli-augsts': 768,
+			'jhgan/ko-sroberta-multitask': 768,
+			'klue/roberta-base': 768
+		}
+
+		# Get expected dimension for current model
+		expected_dim = None
+		for model_key, dim in model_dimensions.items():
+			if model_key in embedding_model:
+				expected_dim = dim
+				break
+
+		# Korean models should use Korean indices
+		if 'kr-sbert' in embedding_model or 'klue' in embedding_model or 'ko-s' in embedding_model:
+			if 'en' in index_name and 'ko' not in index_name and 'bilingual' not in index_name:
+				warnings.append(
+					f"WARNING: Korean embedding model '{self.EMBEDDING_MODEL}' ({expected_dim}d) detected "
+					f"but English index '{self.INDEX_NAME}' is configured. "
+					"Consider switching to a Korean or bilingual index for optimal performance."
+				)
+			elif 'ko' in index_name or 'bilingual' in index_name:
+				warnings.append(
+					f"INFO: Korean configuration detected. "
+					f"Model: {self.EMBEDDING_MODEL} ({expected_dim}d), "
+					f"Index: {self.INDEX_NAME}. "
+					f"Make sure the index contains documents compatible with this model."
+				)
+
+		# English models should use English indices
+		elif 'minilm' in embedding_model or 'all-mpnet' in embedding_model:
+			if 'korean' in index_name or ('ko' in index_name and 'en' not in index_name and 'bilingual' not in index_name):
+				warnings.append(
+					f"WARNING: English embedding model '{self.EMBEDDING_MODEL}' ({expected_dim}d) detected "
+					f"but Korean index '{self.INDEX_NAME}' is configured. "
+					"Consider switching to an English or bilingual index for optimal performance."
+				)
+			elif 'en' in index_name or 'bilingual' in index_name:
+				warnings.append(
+					f"INFO: English configuration detected. "
+					f"Model: {self.EMBEDDING_MODEL} ({expected_dim}d), "
+					f"Index: {self.INDEX_NAME}."
+				)		# Check translation settings
+		translation_enabled = getattr(self, 'translation', {}).get('enabled', False)
+		if translation_enabled:
+			if 'kr-sbert' in embedding_model or 'klue' in embedding_model:
+				warnings.append(
+					"INFO: Translation is enabled but Korean embedding model is configured. "
+					"Translation may not be needed for Korean queries."
+				)
+
+		return warnings
 
 	@classmethod
 	def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):

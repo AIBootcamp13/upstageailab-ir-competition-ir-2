@@ -28,6 +28,8 @@ from ir_core.utils.wandb import generate_run_name
 def run(cfg: DictConfig) -> None:
     _add_src_to_path()
 
+    from ir_core.config import settings
+
     # Set Wandb timeouts as environment variables before initialization
     os.environ["WANDB_TIMEOUT"] = "30"
     os.environ["WANDB_HTTP_TIMEOUT"] = "30"
@@ -50,6 +52,16 @@ def run(cfg: DictConfig) -> None:
             "generator_model_name": cfg.pipeline.generator_model_name,
             "query_rewriter_type": cfg.pipeline.query_rewriter_type,
             "rewriter_model": cfg.pipeline.rewriter_model
+        },
+        "infrastructure": {
+            "index_name": cfg.data.index_name if hasattr(cfg.data, 'index_name') else settings.INDEX_NAME,
+            "es_host": settings.ES_HOST,
+            "redis_url": settings.REDIS_URL
+        },
+        "translation": {
+            "enabled": getattr(settings, 'translation', {}).get('enabled', False),
+            "source_lang": getattr(settings, 'translation', {}).get('source_lang', 'ko'),
+            "target_lang": getattr(settings, 'translation', {}).get('target_lang', 'en')
         },
         "limit": cfg.limit,
         "evaluate": {"topk": cfg.evaluate.topk}
@@ -97,6 +109,14 @@ def run(cfg: DictConfig) -> None:
 
     print(f"평가 실행 시작: {cfg.data.evaluation_path}")
     print(f"적용된 설정:\n{OmegaConf.to_yaml(cfg)}")
+
+    # Validate configuration
+    validation_warnings = settings.validate_configuration()
+    if validation_warnings:
+        print("\n⚠️  구성 검증 경고:")
+        for warning in validation_warnings:
+            print(f"  {warning}")
+        print()
 
     from ir_core.orchestration.pipeline import RAGPipeline
     from ir_core.generation import get_generator, get_query_rewriter

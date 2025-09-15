@@ -1,91 +1,85 @@
-# conf/settings.yaml
-# 애플리케이션 기본 설정 (Application Default Settings)
-#
-# 이 파일은 Pydantic Settings 클래스에 의해 로드되는 기본 설정값들을 포함합니다.
-# HYDRA 설정보다 먼저 로드되며, HYDRA 설정에 의해 재정의될 수 있습니다.
-#
-# 용도:
-# - 인프라 설정 (ES_HOST, REDIS_URL 등)
-# - 애플리케이션 기본값 (임베딩 모델, 생성 타입 등)
-# - 환경 변수나 .env 파일로 재정의 가능
-#
-# HYDRA 설정과의 관계:
-# - 이 파일의 값들은 HYDRA가 로드되기 전에 사용되는 기본값입니다
-# - HYDRA 설정 파일(config.yaml 등)에서 동일한 키가 있으면 HYDRA 값이 우선 적용됩니다
-# - 실험별로 다른 설정을 사용하려면 HYDRA 설정을 수정하세요
-
-ES_HOST: "http://localhost:9200"
-INDEX_NAME: "documents_en_with_embeddings"
-EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2" # English embedding model
-BM25_K: 200
-RERANK_K: 10
 ALPHA: 0.0
-REDIS_URL: "redis://localhost:6379/0"
-USE_WANDB: false
-WANDB_PROJECT: "ir-rag"
-GENERATOR_TYPE: "openai"
-GENERATOR_MODEL_NAME: "gpt-3.5-turbo"
-PROMPT_TEMPLATE_PATH: "prompts/scientific_qa_v1.jinja2"
-GENERATOR_SYSTEM_MESSAGE_FILE: "prompts/persona_qa.txt"
-GENERATOR_SYSTEM_MESSAGE: ""
-
-# --- Index/orchestrator defaults ---
-INDEX_ALIAS: "documents"
-INDEX_NAME_PREFIX: "documents_v"
-REINDEX_BATCH_SIZE: 500
+BM25_K: 200
+EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+ES_HOST: http://localhost:9200
+GENERATOR_MODEL_NAME: gpt-3.5-turbo
+GENERATOR_SYSTEM_MESSAGE: ''
+GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt
+GENERATOR_TYPE: openai
+INDEX_ALIAS: documents
+INDEX_NAME: documents_bilingual_with_embeddings_new
+INDEX_NAME_BILINGUAL: documents_bilingual_with_embeddings
+INDEX_NAME_EN: documents_en_with_embeddings
+INDEX_NAME_KO: documents_ko_with_embeddings
+INDEX_NAME_PREFIX: documents_v
 KEEP_OLD_INDEX_DAYS: 3
-
-# --- Retrieval tuning from profiling ---
-USE_SRC_BOOSTS: true
-USE_STOPWORD_FILTERING: false
+PROFILE_REPORT_DIR: outputs/reports/data_profile/latest
+PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2
+REDIS_URL: redis://localhost:6379/0
+REINDEX_BATCH_SIZE: 500
+RERANK_K: 10
 USE_DUPLICATE_FILTERING: true
 USE_NEAR_DUP_PENALTY: false
-PROFILE_REPORT_DIR: "outputs/reports/data_profile/latest"
-
-# --- Profiling Insights Integration ---
+USE_SRC_BOOSTS: true
+USE_STOPWORD_FILTERING: false
+USE_WANDB: false
+WANDB_PROJECT: ir-rag
 profiling_insights:
-  enabled: true  # Master switch for all profiling insights features
-  use_query_expansion: true  # Use vocabulary overlap for query expansion
-  use_domain_routing: true  # Use source clustering for domain-based routing
-  use_dynamic_chunking: true  # Use long document analysis for chunking
-  use_memory_optimization: true  # Use token statistics for batch sizing
-  cache_ttl_seconds: 300  # How long to cache profiling insights (5 minutes)
-  query_expansion_terms: 3  # Number of expansion terms to add
-  memory_batch_fallback: 16  # Fallback batch size when no stats available
-
-# --- Query Enhancement Configuration ---
-query_enhancement:
+  cache_ttl_seconds: 300
   enabled: true
-  default_technique: "rewriting"  # Options: rewriting, step_back, decomposition, hyde, translation
-  openai_model: "gpt-3.5-turbo"
+  memory_batch_fallback: 16
+  query_expansion_terms: 3
+  use_domain_routing: true
+  use_dynamic_chunking: true
+  use_memory_optimization: true
+  use_query_expansion: true
+query_enhancement:
+  default_technique: rewriting
+  enabled: true
   max_tokens: 500
-
-# --- Translation Configuration ---
-translation:
-  enabled: false  # Enable translation for validation queries
-  cache_enabled: true  # Use Redis caching for translations
-  source_lang: "ko"  # Source language
-  target_lang: "en"  # Target language
-  cache_ttl_days: 30  # Cache TTL in days
-  batch_size: 100  # Batch size for processing
-  use_uv: true  # Use uv-powered translation system
-  temperature: 0.3
+  openai_model: gpt-3.5-turbo
   techniques:
-    rewriting:
-      enabled: true
-      priority: 1
-    step_back:
-      enabled: true
-      priority: 2
     decomposition:
       enabled: true
       priority: 3
     hyde:
       enabled: true
       priority: 4
+    rewriting:
+      enabled: true
+      priority: 1
+    step_back:
+      enabled: true
+      priority: 2
     translation:
       enabled: true
       priority: 5
+  temperature: 0.3
+translation:
+  batch_size: 100
+  cache_enabled: true
+  cache_ttl_days: 30
+  enabled: false
+  source_lang: ko
+  target_lang: en
+  techniques:
+    decomposition:
+      enabled: true
+      priority: 3
+    hyde:
+      enabled: true
+      priority: 4
+    rewriting:
+      enabled: true
+      priority: 1
+    step_back:
+      enabled: true
+      priority: 2
+    translation:
+      enabled: true
+      priority: 5
+  temperature: 0.3
   translation:
-    fallback_on_error: true
     bilingual_search: true
+    fallback_on_error: true
+  use_uv: true

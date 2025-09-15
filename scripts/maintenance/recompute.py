@@ -1,13 +1,289 @@
-"""Recompute embeddings and bulk-index helper (scaffolding)
+#!/usr/bin/env python3
+"""Enhanced Embedding Generation with Profiling Insights
 
-This module provides a minimal, safe scaffolding for probing an embedding
-dimension and streaming documents to an ES index while computing embeddings
-with a project's embedding loader when available.
+This script generates embeddings for multiple indexes using profiling data
+for optimization and quality enhancement.
 
-The implementation is conservative: it tries to import the repository's
-embedding helper, falls back to a deterministic zero-vector if not present,
-and supports a dry-run mode.
+Usage:
+  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type english --model sentence-transformers/all-MiniLM-L6-v2
+  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type korean --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type bilingual --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
 """
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Any
+import time
+from datetime import datetime
+
+try:
+    import numpy as np
+except Exception:
+    np = None
+
+try:
+    from elasticsearch import Elasticsearch, helpers
+except Exception:
+    Elasticsearch = None
+    helpers = None
+
+import concurrent.futures
+
+
+def _add_src_to_path():
+    """Add src directory to Python path."""
+    scripts_dir = os.path.dirname(__file__)
+    repo_dir = os.path.dirname(scripts_dir)
+    src_dir = os.path.join(repo_dir, "src")
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
+
+def load_profiling_insights(profile_dir: str) -> Dict[str, Any]:
+    """Load profiling insights for embedding optimization."""
+    insights = {}
+
+    # Load per-source length statistics for batch size optimization
+    length_stats_path = os.path.join(profile_dir, "per_src_length_stats.json")
+    if os.path.exists(length_stats_path):
+        with open(length_stats_path, 'r', encoding='utf-8') as f:
+            insights['length_stats'] = json.load(f)
+
+    # Load vocabulary clusters for domain-aware processing
+    clusters_path = os.path.join(profile_dir, "src_clusters_by_vocab.json")
+    if os.path.exists(clusters_path):
+        with open(clusters_path, 'r', encoding='utf-8') as f:
+            insights['clusters'] = json.load(f)
+
+    # Load keywords for potential query expansion during embedding
+    keywords_path = os.path.join(profile_dir, "keywords_per_src.json")
+    if os.path.exists(keywords_path):
+        with open(keywords_path, 'r', encoding='utf-8') as f:
+            insights['keywords'] = json.load(f)
+
+    return insights
+
+
+def get_optimal_batch_size(length_stats: Dict[str, Any], src: str, base_batch_size: int = 32) -> int:
+    """Calculate optimal batch size based on document length statistics."""
+    if not length_stats or src not in length_stats:
+        return base_batch_size
+
+    stats = length_stats[src]
+    avg_tokens = stats.get('content_tokens', {}).get('mean', 500)
+
+    # Adjust batch size based on average token length
+    # Shorter documents = larger batches, longer documents = smaller batches
+    if avg_tokens < 300:
+        return min(base_batch_size * 2, 64)
+    elif avg_tokens > 800:
+        return max(base_batch_size // 2, 8)
+    else:
+        return base_batch_size
+
+
+def enhance_text_with_keywords(text: str, src: str, keywords: Dict[str, List[Dict]], max_keywords: int = 3) -> str:
+    """Enhance text with relevant keywords from profiling data."""
+    if src not in keywords:
+        return text
+
+    # Get top keywords for this source
+    src_keywords = keywords[src][:max_keywords]
+    keyword_terms = [kw['term'] for kw in src_keywords]
+
+    # Append keywords to enhance semantic representation
+    enhanced = f"{text} {' '.join(keyword_terms)}"
+    return enhanced
+
+
+def generate_enhanced_embeddings(
+    index_type: str,
+    model_name: str,
+    es_host: str = "http://localhost:9200",
+    batch_size: int = 32,
+    profile_dir: Optional[str] = None,
+    dry_run: bool = False,
+    max_workers: int = 4,
+):
+    """Generate embeddings with profiling-based enhancements."""
+
+    _add_src_to_path()
+
+    # Load profiling insights
+    insights = {}
+    if profile_dir:
+        insights = load_profiling_insights(profile_dir)
+        print(f"Loaded profiling insights from {profile_dir}")
+
+    # Determine data file and index name based on type
+    config = {
+        'english': {
+            'data_file': 'data/documents_bilingual.jsonl',
+            'index_name': 'documents_en_with_embeddings_new',
+            'expected_dim': 384
+        },
+        'korean': {
+            'data_file': 'data/documents_ko.jsonl',
+            'index_name': 'documents_ko_with_embeddings_new',
+            'expected_dim': 768
+        },
+        'bilingual': {
+            'data_file': 'data/documents_bilingual.jsonl',
+            'index_name': 'documents_bilingual_with_embeddings_new',
+            'expected_dim': 768
+        }
+    }
+
+    if index_type not in config:
+        raise ValueError(f"Unknown index type: {index_type}")
+
+    data_file = config[index_type]['data_file']
+    index_name = config[index_type]['index_name']
+    expected_dim = config[index_type]['expected_dim']
+
+    print(f"Generating {expected_dim}D embeddings for {index_type} index")
+    print(f"Model: {model_name}")
+    print(f"Data file: {data_file}")
+    print(f"Target index: {index_name}")
+
+    # Import required modules
+    from ir_core.utils.core import read_jsonl
+    from ir_core.embeddings.core import encode_texts, load_model
+
+    # Set the model for encoding
+    load_model(model_name)
+
+    # Verify model produces expected dimensions
+    print("Verifying model dimensions...")
+    test_texts = ["This is a test document for dimension verification."]
+    try:
+        test_emb = encode_texts(test_texts, model_name=model_name)
+        actual_dim = test_emb.shape[1]
+        if actual_dim != expected_dim:
+            raise ValueError(f"Model {model_name} produces {actual_dim}D embeddings, expected {expected_dim}D")
+        print(f"✓ Model verified: {actual_dim}D embeddings")
+    except Exception as e:
+        print(f"✗ Model verification failed: {e}")
+        return
+
+    # Process documents with enhancements
+    total_processed = 0
+    batch = []
+
+    for doc in read_jsonl(data_file):
+        # Extract text content
+        text = doc.get('content', doc.get('text', ''))
+        if not text:
+            continue
+
+        # Apply profiling enhancements
+        src = doc.get('src', 'unknown')
+        if insights.get('keywords'):
+            text = enhance_text_with_keywords(text, src, insights['keywords'])
+
+        # Get optimal batch size for this source
+        optimal_batch = batch_size
+        if insights.get('length_stats'):
+            optimal_batch = get_optimal_batch_size(insights['length_stats'], src, batch_size)
+
+        doc['enhanced_text'] = text
+        doc['embedding_model'] = model_name
+        doc['embedding_dim'] = expected_dim
+        batch.append(doc)
+
+        # Process batch when it reaches optimal size
+        if len(batch) >= optimal_batch:
+            process_batch(batch, encode_texts, index_name, es_host, dry_run)
+            total_processed += len(batch)
+            print(f"Processed {total_processed} documents...")
+            batch = []
+
+    # Process remaining documents
+    if batch:
+        process_batch(batch, encode_texts, index_name, es_host, dry_run)
+        total_processed += len(batch)
+
+    print(f"✓ Completed processing {total_processed} documents")
+    print(f"✓ Created index: {index_name} with {expected_dim}D embeddings")
+
+
+def process_batch(batch: List[Dict], encode_fn, index_name: str, es_host: str, dry_run: bool):
+    """Process a batch of documents with embedding generation."""
+    texts = [doc['enhanced_text'] for doc in batch]
+
+    # Generate embeddings
+    embeddings = encode_fn(texts)
+
+    if dry_run:
+        print(f"DRY RUN: Would process {len(batch)} documents")
+        return
+
+    # Index documents with embeddings
+    from elasticsearch import Elasticsearch, helpers
+
+    es = Elasticsearch([es_host])
+    actions = []
+
+    for doc, emb in zip(batch, embeddings):
+        # Remove temporary fields
+        doc_copy = {k: v for k, v in doc.items() if k != 'enhanced_text'}
+
+        # Add embeddings
+        if hasattr(emb, 'tolist'):
+            doc_copy['embeddings'] = emb.tolist()
+        else:
+            doc_copy['embeddings'] = emb
+
+        actions.append({
+            '_index': index_name,
+            '_id': doc.get('docid') or doc.get('id'),
+            '_source': doc_copy
+        })
+
+    # Bulk index
+    try:
+        success, failed = helpers.bulk(es, actions, stats_only=True)
+        if failed:
+            print(f"Warning: {failed} documents failed to index")
+    except Exception as e:
+        print(f"Error during bulk indexing: {e}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate enhanced embeddings with profiling insights")
+    parser.add_argument('--index-type', required=True, choices=['english', 'korean', 'bilingual'],
+                       help='Type of index to generate embeddings for')
+    parser.add_argument('--model', required=True,
+                       help='Embedding model to use')
+    parser.add_argument('--es-host', default='http://localhost:9200',
+                       help='Elasticsearch host')
+    parser.add_argument('--batch-size', type=int, default=32,
+                       help='Base batch size for embedding generation')
+    parser.add_argument('--profile-dir', default='outputs/reports/data_profile/latest',
+                       help='Directory containing profiling data')
+    parser.add_argument('--dry-run', action='store_true',
+                       help='Dry run mode - do not actually index')
+    parser.add_argument('--max-workers', type=int, default=4,
+                       help='Maximum number of worker threads')
+
+    args = parser.parse_args()
+
+    generate_enhanced_embeddings(
+        index_type=args.index_type,
+        model_name=args.model,
+        es_host=args.es_host,
+        batch_size=args.batch_size,
+        profile_dir=args.profile_dir,
+        dry_run=args.dry_run,
+        max_workers=args.max_workers
+    )
+
+
+if __name__ == "__main__":
+    main()
 import json
 import os
 import time
@@ -48,17 +324,33 @@ def _load_embedding_fn(model: Optional[str] = None):
             mod = __import__('.'.join(parts[:-1]), fromlist=[parts[-1]])
             fn = getattr(mod, parts[-1], None)
             if callable(fn):
+                # If it's encode_texts, create a wrapper that includes model_name
+                if fn.__name__ == 'encode_texts':
+                    def wrapper(texts):
+                        return fn(texts, model_name=model)
+                    return wrapper
                 return fn
         except Exception:
             continue
 
     # No real embedding function available; return a fallback that yields zeros
-    def _fallback(batch: List[dict]):
+    def _fallback(batch):
+        # Handle both list of strings and list of dicts
+        if isinstance(batch, list) and batch:
+            if isinstance(batch[0], dict):
+                # If batch is list of dicts, get length from batch
+                batch_size = len(batch)
+            else:
+                # If batch is list of strings, get length from batch
+                batch_size = len(batch)
+        else:
+            batch_size = 1  # fallback
+
         dim = 768
         if np is not None:
-            return np.zeros((len(batch), dim), dtype=float).tolist()
+            return np.zeros((batch_size, dim), dtype=float).tolist()
         else:
-            return [[0.0] * dim for _ in batch]
+            return [[0.0] * dim for _ in range(batch_size)]
 
     return _fallback
 
@@ -71,14 +363,25 @@ def probe_embedding_dim(model: Optional[str] = None) -> int:
     """
     fn = _load_embedding_fn(model)
     try:
-        emb = fn([{"text": "probe"}])
+        emb = fn(["probe"])
         # Convert numpy arrays to lists
         if hasattr(emb, 'shape'):
-            return int(emb.shape[-1])
+            shape_attr = getattr(emb, 'shape', None)
+            if shape_attr is not None:
+                return int(shape_attr[-1])
         if emb and isinstance(emb, list) and isinstance(emb[0], (list, tuple)):
             return len(emb[0])
     except Exception:
         pass
+
+    # Fallback: use encode_texts directly with the specified model
+    try:
+        from src.ir_core.embeddings.core import encode_texts
+        result = encode_texts(["probe"], model_name=model)
+        return result.shape[-1]
+    except Exception:
+        pass
+
     return 768
 
 
@@ -136,9 +439,18 @@ def stream_and_index(
         fn_name = getattr(emb_fn, '__name__', '')
         try:
             if fn_name == 'encode_texts':
-                # call with batch_size and device control
-                # encode_texts returns a numpy array
-                raw = emb_fn(texts, batch_size=embedding_batch_size, device=device)
+                # Try to call with batch_size and device control if supported
+                try:
+                    # Use **kwargs to avoid parameter errors
+                    kwargs = {}
+                    if embedding_batch_size is not None:
+                        kwargs['batch_size'] = embedding_batch_size
+                    if device is not None:
+                        kwargs['device'] = device
+                    raw = emb_fn(texts, **kwargs)
+                except TypeError:
+                    # Fallback if parameters not supported
+                    raw = emb_fn(texts)
             else:
                 # Try common signature: list[dict] or list[str]
                 try:
@@ -150,8 +462,12 @@ def stream_and_index(
             raw = [[0.0] * probe_embedding_dim(model) for _ in docs]
 
         # Normalize to list of lists
-        if hasattr(raw, 'tolist'):
-            raw = raw.tolist()
+        tolist_method = getattr(raw, 'tolist', None)
+        if tolist_method and callable(tolist_method):
+            try:
+                raw = tolist_method()
+            except Exception:
+                pass  # Keep original format if tolist fails
         return raw
 
     def _flush(b):
@@ -160,19 +476,26 @@ def stream_and_index(
             return
         embeddings = _compute_embeddings(b)
         if dry_run:
-            emb_dim = len(embeddings[0]) if embeddings and isinstance(embeddings[0], (list, tuple)) else 0
+            emb_dim = 0
+            if isinstance(embeddings, list) and embeddings:
+                first_emb = embeddings[0]
+                if isinstance(first_emb, (list, tuple)):
+                    emb_dim = len(first_emb)
             print(f"DRY RUN: would index {len(b)} docs into {index_name} with embedding dim={emb_dim}")
             total_indexed += len(b)
             return
 
         actions = []
-        for doc, emb in zip(b, embeddings):
-            body = dict(doc)
-            body['embeddings'] = emb
-            actions.append({
-                '_index': index_name,
-                '_source': body,
-            })
+        if isinstance(embeddings, list) and hasattr(embeddings, '__iter__'):
+            for doc, emb in zip(b, embeddings):
+                body = dict(doc)
+                body['embeddings'] = emb
+                actions.append({
+                    '_index': index_name,
+                    '_source': body,
+                })
+        else:
+            print(f"Warning: embeddings is not iterable, skipping batch of {len(b)} docs")
 
         if helpers is not None and Elasticsearch is not None:
             client = Elasticsearch([es])
@@ -243,29 +566,4 @@ def stream_and_index(
 
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Recompute embeddings for documents and index them")
-    parser.add_argument("--es", default="http://localhost:9200", help="Elasticsearch URL")
-    parser.add_argument("--documents-path", required=True, help="Path to JSONL file with documents")
-    parser.add_argument("--index-name", required=True, help="Target index name")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size for processing")
-    parser.add_argument("--model", help="Embedding model name")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without actually doing it")
-    parser.add_argument("--max-workers", type=int, default=1, help="Max workers for parallel processing")
-    parser.add_argument("--embedding-batch-size", type=int, default=32, help="Batch size for embedding computation")
-    parser.add_argument("--device", help="Device for embedding computation (cpu/cuda)")
-    
-    args = parser.parse_args()
-    
-    stream_and_index(
-        es=args.es,
-        documents_path=args.documents_path,
-        index_name=args.index_name,
-        batch_size=args.batch_size,
-        model=args.model,
-        dry_run=args.dry_run,
-        max_workers=args.max_workers,
-        embedding_batch_size=args.embedding_batch_size,
-        device=args.device,
-    )
+    main()

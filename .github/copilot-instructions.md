@@ -46,6 +46,73 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 
 **Critical**: Never use bare `python` commands - always prefix with `poetry run` to ensure proper virtual environment activation and dependency resolution.
 
+### Configuration Switching for Embeddings
+
+**IMPORTANT**: This project supports multiple embedding models with different dimensions. Always use the configuration switcher to avoid wasted time and resources from incompatible configurations.
+
+#### When to Switch Configurations
+- **Korean submissions**: Use Korean model (768d) with Korean index
+- **English submissions**: Use English model (384d) with English index
+- **Bilingual submissions**: Use Korean model (768d) with bilingual index
+- **Before running evaluations**: Always verify current configuration matches your target
+
+#### Available Configurations
+```bash
+# Switch to Korean configuration (768d embeddings)
+PYTHONPATH=src poetry run python scripts/switch_config.py korean
+
+# Switch to English configuration (384d embeddings)
+PYTHONPATH=src poetry run python scripts/switch_config.py english
+
+# Switch to Bilingual configuration (768d embeddings)
+PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
+```
+
+#### Configuration Details
+| Configuration | Embedding Model | Dimensions | Index Name | Data File |
+|---------------|----------------|------------|------------|-----------|
+| Korean | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_ko_with_embeddings` | `data/documents_ko.jsonl` |
+| English | `sentence-transformers/all-MiniLM-L6-v2` | 384d | `documents_en_with_embeddings` | `data/documents_bilingual.jsonl` |
+| Bilingual | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_bilingual_with_embeddings` | `data/documents_bilingual.jsonl` |
+
+#### Critical Warnings
+- **❌ NEVER mix dimensions**: 384d English model cannot search 768d Korean index
+- **❌ NEVER use wrong index**: Always ensure index exists before running evaluations
+- **❌ NEVER skip configuration check**: Always verify current config with `switch_config.py` status
+- **⚠️ Index creation required**: Create indexes with matching embedding model before use
+
+#### Best Practices to Avoid Wasted Resources
+1. **Check current configuration** before starting work:
+   ```bash
+   PYTHONPATH=src poetry run python scripts/switch_config.py status
+   ```
+
+2. **Create required indexes** with correct embedding model:
+   ```bash
+   # Korean index (768d)
+   PYTHONPATH=src poetry run python scripts/switch_config.py korean
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings
+
+   # English index (384d)
+   PYTHONPATH=src poetry run python scripts/switch_config.py english
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings
+
+   # Bilingual index (768d)
+   PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings
+   ```
+
+3. **Verify configuration** after switching:
+   ```bash
+   PYTHONPATH=src poetry run python scripts/switch_config.py korean  # Switch
+   PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py debug=true debug_limit=2  # Test
+   ```
+
+4. **Use debug mode** for quick validation before full runs:
+   ```bash
+   PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=qwen-full model.alpha=0.4 limit=5
+   ```
+
 ### Script Discovery
 ```bash
 # List all available scripts with descriptions
