@@ -17,7 +17,7 @@ Successfully built and validated a complete English scientific RAG system capabl
 - **MAP Score**: 0.4000 (40% success rate)
 - **Retrieval Success Rate**: 40.0%
 - **Documents Indexed**: 4,492 English scientific articles
-- **Index Name**: `documents_en_with_embeddings`
+- **Index Name**: `documents_en_with_embeddings_new`
 - **Embedding Model**: sentence-transformers/all-MiniLM-L6-v2
 - **LLM**: Qwen2:7B (Ollama)
 - **Infrastructure**: Elasticsearch + Redis + Ollama (all stable)
@@ -104,7 +104,7 @@ Successfully built and validated a complete English scientific RAG system capabl
 ### Data
 - `outputs/documents_en_full_google.jsonl`: 4,272 translated documents
 - `outputs/eval_en.jsonl`: 220 evaluation documents
-- Index: `documents_en_with_embeddings` (4,492 total documents)
+- Index: `documents_en_with_embeddings_new` (4,492 total documents)
 
 ## 🔧 Quick Start Commands
 
@@ -117,14 +117,14 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py \
 
 ### Test Search
 ```bash
-curl -s -X POST "http://localhost:9200/documents_en_with_embeddings/_search" \
+curl -s -X POST "http://localhost:9200/documents_en_with_embeddings_new/_search" \
   -H "Content-Type: application/json" \
   -d '{"query": {"match": {"content": "plankton"}}, "size": 3}'
 ```
 
 ### Check Index Status
 ```bash
-curl -s "http://localhost:9200/documents_en_with_embeddings/_count"
+curl -s "http://localhost:9200/documents_en_with_embeddings_new/_count"
 ```
 
 ## 🎯 Success Metrics Achieved

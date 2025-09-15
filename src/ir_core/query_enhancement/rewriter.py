@@ -41,6 +41,8 @@ class QueryRewriter:
                 # Auto-detect based on model name
                 if model_name is None:
                     model_name = getattr(settings, 'query_enhancement', {}).get('openai_model', 'gpt-3.5-turbo')
+                # Ensure model_name is not None for type checker
+                assert model_name is not None
                 client_type = detect_client_type(model_name)
                 self.llm_client = create_llm_client(client_type, model_name=model_name)
         else:
@@ -60,17 +62,39 @@ class QueryRewriter:
         Returns:
             Enhanced query string optimized for retrieval
         """
-        prompt = f"""
-        Transform this query into an effective search query by:
-        1. Extracting core concepts and key terms
-        2. Adding relevant synonyms and related technical terms
-        3. Making it more specific and comprehensive for document retrieval
-        4. Including both general and specific aspects of the topic
+        # Detect if the query is in Korean
+        is_korean = any('\uac00' <= char <= '\ud7a3' for char in original_query)
 
-        Original query: {original_query}
+        if is_korean:
+            prompt = f"""
+            이 쿼리를 효과적인 검색 쿼리로 변환하세요:
+            1. 핵심 개념과 주요 용어를 추출
+            2. 관련 동의어와 기술 용어 추가
+            3. 문서 검색에 더 구체적이고 포괄적으로 만들기
+            4. 주제의 일반적이고 구체적인 측면 모두 포함
 
-        Provide only the rewritten query, no explanation.
-        """
+            중요한 지침:
+            - 입력이 한국어이면 출력도 한국어로 유지
+            - 의미를 100% 유지하면서 검색 최적화
+            - 불필요한 말줄임표나 이모지 제거
+            - 더 자연스러운 표현으로 변경 (의미는 동일하게)
+
+            원본 쿼리: {original_query}
+
+            재작성된 쿼리만 제공하세요.
+            """
+        else:
+            prompt = f"""
+            Transform this query into an effective search query by:
+            1. Extracting core concepts and key terms
+            2. Adding relevant synonyms and related technical terms
+            3. Making it more specific and comprehensive for document retrieval
+            4. Including both general and specific aspects of the topic
+
+            Original query: {original_query}
+
+            Provide only the rewritten query, no explanation.
+            """
 
         try:
             response = self.llm_client.chat_completion(

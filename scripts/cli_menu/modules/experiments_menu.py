@@ -30,10 +30,11 @@ class ExperimentsMenu(BaseMenuModule):
         return {
             "Experiments & Validation": [
                 {
-                    "name": "Validate Retrieval (Basic)",
-                    "command": f"{self.get_command_path('scripts/evaluation/validate_retrieval.py')} --config-dir conf",
-                    "description": "Run basic retrieval validation",
-                    "needs_params": False,
+                    "name": "Validate Retrieval (OpenAI)",
+                    "command": f"{self.get_command_path('scripts/evaluation/validate_retrieval.py')} --config-dir conf pipeline=default",
+                    "description": "Run retrieval validation using OpenAI models for query rewriting, tool calling, and answer generation",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
                 },
                 {
                     "name": "Validate Retrieval (Qwen2:7b Full)",

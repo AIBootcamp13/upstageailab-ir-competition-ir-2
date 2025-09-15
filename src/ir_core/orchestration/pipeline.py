@@ -6,6 +6,7 @@ import json
 import openai
 import requests
 from openai.types.chat import ChatCompletionMessageToolCall
+from omegaconf import DictConfig
 
 from ..generation.base import BaseGenerator
 from ..generation import get_generator
@@ -30,7 +31,7 @@ class RAGPipeline:
     ):
         """
         Initialize the RAG pipeline.
-        
+
         Args:
             generator: Pre-configured generator instance (optional)
             model_name: Model name to create generator from (optional)
@@ -42,24 +43,28 @@ class RAGPipeline:
         """
         # Create generator if model_name provided
         if generator is None and model_name is not None:
-            # Create a minimal config for generator creation
-            from omegaconf import DictConfig, OmegaConf
-            cfg = OmegaConf.create({
-                "pipeline": {
-                    "generator_type": "ollama" if ":" in model_name else "openai",
-                    "generator_model_name": model_name
-                },
-                "prompts": {
-                    "generation_qa": "prompts/scientific_qa_v1.jinja2",
-                    "persona": "prompts/persona_qa.txt"
-                }
-            })
+            # Load configuration from unified config.yaml
+            import os
+            from pathlib import Path
+            from omegaconf import OmegaConf
+
+            # Register environment resolver
+            OmegaConf.register_new_resolver("env", os.getenv)
+
+            # Load unified configuration
+            config_path = Path(__file__).parent.parent.parent.parent / "conf" / "config.yaml"
+            cfg = cast(DictConfig, OmegaConf.load(config_path))
+
+            # Override generator settings based on model_name
+            cfg.pipeline.generator_type = "ollama" if ":" in model_name else "openai"
+            cfg.pipeline.generator_model_name = model_name
+
             self.generator = get_generator(cfg)
         elif generator is not None:
             self.generator = generator
         else:
             raise ValueError("Either 'generator' or 'model_name' must be provided")
-            
+
         self.query_rewriter = query_rewriter # Keep for backward compatibility
         self.dispatcher = dispatcher
         self.tool_prompt_description = tool_prompt_description
@@ -165,8 +170,14 @@ class RAGPipeline:
         docs = retrieved_output[0].get("docs", [])
         standalone_query = retrieved_output[0].get("standalone_query", query)
 
-        if docs:
-            context_docs_content = [item.get('content', '') for item in docs]
+        # Handle case where docs might be a string (error message) instead of list
+        if isinstance(docs, str):
+            print(f"🐛 DEBUG Error in full pipeline: {docs}")
+            # Return error message as final answer
+            return f"Retrieval failed: {docs}"
+
+        if docs and isinstance(docs, list):
+            context_docs_content = [item.get('content', '') for item in docs if isinstance(item, dict)]
             # 최종 답변 생성 시에도 명확성을 위해 재작성된 쿼리를 사용합니다.
             final_answer = self.generator.generate(query=standalone_query, context_docs=context_docs_content)
         else:

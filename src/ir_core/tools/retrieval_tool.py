@@ -1,15 +1,16 @@
 # src/ir_core/tools/retrieval_tool.py
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from ..retrieval import hybrid_retrieve
+from ..config import settings
 
 class ScientificSearchArgs(BaseModel):
     query: str
     top_k: int = 5
-    use_profiling_insights: bool = True
+    use_profiling_insights: Optional[bool] = None  # None means use settings default
 
-def scientific_search(query: str, top_k: int = 5, use_profiling_insights: bool = True) -> List[Dict[str, Any]]:
+def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Optional[bool] = None) -> List[Dict[str, Any]]:
     """
     특정 쿼리와 관련된 과학 문서를 검색합니다.
     사용자가 과학적 주제, 개념 또는 사실에 대해 질문할 때 이 도구를 사용합니다.
@@ -17,8 +18,16 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: bool =
     Args:
         query: 검색 쿼리
         top_k: 반환할 상위 문서 수
-        use_profiling_insights: 프로파일링 인사이트를 사용할지 여부
+        use_profiling_insights: 프로파일링 인사이트를 사용할지 여부 (None이면 settings.yaml의 값 사용)
     """
+    # If use_profiling_insights is None, use the value from settings
+    if use_profiling_insights is None:
+        insights_config = getattr(settings, 'profiling_insights', {})
+        use_profiling_insights = insights_config.get('enabled', True)
+
+    # Ensure it's a boolean
+    use_profiling_insights = bool(use_profiling_insights)
+
     print(f"Executing scientific_search with query: '{query}' (profiling_insights: {use_profiling_insights})")
     retrieved_hits = hybrid_retrieve(
         query=query,
@@ -82,9 +91,9 @@ def get_tool_definition(prompt_description: str):
                         "default": 5,
                     },
                     "use_profiling_insights": {
-                        "type": "boolean",
-                        "description": "프로파일링 인사이트를 사용하여 검색 최적화 여부",
-                        "default": True,
+                        "type": ["boolean", "null"],
+                        "description": "프로파일링 인사이트를 사용하여 검색 최적화 여부 (null이면 settings.yaml 값 사용)",
+                        "default": None,
                     }
                 },
                 "required": ["query"],

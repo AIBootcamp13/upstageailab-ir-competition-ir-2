@@ -1,13 +1,4 @@
-# conf/model/default.yaml
-
-# =================================================================
-# 모델 및 알고리즘 하이퍼파라미터 (Model & Algorithm Hyperparameters)
-# =================================================================
-# 이 파일은 임베딩 모델, 검색 알고리즘, 생성 모델의 모든 파라미터를 정의합니다.
-
-# --- 임베딩 및 검색 파라미터 (Embedding & Retrieval Parameters) ---
-embedding_model: "sentence-transformers/all-MiniLM-L6-v2"  # English sentence transformer for our English documents"snunlp/KR-SBERT-V40K-klueNLI-augSTS" # Korean Embedding model, #"sentence-transformers/all-MiniLM-L6-v2"  # English sentence transformer for our English documents
-
-bm25_k: 200          # BM25 검색 시 초기 후보군으로 가져올 문서의 수
-rerank_k: 10         # 하이브리드 검색 후 최종적으로 반환할 문서의 수
-alpha: 0.0           # 하이브리드 검색 가중치 (0.0: 시맨틱 검색 100%, 1.0: BM25 100%)
+alpha: 0.0
+bm25_k: 200
+embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+rerank_k: 10

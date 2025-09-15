@@ -1,80 +1,113 @@
-# =============================================================================
-# DEFAULT CONFIGURATION GROUPS
-# These specify the base configurations for data, model, pipeline, prompts, and experiments.
-# Hydra will merge these from conf/ subdirectories.
-# =============================================================================
+alpha: 0.4
+analysis:
+  enable_parallel: true
+  max_workers: null
+bm25_k: 200
+create_validation_set:
+  sample_size: 50
+debug: false
+debug_limit: 3
 defaults:
-- data: science_qa_bilingual
+- data: science_qa
 - model: default
 - pipeline: default
 - prompts: default
-- optional experiment: null  # Optional experiment overrides; set to null if not used
+- optional experiment: null
 - _self_
-
-# =============================================================================
-# WEIGHTS & BIASES (WANDB) INTEGRATION
-# Configuration for experiment tracking and logging.
-# =============================================================================
-wandb:
-  entity: ${env:WANDB_ENTITY}  # Your WandB entity/username from environment
-  log_config_path: true  # Log the full config path for reproducibility
-  project: scientific-qa-rag  # Project name for tracking runs
-  run_name:
-    evaluate: eval  # Run name prefix for evaluation tasks
-    validate: val  # Run name prefix for validation tasks
-
-# =============================================================================
-# ANALYSIS SETTINGS
-# Controls parallel processing for analysis operations.
-# =============================================================================
-analysis:
-  enable_parallel: true  # Enable parallel execution for analysis tasks
-  max_workers: null  # Number of workers; null uses default (e.g., CPU count)
-
-# =============================================================================
-# VALIDATION SET CREATION
-# Parameters for generating a validation dataset.
-# =============================================================================
-create_validation_set:
-  sample_size: 50  # Number of samples to include in the validation set
-
-# =============================================================================
-# DEBUG SETTINGS
-# Global debug flags and limits for development/testing.
-# =============================================================================
-debug: false  # Enable debug mode (affects logging and limits)
-debug_limit: 3  # Limit number of items processed in debug mode
-
-# =============================================================================
-# ELASTICSEARCH SETTINGS
-# Connection details for the Elasticsearch service.
-# =============================================================================
-es_host: ${env:ES_HOST, "http://localhost:9200"}  # ES host URL; defaults to localhost
-
-# =============================================================================
-# EVALUATION SETTINGS
-# Parameters for evaluation pipelines.
-# =============================================================================
+embedding_dimension: 768
+embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+es_host: http://localhost:9200
 evaluate:
-  max_workers: null  # Workers for evaluation; null uses default
-  topk: 3  # Number of top results to evaluate (e.g., top-3 retrieval)
-
-# =============================================================================
-# INDEXING SETTINGS
-# Global index name and processing limits.
-# =============================================================================
-index_name: ${env:INDEX_NAME, "documents_en_with_embeddings"}  # ES index name; override via env
-limit: null  # Global limit on items processed; null means no limit
-
-# =============================================================================
-# REDIS SETTINGS
-# Connection URL for Redis caching.
-# =============================================================================
-redis_url: ${env:REDIS_URL, "redis://localhost:6379/0"}  # Redis URL; defaults to localhost
-
-# =============================================================================
-# REINDEXING SETTINGS
-# Parameters for reindexing operations.
-# =============================================================================
+  max_workers: null
+  topk: 5
+generator_model_name: gpt-3.5-turbo
+generator_system_message: ''
+generator_system_message_file: prompts/persona_qa.txt
+generator_type: openai
+index_alias: documents
+index_name: documents_ko_with_embeddings_new
+index_name_prefix: documents_v
+keep_old_index_days: 3
+limit: null
+pipeline:
+  default_top_k: 5
+  generator_model_name: gpt-3.5-turbo
+  generator_type: openai
+  huggingface:
+    max_tokens: 512
+    temperature: 0.1
+  query_rewriter_type: openai
+  rewriter:
+    max_tokens: 150
+    temperature: 0.0
+  rewriter_model: gpt-4o-mini
+  tool_calling_model: gpt-3.5-turbo-1106
+profile_report_dir: outputs/reports/data_profile/latest
+profiling_insights:
+  cache_ttl_seconds: 300
+  enabled: false
+  memory_batch_fallback: 16
+  query_expansion_terms: 3
+  use_domain_routing: true
+  use_dynamic_chunking: true
+  use_memory_optimization: true
+  use_query_expansion: true
+prompts:
+  conversational: prompts/conversational_v1.jinja2
+  generation_qa: prompts/scientific_qa_v1.jinja2
+  persona: prompts/persona_qa.txt
+  question_generation: prompts/question_generation_v1.jinja2
+  rephrase_query: prompts/rewrite_query2.jinja2
+  tool_description: prompts/tool_desc_recall_v1.txt
+query_enhancement:
+  default_technique: rewriting
+  enabled: true
+  max_tokens: 500
+  openai_model: gpt-3.5-turbo
+  techniques:
+    decomposition:
+      enabled: true
+      priority: 3
+    hyde:
+      enabled: true
+      priority: 4
+    rewriting:
+      enabled: true
+      priority: 1
+    step_back:
+      enabled: true
+      priority: 2
+    translation:
+      enabled: true
+      priority: 5
+  temperature: 0.3
+redis_url: redis://localhost:6379/0
 reindex:
-  batch_size: 500  # Batch size for reindexing documents
+  batch_size: 500
+reindex_batch_size: 500
+rerank_k: 10
+translation:
+  batch_size: 100
+  bilingual_search:
+    enabled: true
+    fallback_on_error: true
+  cache_enabled: true
+  cache_ttl_days: 30
+  enabled: true
+  source_lang: ko
+  target_lang: en
+  temperature: 0.3
+  use_uv: true
+use_duplicate_filtering: true
+use_near_dup_penalty: false
+use_src_boosts: true
+use_stopword_filtering: false
+use_wandb: false
+wandb:
+  entity: null
+  log_config_path: true
+  project: scientific-qa-rag
+  run_name:
+    evaluate: eval
+    validate: val
+wandb_project: ir-rag

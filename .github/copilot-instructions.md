@@ -71,9 +71,9 @@ PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
 #### Configuration Details
 | Configuration | Embedding Model | Dimensions | Index Name | Data File |
 |---------------|----------------|------------|------------|-----------|
-| Korean | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_ko_with_embeddings` | `data/documents_ko.jsonl` |
-| English | `sentence-transformers/all-MiniLM-L6-v2` | 384d | `documents_en_with_embeddings` | `data/documents_bilingual.jsonl` |
-| Bilingual | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_bilingual_with_embeddings` | `data/documents_bilingual.jsonl` |
+| Korean | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_ko_with_embeddings_new` | `data/documents_ko.jsonl` |
+| English | `sentence-transformers/all-MiniLM-L6-v2` | 384d | `documents_en_with_embeddings_new` | `data/documents_bilingual.jsonl` |
+| Bilingual | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_bilingual_with_embeddings_new` | `data/documents_bilingual.jsonl` |
 
 #### Critical Warnings
 - **❌ NEVER mix dimensions**: 384d English model cannot search 768d Korean index
@@ -91,15 +91,15 @@ PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
    ```bash
    # Korean index (768d)
    PYTHONPATH=src poetry run python scripts/switch_config.py korean
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings_new
 
    # English index (384d)
    PYTHONPATH=src poetry run python scripts/switch_config.py english
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings_new
 
    # Bilingual index (768d)
    PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings
+   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings_new
    ```
 
 3. **Verify configuration** after switching:

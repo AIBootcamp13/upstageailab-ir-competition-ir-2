@@ -11,16 +11,36 @@ import sys
 import yaml
 from pathlib import Path
 from typing import Dict, Any
+from omegaconf import OmegaConf
 
 def load_settings() -> Dict[str, Any]:
-    """Load current settings from settings.yaml"""
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    """Load current settings from config.yaml"""
+    settings_file = Path(__file__).parent.parent / "conf" / "config.yaml"
     with open(settings_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Use OmegaConf to resolve environment variables
+    OmegaConf.register_new_resolver("env", os.getenv)
+    config = OmegaConf.create(yaml.safe_load(content))
+    return OmegaConf.to_container(config, resolve=True)  # type: ignore
+
+def load_model_config() -> Dict[str, Any]:
+    """Load current model configuration from conf/model/default.yaml"""
+    model_file = Path(__file__).parent.parent / "conf" / "model" / "default.yaml"
+    with open(model_file, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+def save_model_config(config: Dict[str, Any]) -> None:
+    """Save model configuration to conf/model/default.yaml"""
+    model_file = Path(__file__).parent.parent / "conf" / "model" / "default.yaml"
+    with open(model_file, 'w', encoding='utf-8') as f:
+        yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+
 def save_settings(settings: Dict[str, Any]) -> None:
-    """Save settings to settings.yaml"""
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    """Save settings to config.yaml"""
+    settings_file = Path(__file__).parent.parent / "conf" / "config.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml.dump(settings, f, default_flow_style=False, allow_unicode=True)
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml.dump(settings, f, default_flow_style=False, allow_unicode=True)
 
@@ -29,18 +49,24 @@ def switch_to_korean():
     print("🔄 Switching to Korean configuration...")
 
     settings = load_settings()
+    model_config = load_model_config()
 
-    # Update embedding model
-    settings['EMBEDDING_MODEL'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    # Update embedding model in settings
+    settings['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    settings['embedding_dimension'] = 768
+
+    # Update embedding model in model config
+    model_config['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 
     # Update index name (use Korean-specific index)
-    settings['INDEX_NAME'] = "documents_ko_with_embeddings_new"
+    settings['index_name'] = "documents_ko_with_embeddings_new"
 
     # Update translation settings
     if 'translation' in settings:
         settings['translation']['enabled'] = False  # No need for translation with Korean model
 
     save_settings(settings)
+    save_model_config(model_config)
 
     # Update data configuration file to use Korean data
     update_data_config("ko")
@@ -57,24 +83,30 @@ def switch_to_english():
     print("🔄 Switching to English configuration...")
 
     settings = load_settings()
+    model_config = load_model_config()
 
-    # Update embedding model
-    settings['EMBEDDING_MODEL'] = "sentence-transformers/all-MiniLM-L6-v2"
+    # Update embedding model in settings
+    settings['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    settings['embedding_dimension'] = 768
+
+    # Update embedding model in model config
+    model_config['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 
     # Update index name (use English-specific index)
-    settings['INDEX_NAME'] = "documents_en_with_embeddings_new"
+    settings['index_name'] = "documents_en_with_embeddings_new"
 
     # Update translation settings
     if 'translation' in settings:
         settings['translation']['enabled'] = True  # Enable translation for Korean queries
 
     save_settings(settings)
+    save_model_config(model_config)
 
     # Update data configuration file to use English data
     update_data_config("en")
 
     print("✅ Switched to English configuration")
-    print("   - Embedding model: sentence-transformers/all-MiniLM-L6-v2 (384d)")
+    print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
     print("   - Index: documents_en_with_embeddings_new")
     print("   - Documents: data/documents_bilingual.jsonl")
     print("   - Translation: enabled")
@@ -84,18 +116,22 @@ def switch_to_bilingual():
     print("🔄 Switching to Bilingual configuration...")
 
     settings = load_settings()
+    model_config = load_model_config()
 
     # Update embedding model (use Korean model for bilingual content)
-    settings['EMBEDDING_MODEL'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    settings['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    settings['embedding_dimension'] = 768
+    model_config['embedding_model'] = "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
 
     # Update index name (use bilingual index)
-    settings['INDEX_NAME'] = "documents_bilingual_with_embeddings_new"
+    settings['index_name'] = "documents_bilingual_with_embeddings_new"
 
     # Update translation settings
     if 'translation' in settings:
         settings['translation']['enabled'] = False  # Bilingual content doesn't need translation
 
     save_settings(settings)
+    save_model_config(model_config)
 
     # Update data configuration file to use bilingual data
     update_data_config("bilingual")
@@ -172,11 +208,22 @@ def update_data_config(language):
 def show_current_config():
     """Show current configuration"""
     settings = load_settings()
+    model_config = load_model_config()
 
     print("📋 Current Configuration:")
-    print(f"   Embedding Model: {settings.get('EMBEDDING_MODEL', 'Not set')}")
-    print(f"   Index Name: {settings.get('INDEX_NAME', 'Not set')}")
+    print(f"   Embedding Model (settings): {settings.get('embedding_model', 'Not set')}")
+    print(f"   Embedding Model (model): {model_config.get('embedding_model', 'Not set')}")
+    print(f"   Embedding Dimension: {settings.get('embedding_dimension', 'Not set')}")
+    print(f"   Index Name: {settings.get('index_name', 'Not set')}")
     print(f"   Translation Enabled: {settings.get('translation', {}).get('enabled', 'Not set')}")
+
+    # Check for inconsistencies
+    settings_model = settings.get('embedding_model', '')
+    model_config_model = model_config.get('embedding_model', '')
+    if settings_model != model_config_model:
+        print("⚠️  WARNING: Embedding model mismatch between config.yaml and model/default.yaml!")
+        print(f"     config.yaml: {settings_model}")
+        print(f"     model/default.yaml: {model_config_model}")
 
 def main():
     if len(sys.argv) != 2:
