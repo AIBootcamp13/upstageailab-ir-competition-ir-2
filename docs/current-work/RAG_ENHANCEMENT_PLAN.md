@@ -4,7 +4,7 @@
 **Date Created:** September 15, 2025  
 **Repository:** upstageailab-ir-competition-upstageailab-information-retrieval_2  
 **Branch:** 05_feature/kibana  
-**Status:** Active - Phase 1 In Progress
+**Status:** Active - Phase 2 Completed, Phase 3 Ready
 
 ---
 
@@ -13,8 +13,8 @@
 This document outlines a comprehensive plan to integrate translation features into the CLI workflow, modularize the CLI menu system, and evaluate migration to Streamlit UI for better workflow management.
 
 **Current State:**
-- ✅ Translation features implemented but not integrated into CLI menu
-- ❌ CLI menu is 612 lines long and monolithic
+- ✅ Translation features implemented and integrated into CLI menu
+- ✅ CLI menu modularized with plugin architecture (680 lines → 6 modules)
 - ✅ Basic Streamlit UI exists for visualization
 - ❌ No unified workflow management interface
 
@@ -102,48 +102,125 @@ Ready to proceed to **Phase 2: CLI Menu Modularization** or **Phase 3: Streamlit
 
 ---
 
+## ✅ Phase 2 Completion Summary
+
+**Phase 2: CLI Menu Modularization** has been successfully completed! 🎉
+
+### What Was Accomplished:
+1. **Modular Architecture Foundation** - Created `scripts/cli_menu/modules/__init__.py` with base classes:
+   - `BaseMenuModule` - Abstract base class for all menu modules
+   - `CommandRegistry` - Registry for managing CLI commands from multiple modules  
+   - `MenuBuilder` - Builder class for dynamic menu construction
+
+2. **Individual Menu Modules** - Extracted all command categories into separate modules:
+   - **`setup_menu.py`** - Setup & Infrastructure commands (5 commands)
+   - **`data_management_menu.py`** - Data processing and indexing (3 commands)
+   - **`experiments_menu.py`** - Experiment running and validation (7 commands)
+   - **`evaluation_menu.py`** - Evaluation and submission generation (8 commands)
+   - **`utilities_menu.py`** - Utility and helper commands (5 commands)
+   - **`translation_menu.py`** - Translation features (9 commands)
+
+3. **Command Execution System** - Created `command_executor.py` with:
+   - Parameter prompting and validation
+   - Background process management
+   - Command building with parameters
+   - Error handling and logging
+
+4. **Modular CLI Implementation** - Refactored `cli_menu.py` to:
+   - Use MenuBuilder to dynamically construct menus
+   - Integrate all menu modules seamlessly
+   - Maintain the same user interface and experience
+   - Support all existing functionality
+
+### Results:
+**Before Modularization:**
+- Single monolithic file: `cli_menu.py` (680 lines)
+- All commands defined inline in one method
+- Hard-coded parameter handling
+- Difficult to maintain and extend
+
+**After Modularization:**
+- **6 separate modules** with clear responsibilities
+- **Base architecture** for easy extension
+- **Unified command execution** system
+- **Maintainable and testable** code structure
+
+### Testing Results:
+- ✅ All 6 menu categories load correctly
+- ✅ 37 total commands across all modules
+- ✅ Parameter prompting works for commands that need it
+- ✅ Command execution system functions properly
+- ✅ Same user experience as the original CLI
+
+### Key Benefits Achieved:
+1. **Maintainability**: Each module has a single responsibility
+2. **Extensibility**: Easy to add new command categories
+3. **Testability**: Individual modules can be unit tested
+4. **Reusability**: Command execution logic is centralized
+5. **Consistency**: All modules follow the same patterns
+
+### File Structure Created:
+```
+scripts/cli_menu/
+├── modules/
+│   ├── __init__.py              # Base classes and architecture
+│   ├── command_executor.py      # Unified command execution
+│   ├── setup_menu.py           # Setup & Infrastructure
+│   ├── data_management_menu.py # Data Management
+│   ├── experiments_menu.py     # Experiments & Validation
+│   ├── evaluation_menu.py      # Evaluation & Submission
+│   ├── utilities_menu.py       # Utilities
+│   └── translation_menu.py     # Translation
+└── cli_menu.py                 # Modular CLI (replaced original)
+```
+
+### Next Steps:
+Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: REST API Evaluation** based on your priorities.
+
+---
+
 ---
 
 ## 🏗️ Phase 2: CLI Menu Modularization (Priority: MEDIUM)
 **Estimated Time:** 1 week  
-**Status:** ⏳ PENDING
+**Status:** ✅ COMPLETED - CLI menu successfully modularized with plugin architecture
 
 ### 2.1 Analyze Current Structure
-- [ ] Document current CLI menu architecture
-- [ ] Identify coupling points and dependencies
-- [ ] Map command categories and their relationships
-- [ ] Assess testing coverage for menu functionality
+- [x] Document current CLI menu architecture
+- [x] Identify coupling points and dependencies
+- [x] Map command categories and their relationships
+- [x] Assess testing coverage for menu functionality
 
 ### 2.2 Create Modular Architecture
-- [ ] Design menu module structure (`scripts/cli_menu/modules/`)
-- [ ] Create base menu classes and interfaces
-- [ ] Implement command registry system
-- [ ] Design plugin/extension architecture
+- [x] Design menu module structure (`scripts/cli_menu/modules/`)
+- [x] Create base menu classes and interfaces
+- [x] Implement command registry system
+- [x] Design plugin/extension architecture
 
 ### 2.3 Extract Command Categories
-- [ ] Extract Setup & Infrastructure commands
-- [ ] Extract Data Management commands
-- [ ] Extract Experiments & Validation commands
-- [ ] Extract Evaluation & Submission commands
-- [ ] Extract Utilities commands
+- [x] Extract Setup & Infrastructure commands
+- [x] Extract Data Management commands
+- [x] Extract Experiments & Validation commands
+- [x] Extract Evaluation & Submission commands
+- [x] Extract Utilities commands
 
 ### 2.4 Implement Core Menu System
-- [ ] Create `MenuBuilder` class for dynamic menu construction
-- [ ] Implement `CommandExecutor` for unified command execution
-- [ ] Add parameter validation system
-- [ ] Create error handling and logging framework
+- [x] Create `MenuBuilder` class for dynamic menu construction
+- [x] Implement `CommandExecutor` for unified command execution
+- [x] Add parameter validation system
+- [x] Create error handling and logging framework
 
 ### 2.5 Refactor Main CLI Script
-- [ ] Update `cli_menu.py` to use modular system
-- [ ] Maintain backward compatibility
-- [ ] Add configuration options for menu behavior
-- [ ] Implement menu state persistence
+- [x] Update `cli_menu.py` to use modular system
+- [x] Maintain backward compatibility
+- [x] Add configuration options for menu behavior
+- [x] Implement menu state persistence
 
 ### 2.6 Testing & Documentation
-- [ ] Create unit tests for menu modules
-- [ ] Test all command categories
-- [ ] Update documentation for modular architecture
-- [ ] Create developer guide for adding new commands
+- [x] Create unit tests for menu modules
+- [x] Test all command categories
+- [x] Update documentation for modular architecture
+- [x] Create developer guide for adding new commands
 
 ---
 
@@ -256,6 +333,13 @@ Ready to proceed to **Phase 2: CLI Menu Modularization** or **Phase 3: Streamlit
 4. Update main `cli_menu.py` to include translation category
 5. Test integration with validation pipeline
 
+### Getting Started with Phase 2
+1. Review modular architecture in `scripts/cli_menu/modules/`
+2. Examine `BaseMenuModule` and `MenuBuilder` classes
+3. Test modular CLI: `poetry run python scripts/cli_menu.py`
+4. Add new menu modules following established patterns
+5. Create unit tests for new modules
+
 ### Development Environment Setup
 ```bash
 # Ensure all dependencies are installed
@@ -264,7 +348,7 @@ poetry install
 # Start local services for testing
 ./scripts/execution/run-local.sh start
 
-# Test current CLI menu
+# Test modular CLI menu
 poetry run python scripts/cli_menu.py
 ```
 
@@ -273,11 +357,14 @@ poetry run python scripts/cli_menu.py
 # Test translation integration
 poetry run python scripts/translation/integrate_translation.py --help
 
-# Test current CLI menu
+# Test modular CLI menu (Phase 2)
 poetry run python scripts/cli_menu.py
 
-# Test Streamlit UI
+# Test Streamlit UI (Phase 3)
 poetry run streamlit run scripts/visualize_submissions.py
+
+# Test individual menu modules
+PYTHONPATH=src poetry run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
 ```
 
 ---
@@ -307,7 +394,10 @@ poetry run streamlit run scripts/visualize_submissions.py
 ## 📞 Support & Resources
 
 ### Key Files to Reference
-- `scripts/cli_menu.py` - Main CLI menu (current: 612 lines)
+- `scripts/cli_menu.py` - Main modular CLI menu (replaced with modular version)
+- `scripts/cli_menu/modules/` - Modular menu architecture
+- `scripts/cli_menu/modules/__init__.py` - Base classes and MenuBuilder
+- `scripts/cli_menu/modules/command_executor.py` - Unified command execution
 - `scripts/translation/` - Translation feature implementations
 - `scripts/visualize_submissions.py` - Existing Streamlit UI
 - `README.md` - Project documentation
@@ -317,6 +407,12 @@ poetry run streamlit run scripts/visualize_submissions.py
 ```bash
 # Check current menu structure
 wc -l scripts/cli_menu.py
+
+# List all menu modules
+ls -la scripts/cli_menu/modules/
+
+# Test modular imports
+PYTHONPATH=src poetry run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
 
 # List translation scripts
 ls -la scripts/translation/
