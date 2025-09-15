@@ -125,6 +125,8 @@ def create_llm_client(client_type: str = "openai", **kwargs) -> LLMClient:
         LLMClient instance
     """
     if client_type.lower() == "openai":
+        # OpenAIClient doesn't accept model_name in constructor
+        kwargs.pop('model_name', None)
         return OpenAIClient(**kwargs)
     elif client_type.lower() == "ollama":
         return OllamaClient(**kwargs)

@@ -34,7 +34,7 @@ class ModularCLIMenu:
     """Modular CLI menu for RAG project operations."""
 
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent.parent
+        self.project_root = Path(__file__).parent.parent
         self.executor = CommandExecutor(self.project_root)
         self.commands = self._build_commands()
 

@@ -42,12 +42,12 @@ class CommandExecutor:
         console.print(f"[dim]{command}[/dim]\n")
 
         try:
-            # Change to project root directory
-            os.chdir(self.project_root)
-
             # Set PYTHONPATH and other environment variables
             env = os.environ.copy()
             env["PYTHONPATH"] = str(self.project_root / "src")
+
+            # Don't change working directory - let Poetry find pyproject.toml in the original location
+            # os.chdir(self.project_root)
 
             if run_in_background:
                 return self._run_background_command(command, description, env)

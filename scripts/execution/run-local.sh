@@ -119,6 +119,21 @@ start_redis(){
   fi
 
   if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
+    echo "Redis already running (pid $(cat $PIDFILE_REDIS))"; return 0
+  fi
+  if [ ! -d "$REDIS_DIR" ]; then download_redis; fi
+  # build if needed
+  if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
+    echo "Building Redis (requires make & gcc)"
+    (cd "$REDIS_DIR" && make -j$(nproc))
+  fi
+  ensure_dirs
+  echo "Starting Redis (logs -> $REDIS_DIR/logs)"
+  nohup "$REDIS_DIR/src/redis-server" --dir "$REDIS_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru > "$REDIS_DIR/logs/redis.stdout.log" 2> "$REDIS_DIR/logs/redis.stderr.log" &
+  echo $! > "$PIDFILE_REDIS"
+  sleep 1
+}
+
 start_kibana(){
   if [ -f "$PIDFILE_KIBANA" ] && kill -0 "$(cat "$PIDFILE_KIBANA")" >/dev/null 2>&1; then
     echo "Kibana already running (pid $(cat $PIDFILE_KIBANA))"; return 0
@@ -139,20 +154,6 @@ EOF
   export NODE_OPTIONS="--max-old-space-size=2048"
   nohup "$KIBANA_DIR/bin/kibana" > "$KIBANA_DIR/logs/kibana.log" 2>&1 &
   echo $! > "$PIDFILE_KIBANA"
-  sleep 1
-}
-    echo "Redis already running (pid $(cat $PIDFILE_REDIS))"; return 0
-  fi
-  if [ ! -d "$REDIS_DIR" ]; then download_redis; fi
-  # build if needed
-  if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
-    echo "Building Redis (requires make & gcc)"
-    (cd "$REDIS_DIR" && make -j$(nproc))
-  fi
-  ensure_dirs
-  echo "Starting Redis (logs -> $REDIS_DIR/logs)"
-  nohup "$REDIS_DIR/src/redis-server" --dir "$REDIS_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru > "$REDIS_DIR/logs/redis.stdout.log" 2> "$REDIS_DIR/logs/redis.stderr.log" &
-  echo $! > "$PIDFILE_REDIS"
   sleep 1
 }
 
@@ -229,6 +230,27 @@ status(){
           echo "  running pid $listener_pid (listening on 6379)"
         else
           echo "  running (listening on 6379)"
+        fi
+      else
+        echo "  not running (no pid or process dead)"
+      fi
+    fi
+  fi
+  echo "Kibana:"
+  if [ -f "$PIDFILE_KIBANA" ] && kill -0 "$(cat "$PIDFILE_KIBANA")" >/dev/null 2>&1; then
+    echo "  running pid $(cat $PIDFILE_KIBANA)"
+  else
+    # Try to detect Kibana by process name or listening port as a fallback
+    kibana_pid=$(pgrep -f "$KIBANA_DIR" | head -n1 || true)
+    if [ -n "$kibana_pid" ]; then
+      echo "  running pid $kibana_pid (process exists)"
+    else
+      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':5601'; then
+        listener_pid=$(ss -ltnp 2>/dev/null | grep ':5601' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
+        if [ -n "$listener_pid" ]; then
+          echo "  running pid $listener_pid (listening on 5601)"
+        else
+          echo "  running (listening on 5601)"
         fi
       else
         echo "  not running (no pid or process dead)"

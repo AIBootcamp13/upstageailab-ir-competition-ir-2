@@ -49,6 +49,8 @@
 
 **대화형 CLI 메뉴 실행**
 
+**중요:** PYTHONPATH 환경 변수 설정이 필요합니다.
+
 ```bash
 # 프로젝트 루트에서 실행
 poetry run python scripts/cli_menu.py

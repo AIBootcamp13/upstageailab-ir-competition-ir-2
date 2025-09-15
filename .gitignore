@@ -83,6 +83,7 @@ outputs/
 notebooks/
 *.ipynb
 dump.rdb
+multirun/
 # WanDB
 wandb/
 multirun/

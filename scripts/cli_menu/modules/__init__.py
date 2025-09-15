@@ -49,14 +49,18 @@ class BaseMenuModule(ABC):
         """
         return "No setup instructions available."
 
-    def get_usage_examples(self) -> List[str]:
+    def get_command_path(self, script_path: str) -> str:
         """
-        Get usage examples for commands in this module.
+        Get the full command path for a script.
+
+        Args:
+            script_path: Relative path to the script from project root
 
         Returns:
-            List of usage examples
+            Full command string with correct paths
         """
-        return []
+        script_full_path = self.project_root / script_path
+        return f"PYTHONPATH={self.project_root}/src poetry run python {script_full_path}"
 
 
 class CommandRegistry:

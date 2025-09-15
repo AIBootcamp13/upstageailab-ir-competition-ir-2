@@ -39,6 +39,13 @@ Utilities for upkeep, demos, and miscellaneous tasks.
 - `parallel_example.py`: Example script for parallel processing.
 - `demo_ollama_integration.py`: Demo for Ollama model integration.
 
+### `integration/`
+System and integration tests that require external dependencies or real models.
+- `test_huggingface_integration.py`: Tests HuggingFace model integration for retrieval and generation.
+- `test_qwen_integration.py`: Tests Qwen2 model integration with the RAG pipeline.
+- `test_report_generator.py`: Generates and validates test reports for system evaluation.
+- `test_visualizer.py`: Creates visualizations for test results and system performance.
+
 ## Usage Notes
 - Most Python scripts use Hydra for configuration (see `conf/` directory).
 - Ensure `PYTHONPATH=src` or run via Poetry for proper imports.
@@ -85,6 +92,13 @@ Utilities for upkeep, demos, and miscellaneous tasks.
 - `swap_alias.py`: Elasticsearch 별칭을 인덱스 간에 원자적으로 교환.
 - `parallel_example.py`: 병렬 처리를 위한 예제 스크립트.
 - `demo_ollama_integration.py`: Ollama 모델 통합 데모.
+
+#### `integration/`
+외부 종속성 또는 실제 모델이 필요한 시스템 및 통합 테스트.
+- `test_huggingface_integration.py`: 검색 및 생성을 위한 HuggingFace 모델 통합 테스트.
+- `test_qwen_integration.py`: RAG 파이프라인과 Qwen2 모델 통합 테스트.
+- `test_report_generator.py`: 시스템 평가를 위한 테스트 보고서 생성 및 검증.
+- `test_visualizer.py`: 테스트 결과 및 시스템 성능을 위한 시각화 생성.
 
 ### 사용법 노트
 - 대부분의 Python 스크립트는 구성에 Hydra 사용 (`conf/` 디렉토리 참조).

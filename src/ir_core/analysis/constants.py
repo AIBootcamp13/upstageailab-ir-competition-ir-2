@@ -23,7 +23,7 @@ from pathlib import Path
 DATASET_SOURCES: Dict[str, List[str]] = {
     "arc_challenge": [
         "ko_ai2_arc__ARC_Challenge__test",
-        "ko_ai2_arc__ARC_Challenge__train", 
+        "ko_ai2_arc__ARC_Challenge__train",
         "ko_ai2_arc__ARC_Challenge__validation"
     ],
     "mmlu_biology": [
@@ -68,7 +68,7 @@ SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = {
     "unique_sources": 63,
     "largest_sources": [
         ("ko_ai2_arc__ARC_Challenge__test", 943),      # 22% of corpus
-        ("ko_ai2_arc__ARC_Challenge__train", 866),     # 20% of corpus  
+        ("ko_ai2_arc__ARC_Challenge__train", 866),     # 20% of corpus
         ("ko_ai2_arc__ARC_Challenge__validation", 238), # 6% of corpus
     ],
     "arc_dominance": 0.48,  # ARC represents ~48% of total documents
@@ -79,36 +79,42 @@ SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = {
 # Profiling-enhanced retrieval configuration
 PROFILING_CONFIG: Dict[str, Any] = {
     "use_src_boosts": True,           # Enable per-source keyword boosting
-    "use_stopword_filtering": False,   # Conservative: disable by default  
+    "use_stopword_filtering": False,   # Conservative: disable by default
     "use_duplicate_filtering": True,   # Safe: enable exact duplicate removal
     "use_near_dup_penalty": False,    # Experimental: disable by default
     "profile_report_dir": "outputs/reports/data_profile/latest",
-    
+
     # TF-IDF keyword extraction settings
     "keywords_top_k": 20,
-    "min_df": 2, 
+    "min_df": 2,
     "max_features": 20000,
-    
+
     # Stopword extraction settings
     "stopwords_top_n": 200,
     "per_src_stopwords_top_n": 50,
-    
-    # Near-duplicate detection settings  
+
+    # Near-duplicate detection settings
     "near_dup_hamming_threshold": 3,
     "simhash_bits": 64,
     "lsh_bands": 4,
 }
 
-# Scientific domain keywords for classification (Korean)
+# Scientific domain keywords for classification (Korean and English)
 DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "physics": [
         "물리", "힘", "에너지", "운동", "속도", "질량", "전자", "원자", "분자", "반응", "화합물",
-        "파동", "광자", "중력", "입자", "핵", "방사능", "전기", "자기"
+        "파동", "광자", "중력", "입자", "핵", "방사능", "전기", "자기",
+        "physics", "force", "energy", "motion", "speed", "mass", "electron", "atom", "molecule",
+        "wave", "photon", "gravity", "particle", "nucleus", "radiation", "electric", "magnetic",
+        "newton", "law", "velocity", "acceleration", "momentum"
     ],
     "biology": [
         "생물", "세포", "유전자", "단백질", "RNA", "DNA", "미생물", "생태", "진화",
         "대사", "호흡", "광합성", "가금류", "알", "난백", "난황", "생식", "번식",
-        "유기체", "조직", "기관", "계통"
+        "유기체", "조직", "기관", "계통",
+        "biology", "cell", "gene", "protein", "rna", "dna", "microorganism", "ecology", "evolution",
+        "metabolism", "respiration", "photosynthesis", "organism", "tissue", "organ", "system",
+        "divide", "reproduction", "mitosis", "meiosis"
     ],
     "chemistry": [
         "화학", "원소", "화합물", "반응", "결합", "용액", "산", "염기", "pH",
@@ -262,7 +268,7 @@ ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "low_relevance_threshold": 0.3,
     "query_complexity_change_threshold": 0.1,
     "significant_complexity_change": 0.2,
-    
+
     # Dataset-specific thresholds based on profiling
     "arc_chunk_size_threshold": 256,      # ARC docs tend to be shorter
     "mmlu_chunk_size_threshold": 768,     # MMLU docs vary more in length
@@ -275,7 +281,7 @@ ANALYSIS_THRESHOLDS: Dict[str, float] = {
 CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
     "ko_ai2_arc": {
         "recommended_chunk_size": 256,
-        "overlap_ratio": 0.1, 
+        "overlap_ratio": 0.1,
         "reasoning": "ARC challenges are typically shorter, focused questions"
     },
     "ko_mmlu_biology": {
@@ -284,7 +290,7 @@ CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
         "reasoning": "Biology content varies; moderate chunks work well"
     },
     "ko_mmlu_physics": {
-        "recommended_chunk_size": 512, 
+        "recommended_chunk_size": 512,
         "overlap_ratio": 0.15,
         "reasoning": "Physics often includes formulas; moderate overlap helps"
     },
@@ -348,7 +354,7 @@ ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "temporal_degradation_threshold": 0.1,  # Performance drop over time
     "pattern_significance_threshold": 0.05,  # Statistical significance for patterns
     "domain_error_threshold": 0.15,    # Domain-specific error rate threshold
-    
+
     # Source distribution-aware thresholds
     "arc_bias_threshold": 0.6,         # Alert if >60% results from ARC (bias detection)
     "mmlu_fragmentation_threshold": 0.8, # Alert if results too scattered across MMLU sources
@@ -398,11 +404,11 @@ ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = {
         "indicators": ["ground_truth_low_rank", "wrong_order", "ranking_inconsistency"]
     },
 
-    # Retrieval Quality Failures  
+    # Retrieval Quality Failures
     "source_bias": {
         "description": "Results heavily skewed toward certain sources (e.g., ARC dominance)",
         "category": "retrieval",
-        "severity": "medium", 
+        "severity": "medium",
         "indicators": ["arc_over_representation", "mmlu_under_representation", "source_imbalance"]
     },
     "duplicate_contamination": {
@@ -413,7 +419,7 @@ ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = {
     },
     "keyword_boost_failure": {
         "description": "Source-specific keyword boosting not working as expected",
-        "category": "retrieval", 
+        "category": "retrieval",
         "severity": "medium",
         "indicators": ["boost_not_applied", "wrong_source_boosted", "boost_ineffective"]
     },
@@ -447,7 +453,7 @@ PATTERN_DETECTION_CONFIG: Dict[str, Any] = {
     "domain_error_threshold": 0.15,    # Domain-specific error rate threshold
     "query_length_bins": [10, 20, 30, 50],  # Bins for query length analysis
     "complexity_score_bins": [0.2, 0.4, 0.6, 0.8],  # Bins for complexity analysis
-    
+
     # Source distribution patterns from profiling
     "expected_arc_ratio": 0.48,        # Expected ARC representation in corpus
     "expected_mmlu_fragmentation": 0.52, # Expected MMLU distribution
@@ -466,11 +472,11 @@ QUERY_LENGTH_NORMALIZATION: Dict[str, float] = {
 # Validation set generation domains updated with actual source distribution
 VALIDATION_DOMAINS: Dict[str, str] = {
     "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등) - ko_mmlu conceptual/college/high_school physics",
-    "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등) - ko_mmlu college/high_school chemistry", 
+    "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등) - ko_mmlu college/high_school chemistry",
     "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등) - ko_mmlu anatomy/biology/genetics/aging/nutrition/virology",
     "astronomy": "천문학 (별, 행성, 은하, 우주, 태양 등) - ko_mmlu astronomy",
     "computer_science": "컴퓨터과학 (알고리즘, 보안, 프로그래밍 등) - ko_mmlu computer_science/security",
-    "medicine": "의학 (진단, 치료, 인체, 질병 등) - ko_mmlu college_medicine", 
+    "medicine": "의학 (진단, 치료, 인체, 질병 등) - ko_mmlu college_medicine",
     "general_science": "일반과학 (과학적 사고, 실험, 관찰 등) - ko_ai2_arc ARC_Challenge",
     "global_facts": "일반상식 (사실, 지식, 정보 등) - ko_mmlu global_facts"
 }
@@ -478,7 +484,7 @@ VALIDATION_DOMAINS: Dict[str, str] = {
 # Profiling artifacts reference paths (for runtime loading)
 PROFILING_ARTIFACTS: Dict[str, str] = {
     "unique_sources": "unique_src.json",
-    "source_counts": "src_counts.json", 
+    "source_counts": "src_counts.json",
     "keywords_per_src": "keywords_per_src.json",
     "stopwords_global": "stopwords_global.json",
     "per_src_stopwords": "per_src_stopwords.json",

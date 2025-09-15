@@ -13,14 +13,16 @@ from typing import Dict, List, Optional
 
 from rich.console import Console
 
+from cli_menu.modules import BaseMenuModule
+
 console = Console()
 
 
-class TranslationMenu:
+class TranslationMenu(BaseMenuModule):
     """Translation menu commands for CLI integration."""
 
     def __init__(self, project_root: Path):
-        self.project_root = project_root
+        super().__init__(project_root)
         self.translation_dir = project_root / "scripts" / "translation"
 
     def get_commands(self) -> Dict[str, List[Dict]]:
@@ -34,40 +36,40 @@ class TranslationMenu:
             "Translation": [
                 {
                     "name": "Translate Validation Data",
-                    "command": f"PYTHONPATH={self.project_root}/src bash scripts/translation/translate_validation.sh",
+                    "command": f"bash {self.get_command_path('scripts/translation/translate_validation.sh')}",
                     "description": "Translate Korean validation queries to English using cached translation system",
                     "needs_params": False,
                 },
                 {
                     "name": "Translate Validation (Advanced)",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/translation/integrate_translation.py",
+                    "command": f"{self.get_command_path('scripts/translation/integrate_translation.py')}",
                     "description": "Advanced translation with custom input/output files and caching options",
                     "needs_params": True,
                     "params": ["--input", "--output", "--cache"],
                 },
                 {
                     "name": "Validate with Translation",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/translation/validate_with_translation.py",
+                    "command": f"{self.get_command_path('scripts/translation/validate_with_translation.py')}",
                     "description": "Run validation pipeline with automatic query translation",
                     "needs_params": False,
                 },
                 {
                     "name": "Translate Documents (Ollama)",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/translation/translate_documents_ollama.py",
+                    "command": f"{self.get_command_path('scripts/translation/translate_documents_ollama.py')}",
                     "description": "Translate documents using local Ollama models (high quality, offline)",
                     "needs_params": True,
                     "params": ["--input", "--output", "--model", "--batch-size"],
                 },
                 {
                     "name": "Translate Documents (Google)",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/translation/translate_documents_google.py",
+                    "command": f"{self.get_command_path('scripts/translation/translate_documents_google.py')}",
                     "description": "Translate documents using Google Translate API (requires API access)",
                     "needs_params": True,
                     "params": ["--input", "--output", "--batch-size"],
                 },
                 {
                     "name": "Test Translation Setup",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/translation/test_translation.py",
+                    "command": f"{self.get_command_path('scripts/translation/test_translation.py')}",
                     "description": "Test translation functionality with sample data",
                     "needs_params": False,
                 },

@@ -31,13 +31,13 @@ class UtilitiesMenu(BaseMenuModule):
             "Utilities": [
                 {
                     "name": "Run Smoke Tests",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/evaluation/smoke_test.py",
+                    "command": f"{self.get_command_path('scripts/evaluation/smoke_test.py')}",
                     "description": "Run smoke tests to verify system health",
                     "needs_params": False,
                 },
                 {
                     "name": "Test HuggingFace Integration",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/test_huggingface_integration.py",
+                    "command": f"{self.get_command_path('scripts/test_huggingface_integration.py')}",
                     "description": "Test HuggingFace model integration for retrieval and generation",
                     "needs_params": False,
                 },

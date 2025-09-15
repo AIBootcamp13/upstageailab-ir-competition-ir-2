@@ -2,7 +2,14 @@
 """
 Data Management Menu Module for RAG CLI
 
-This module provides data processing and indexing commands for the CLI menu system.
+This module provides         try:
+            result = subprocess.run(
+                ["curl", "-s", "http://localhost:9200/_cluster/health"],
+                capture_output=True, timeout=5
+            )
+            results["elasticsearch_connection"] = result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+            results["elasticsearch_connection"] = Falseessing and indexing commands for the CLI menu system.
 It handles document indexing, data analysis, and duplicate detection.
 """
 
@@ -31,19 +38,19 @@ class DataManagementMenu(BaseMenuModule):
             "Data Management": [
                 {
                     "name": "Reindex Documents",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/maintenance/reindex.py data/documents.jsonl",
+                    "command": f"{self.get_command_path('scripts/maintenance/reindex.py')} data/documents.jsonl",
                     "description": "Reindex documents to Elasticsearch",
                     "needs_params": False,
                 },
                 {
                     "name": "Analyze Data",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/data/analyze_data.py",
+                    "command": f"{self.get_command_path('scripts/data/analyze_data.py')}",
                     "description": "Analyze document datasets for statistics",
                     "needs_params": False,
                 },
                 {
                     "name": "Check Duplicates",
-                    "command": f"PYTHONPATH={self.project_root}/src poetry run python scripts/data/check_duplicates.py",
+                    "command": f"{self.get_command_path('scripts/data/check_duplicates.py')}",
                     "description": "Detect duplicate entries in datasets",
                     "needs_params": False,
                 },
@@ -88,7 +95,6 @@ class DataManagementMenu(BaseMenuModule):
 
         # Check Elasticsearch connection
         try:
-            import subprocess
             result = subprocess.run(
                 ["curl", "-s", "http://localhost:9200/_cluster/health"],
                 capture_output=True, timeout=5
