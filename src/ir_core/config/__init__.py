@@ -6,11 +6,15 @@ previously located in the top-level `ir_core.config` module. Importing
 instance (reads from environment or .env file).
 """
 import os
+import logging
 from pathlib import Path
 from typing import cast, Dict, Any
 from omegaconf import OmegaConf
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_settings.sources import InitSettingsSource
+
+# Configure logging for configuration validation
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -70,6 +74,53 @@ class Settings(BaseSettings):
 	GENERATOR_SYSTEM_MESSAGE: str = ""
 
 	model_config = SettingsConfigDict(env_file=".env", extra='allow')
+
+	def __init__(self, **data):
+		super().__init__(**data)
+		# Automatically validate and log configuration on initialization
+		self._log_configuration_details()
+		warnings = self.validate_configuration()
+		if warnings:
+			for warning in warnings:
+				logger.warning(warning)
+
+	def _log_configuration_details(self) -> None:
+		"""Log detailed configuration information similar to Hydra's verbose output."""
+		logger.info("🔧 Configuration loaded successfully")
+		logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+		# Core Settings
+		logger.info("📊 CORE SETTINGS:")
+		logger.info(f"   • Embedding Model: {self.EMBEDDING_MODEL}")
+		logger.info(f"   • Index Name: {self.INDEX_NAME}")
+		logger.info(f"   • Elasticsearch Host: {self.ES_HOST}")
+		logger.info(f"   • Redis URL: {self.REDIS_URL}")
+		logger.info(f"   • Alpha (BM25/Dense balance): {self.ALPHA}")
+		logger.info(f"   • BM25 K: {self.BM25_K}")
+		logger.info(f"   • Rerank K: {self.RERANK_K}")
+
+		# Generation Settings
+		logger.info("🤖 GENERATION SETTINGS:")
+		logger.info(f"   • Generator Type: {self.GENERATOR_TYPE}")
+		logger.info(f"   • Generator Model: {self.GENERATOR_MODEL_NAME}")
+		logger.info(f"   • System Message File: {self.GENERATOR_SYSTEM_MESSAGE_FILE}")
+		logger.info(f"   • Prompt Template: {self.PROMPT_TEMPLATE_PATH}")
+
+		# Data Processing Settings
+		logger.info("📁 DATA PROCESSING:")
+		logger.info(f"   • Reindex Batch Size: {self.REINDEX_BATCH_SIZE}")
+		logger.info(f"   • Use Source Boosts: {self.USE_SRC_BOOSTS}")
+		logger.info(f"   • Use Stopword Filtering: {self.USE_STOPWORD_FILTERING}")
+		logger.info(f"   • Use Duplicate Filtering: {self.USE_DUPLICATE_FILTERING}")
+		logger.info(f"   • Use Near Duplicate Penalty: {self.USE_NEAR_DUP_PENALTY}")
+
+		# Monitoring
+		logger.info("📈 MONITORING:")
+		logger.info(f"   • Use Weights & Biases: {self.USE_WANDB}")
+		if self.USE_WANDB:
+			logger.info(f"   • W&B Project: {self.WANDB_PROJECT}")
+
+		logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	def validate_configuration(self) -> list[str]:
 		"""
@@ -138,6 +189,22 @@ class Settings(BaseSettings):
 		return warnings
 
 	@classmethod
+	def enable_verbose_logging(cls, level: str = "INFO") -> None:
+		"""Enable verbose configuration logging."""
+		logging.basicConfig(
+			level=getattr(logging, level.upper()),
+			format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+		)
+		logger.setLevel(getattr(logging, level.upper()))
+		logger.info("🔧 Verbose configuration logging enabled")
+
+	@classmethod
+	def disable_verbose_logging(cls) -> None:
+		"""Disable verbose configuration logging."""
+		logger.setLevel(logging.WARNING)
+		logger.info("🔇 Verbose configuration logging disabled")
+
+	@classmethod
 	def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
 		"""Load defaults from YAML file."""
 		project_root = Path(__file__).parent.parent.parent.parent  # Adjust path to project root
@@ -152,4 +219,14 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-__all__ = ["Settings", "settings"]
+def enable_config_logging(level: str = "INFO") -> None:
+	"""Enable verbose configuration logging for debugging."""
+	Settings.enable_verbose_logging(level)
+
+
+def disable_config_logging() -> None:
+	"""Disable verbose configuration logging."""
+	Settings.disable_verbose_logging()
+
+
+__all__ = ["Settings", "settings", "enable_config_logging", "disable_config_logging"]

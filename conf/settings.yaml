@@ -1,119 +1,118 @@
-# =================================================================
-# CORE SYSTEM SETTINGS
-# =================================================================
-
-# Retrieval Configuration
-ALPHA: 0.4  # Balance between BM25 (0.0) and dense retrieval (1.0)
-BM25_K: 200  # Number of documents to retrieve with BM25
-RERANK_K: 10  # Number of documents to rerank with dense retrieval
-
-# Embedding Configuration
-EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+ALPHA: 0.4
+BM25_K: 200
+DEFAULT_TOP_K: 5
+DOCUMENTS_PATH: data/documents_bilingual.jsonl
 EMBEDDING_DIMENSION: 768
-
-# Index Configuration
-INDEX_NAME: documents_ko_with_embeddings_new
+EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+ES_HOST: http://localhost:9200
+EVALUATION_PATH: outputs/eval_en.jsonl
+GENERATOR_MODEL_NAME: gpt-3.5-turbo
+GENERATOR_SYSTEM_MESSAGE: ''
+GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt
+GENERATOR_TYPE: openai
+HUGGINGFACE_MAX_TOKENS: 512
+HUGGINGFACE_TEMPERATURE: 0.1
 INDEX_ALIAS: documents
+INDEX_NAME: documents_en_with_embeddings_new
 INDEX_NAME_PREFIX: documents_v
 KEEP_OLD_INDEX_DAYS: 3
-
-# Elasticsearch Configuration
-ES_HOST: http://localhost:9200
-
-# Redis Configuration
+OUTPUT_PATH: outputs/submission.csv
+PROFILE_REPORT_DIR: outputs/reports/data_profile/latest
+PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2
+QUERY_REWRITER_TYPE: openai
 REDIS_URL: redis://localhost:6379/0
-
-# =================================================================
-# GENERATION SETTINGS
-# =================================================================
-
-# Generator Configuration
-GENERATOR_TYPE: openai
-GENERATOR_MODEL_NAME: gpt-3.5-turbo
-GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt
-GENERATOR_SYSTEM_MESSAGE: ''
-
-# =================================================================
-# QUERY ENHANCEMENT SETTINGS
-# =================================================================
-
-query_enhancement:
-  enabled: true
-  default_technique: rewriting
-  max_tokens: 500
-  temperature: 0.3
-  openai_model: gpt-3.5-turbo
-
-  techniques:
-    rewriting:
-      enabled: true
-      priority: 1
-    step_back:
-      enabled: true
-      priority: 2
-    decomposition:
-      enabled: true
-      priority: 3
-    hyde:
-      enabled: true
-      priority: 4
-    translation:
-      enabled: true
-      priority: 5
-
-# =================================================================
-# TRANSLATION SETTINGS
-# =================================================================
-
-translation:
-  enabled: true
-  source_lang: ko
-  target_lang: en
-  batch_size: 100
-  cache_enabled: true
-  cache_ttl_days: 30
-  temperature: 0.3
-  use_uv: true
-
-  # Bilingual search settings
-  bilingual_search:
-    enabled: true
-    fallback_on_error: true
-
-# =================================================================
-# PROFILING AND OPTIMIZATION
-# =================================================================
-
+REINDEX_BATCH_SIZE: 500
+RERANK_K: 10
+REWRITER_MAX_TOKENS: 150
+REWRITER_MODEL: gpt-4o-mini
+REWRITER_TEMPERATURE: 0.0
+TOOL_CALLING_MODEL: gpt-3.5-turbo-1106
+USE_DUPLICATE_FILTERING: true
+USE_NEAR_DUP_PENALTY: false
+USE_SRC_BOOSTS: true
+USE_STOPWORD_FILTERING: false
+USE_WANDB: false
+VALIDATION_PATH: data/validation_balanced_en.jsonl
+WANDB_PROJECT: ir-rag
+analysis:
+  enable_parallel: true
+  max_workers: null
+create_validation_set:
+  sample_size: 50
+debug: false
+debug_limit: 3
+defaults:
+- data: science_qa
+- model: default
+- pipeline: default
+- prompts: default
+- optional experiment: null
+- _self_
+evaluate:
+  max_workers: null
+  topk: 5
+limit: null
+model:
+  alpha: 0.4
+  bm25_k: 200
+  embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  rerank_k: 10
 profiling_insights:
-  enabled: false
   cache_ttl_seconds: 300
+  enabled: false
   memory_batch_fallback: 16
   query_expansion_terms: 3
   use_domain_routing: true
   use_dynamic_chunking: true
   use_memory_optimization: true
   use_query_expansion: true
-
-# =================================================================
-# DATA PROCESSING
-# =================================================================
-
-REINDEX_BATCH_SIZE: 500
-USE_DUPLICATE_FILTERING: true
-USE_NEAR_DUP_PENALTY: false
-USE_SRC_BOOSTS: true
-USE_STOPWORD_FILTERING: false
-
-# =================================================================
-# MONITORING AND LOGGING
-# =================================================================
-
-USE_WANDB: false
-WANDB_PROJECT: ir-rag
-
-# =================================================================
-# PROMPT TEMPLATES
-# =================================================================
-
-PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2
-PROFILE_REPORT_DIR: outputs/reports/data_profile/latest
+prompts:
+  conversational: prompts/conversational_v1.jinja2
+  generation_qa: prompts/scientific_qa_v1.jinja2
+  persona: prompts/persona_qa.txt
+  question_generation: prompts/question_generation_v1.jinja2
+  rephrase_query: prompts/rewrite_query2.jinja2
+  tool_description: prompts/tool_desc_recall_v1.txt
+query_enhancement:
+  default_technique: rewriting
+  enabled: true
+  max_tokens: 500
+  openai_model: gpt-3.5-turbo
+  techniques:
+    decomposition:
+      enabled: true
+      priority: 3
+    hyde:
+      enabled: true
+      priority: 4
+    rewriting:
+      enabled: true
+      priority: 1
+    step_back:
+      enabled: true
+      priority: 2
+    translation:
+      enabled: true
+      priority: 5
+  temperature: 0.3
+reindex:
+  batch_size: 500
+translation:
+  batch_size: 100
+  bilingual_search:
+    enabled: true
+    fallback_on_error: true
+  cache_enabled: true
+  cache_ttl_days: 30
+  enabled: true
+  source_lang: ko
+  target_lang: en
+  temperature: 0.3
+  use_uv: true
+wandb:
+  entity: null
+  log_config_path: true
+  project: scientific-qa-rag
+  run_name:
+    evaluate: eval
+    validate: val

@@ -43,7 +43,7 @@ class RAGPipeline:
         """
         # Create generator if model_name provided
         if generator is None and model_name is not None:
-            # Load configuration from unified config.yaml
+            # Load configuration from consolidated settings.yaml
             import os
             from pathlib import Path
             from omegaconf import OmegaConf
@@ -51,13 +51,13 @@ class RAGPipeline:
             # Register environment resolver
             OmegaConf.register_new_resolver("env", os.getenv)
 
-            # Load unified configuration
-            config_path = Path(__file__).parent.parent.parent.parent / "conf" / "config.yaml"
+            # Load consolidated configuration
+            config_path = Path(__file__).parent.parent.parent.parent / "conf" / "settings.yaml"
             cfg = cast(DictConfig, OmegaConf.load(config_path))
 
             # Override generator settings based on model_name
-            cfg.pipeline.generator_type = "ollama" if ":" in model_name else "openai"
-            cfg.pipeline.generator_model_name = model_name
+            cfg.GENERATOR_TYPE = "ollama" if ":" in model_name else "openai"
+            cfg.GENERATOR_MODEL_NAME = model_name
 
             self.generator = get_generator(cfg)
         elif generator is not None:

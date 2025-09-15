@@ -124,7 +124,6 @@ class EvaluationMenu(BaseMenuModule):
         # Check configuration files
         config_files = [
             "conf/settings.yaml",
-            "conf/config.yaml",
         ]
         results["config_files_exist"] = all(
             (self.project_root / config).exists() for config in config_files
