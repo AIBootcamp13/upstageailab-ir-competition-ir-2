@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import signal
 import concurrent.futures
 from typing import cast
 from tqdm import tqdm
@@ -24,9 +25,28 @@ def _add_src_to_path():
 
 from ir_core.utils.wandb import generate_run_name
 
+# Global flag for graceful shutdown
+shutdown_requested = False
+
+def signal_handler(signum, frame):
+    """Handle interrupt signals gracefully"""
+    global shutdown_requested
+    print("\n⚠️  Interrupt signal received. Shutting down gracefully...")
+    print("   Waiting for current tasks to complete...")
+    shutdown_requested = True
+
 @hydra.main(config_path="../../conf", config_name="settings", version_base=None)
 def run(cfg: DictConfig) -> None:
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     _add_src_to_path()
+
+    # Check if shutdown was requested before starting
+    if shutdown_requested:
+        print("Shutdown requested before starting. Exiting...")
+        return
 
     from ir_core.config import settings
 
@@ -156,56 +176,108 @@ def run(cfg: DictConfig) -> None:
     print(f"{len(eval_items)}개의 평가 쿼리를 처리합니다...")
 
     def process_item(item, pipeline, cfg):
+        global shutdown_requested
+
+        # Check if shutdown was requested
+        if shutdown_requested:
+            return None
+
         query = item.get("msg", [{}])[-1].get("content", "")
         eval_id = item.get("eval_id")
         if not query or eval_id is None:
             return None
-        retrieval_out = pipeline.run_retrieval_only(query)
-        standalone_query = query
-        docs = []
-        if retrieval_out and isinstance(retrieval_out, list) and retrieval_out[0]:
-            retrieval_result = retrieval_out[0]
-            standalone_query = retrieval_result.get("standalone_query", query)
-            docs = retrieval_result.get("docs", [])
-
-        # Ensure docs is a list of dictionaries
-        if not isinstance(docs, list) or not all(isinstance(d, dict) for d in docs):
-            print(f"Warning: Invalid docs format for eval_id {eval_id}: {type(docs)} - {docs}")
-            docs = []
-
-        topk_ids = [d.get("id") for d in docs[: cfg.evaluate.topk]]
-        context_texts = [d.get("content", "") for d in docs[: cfg.evaluate.topk]]
-        references = [
-            {"score": d.get("score", 0.0), "content": d.get("content", "")}
-            for d in docs[: cfg.evaluate.topk]
-        ]
 
         try:
+            retrieval_out = pipeline.run_retrieval_only(query)
+            standalone_query = query
+            docs = []
+            if retrieval_out and isinstance(retrieval_out, list) and retrieval_out[0]:
+                retrieval_result = retrieval_out[0]
+                standalone_query = retrieval_result.get("standalone_query", query)
+                docs = retrieval_result.get("docs", [])
+
+            # Ensure docs is a list of dictionaries
+            if not isinstance(docs, list) or not all(isinstance(d, dict) for d in docs):
+                print(f"Warning: Invalid docs format for eval_id {eval_id}: {type(docs)} - {docs}")
+                docs = []
+
+            topk_ids = [d.get("id") for d in docs[: cfg.evaluate.topk]]
+            context_texts = [d.get("content", "") for d in docs[: cfg.evaluate.topk]]
+            references = [
+                {"score": d.get("score", 0.0), "content": d.get("content", "")}
+                for d in docs[: cfg.evaluate.topk]
+            ]
+
+            # Check again before generation
+            if shutdown_requested:
+                return None
+
             answer_text = pipeline.generator.generate(
                 query=standalone_query, context_docs=context_texts
             )
+
+            record = {
+                "eval_id": eval_id,
+                "standalone_query": standalone_query,
+                "topk": topk_ids,
+                "answer": answer_text,
+                "references": references,
+            }
+            return record
+
         except Exception as e:
-            print(f"경고: eval_id {eval_id}에 대한 답변 생성 실패: {e}")
-            answer_text = ""
+            if shutdown_requested:
+                return None
+            print(f"경고: eval_id {eval_id}에 대한 검색 중 오류 발생: {e}")
+            return None
 
-        record = {
-            "eval_id": eval_id,
-            "standalone_query": standalone_query,
-            "topk": topk_ids,
-            "answer": answer_text,
-            "references": references,
-        }
-        return record
+    executor = None
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cfg.evaluate.max_workers) as executor:
+            # Use map with timeout to allow for cancellation
+            future_to_item = {
+                executor.submit(lambda item=item: process_item(item, pipeline, cfg)): item
+                for item in eval_items
+            }
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=cfg.evaluate.max_workers) as executor:
-        results = list(tqdm(executor.map(lambda item: process_item(item, pipeline, cfg), eval_items), desc="Evaluating Queries", total=len(eval_items)))
+            results = []
+            for future in tqdm(concurrent.futures.as_completed(future_to_item),
+                             desc="Evaluating Queries", total=len(eval_items)):
+                if shutdown_requested:
+                    print("\n🛑 Cancelling remaining tasks...")
+                    executor.shutdown(wait=False)
+                    break
 
+                try:
+                    result = future.result(timeout=60)  # 60 second timeout per task
+                    if result:
+                        results.append(result)
+                except concurrent.futures.TimeoutError:
+                    print(f"⚠️  Task timed out, skipping...")
+                    continue
+                except Exception as e:
+                    print(f"⚠️  Task failed: {e}")
+                    continue
+
+    except KeyboardInterrupt:
+        print("\n🛑 Keyboard interrupt received. Cancelling all tasks...")
+        if executor:
+            executor.shutdown(wait=False)
+        print("   Tasks cancelled. Cleaning up...")
+        if wandb_run:
+            wandb.finish()
+        return
+
+    # Sort results by eval_id to maintain order
+    results.sort(key=lambda x: x['eval_id'] if x else 0)
+
+    # Write results
     for record in results:
         if record:
             with open(output_path, "a", encoding="utf-8") as outf:
                 outf.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    print(f"\n평가 완료. 제출 기록이 다음 파일에 저장되었습니다: {output_path}")
+    print(f"\n평가 완료. {len(results)}개의 쿼리가 처리되었습니다. 제출 기록이 다음 파일에 저장되었습니다: {output_path}")
 
     if wandb_run:
         try:
@@ -219,6 +291,8 @@ def run(cfg: DictConfig) -> None:
 
     if wandb_run:
         wandb.finish()
+
+    print("✅ Evaluation completed successfully.")
 
 if __name__ == "__main__":
     try:

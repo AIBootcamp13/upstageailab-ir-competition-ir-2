@@ -95,18 +95,6 @@ HUGGINGFACE_TEMPERATURE: 0.1   # Temperature for HF models
 # -----------------
 DEFAULT_TOP_K: 5              # Default number of documents to return
 
-# Generator Pipeline Configuration
-# -------------------------------
-pipeline:
-  generator_type: openai       # Generator backend: 'openai', 'ollama', or 'huggingface'
-  generator_model_name: gpt-3.5-turbo  # Model name/identifier
-  tool_calling_model: gpt-3.5-turbo-1106  # Model for tool calling
-  rewriter_model: gpt-4o-mini  # Model for query rewriting
-  query_rewriter_type: openai  # Rewriter backend: 'openai' or 'ollama'
-  huggingface:
-    max_tokens: 512
-    temperature: 0.1
-
 # =================================================================
 # 4. DATA PATHS
 # =================================================================
@@ -126,14 +114,6 @@ OUTPUT_PATH: outputs/submission.csv  # Final submission file
 # 5. ADVANCED FEATURES
 # =================================================================
 # Optional features for enhanced retrieval and processing
-
-# Prompt Pipeline Configuration
-# ----------------------------
-use_prompt_pipeline: true                    # Enable prompt pipeline system
-prompt_pipeline_config:
-  scientific: "prompts/scientific_qa_v1.jinja2"    # For scientific/technical queries
-  conversational: "prompts/conversational_v1.jinja2"  # For conversational queries
-  default: "prompts/scientific_qa_v1.jinja2"        # Default fallback
 
 # Query Enhancement System
 # -----------------------
@@ -229,7 +209,7 @@ wandb:
 defaults:
   - data: science_qa_ko        # Default data configuration
   - pipeline: default       # Default pipeline configuration
-  # - prompts: default      # REMOVED: Using prompts from main config instead
+  - prompts: default        # Default prompt configuration
   - optional experiment:       # Optional experiment overrides
   - _self_                  # Include this config file
 
@@ -240,11 +220,6 @@ model:
   bm25_k: 200               # BM25 retrieval count
   embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
   rerank_k: 10              # Reranking count
-
-# =================================================================
-# PROMPT CONFIGURATION (Single Source of Truth)
-# =================================================================
-# All prompt paths defined here - this is the ONLY place for prompt configuration
 
 # Prompt Template Paths
 # --------------------
@@ -303,9 +278,9 @@ reindex:
 USE_DUPLICATE_FILTERING: true   # Filter duplicate documents
 USE_NEAR_DUP_PENALTY: false     # Penalize near-duplicates
 USE_SRC_BOOSTS: true            # Enable source-based boosting
-USE_STOPWORD_FILTERING: true   # Filter stopwords
+USE_STOPWORD_FILTERING: false   # Filter stopwords
 
 # Report Configuration
 # -------------------
 PROFILE_REPORT_DIR: outputs/reports/data_profile/latest  # Profile report location
-PROMPT_TEMPLATE_PATH: prompts/    # Directory containing all prompt templates (not a single file)
+PROMPT_TEMPLATE_PATH: prompts/scientific_qa_v1.jinja2    # Main prompt template

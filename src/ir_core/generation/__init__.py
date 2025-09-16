@@ -32,7 +32,9 @@ def get_generator(cfg: "DictConfig") -> BaseGenerator:
         return OpenAIGenerator(
             model_name=cfg.pipeline.generator_model_name,
             prompt_template_path=cfg.prompts.generation_qa,
-            persona_path=cfg.prompts.persona
+            persona_path=cfg.prompts.persona,
+            use_prompt_pipeline=getattr(cfg, 'use_prompt_pipeline', False),
+            prompt_pipeline_config=getattr(cfg, 'prompt_pipeline_config', None)
         )
     elif generator_type == "ollama":
         # Ollama 생성기 또한 일관성을 위해 설정 객체로부터 초기화되도록 수정합니다.

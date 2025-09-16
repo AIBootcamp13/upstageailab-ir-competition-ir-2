@@ -19,7 +19,11 @@ import wandb
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # OmegaConf가 ${env:VAR_NAME} 구문을 해석할 수 있도록 'env' 리졸버를 등록합니다.
-OmegaConf.register_new_resolver("env", os.getenv)
+try:
+    OmegaConf.register_new_resolver("env", os.getenv)
+except ValueError:
+    # Resolver already registered, continue
+    pass
 
 
 # Add the src directory to the Python path

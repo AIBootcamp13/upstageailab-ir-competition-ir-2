@@ -210,6 +210,12 @@ class Settings(BaseSettings):
 		project_root = Path(__file__).parent.parent.parent.parent  # Adjust path to project root
 		settings_file = project_root / "conf" / "settings.yaml"
 		if settings_file.exists():
+			# Register the env resolver before loading YAML
+			try:
+				OmegaConf.register_new_resolver("env", os.getenv)
+			except ValueError:
+				# Resolver already registered, continue
+				pass
 			yaml_data = cast(Dict[str, Any], OmegaConf.to_container(OmegaConf.load(settings_file), resolve=True))
 			yaml_source = InitSettingsSource(settings_cls, yaml_data)
 			return (yaml_source, env_settings, dotenv_settings, file_secret_settings)

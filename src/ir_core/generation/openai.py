@@ -1,7 +1,7 @@
 # src/ir_core/generation/openai.py
 
 import os
-from typing import List, Optional, Any, cast
+from typing import List, Optional, Any, cast, Dict
 import openai
 import jinja2
 from .base import BaseGenerator
@@ -18,19 +18,25 @@ class OpenAIGenerator(BaseGenerator):
         prompt_template_path: str,
         persona_path: Optional[str] = None,
         client: Optional[openai.OpenAI] = None,
+        use_prompt_pipeline: bool = False,
+        prompt_pipeline_config: Optional[Dict[str, Any]] = None,
     ):
         """
         OpenAI 생성기를 초기화합니다.
 
         Args:
             model_name (str): 사용할 OpenAI 모델의 이름.
-            prompt_template_path (str): 답변 생성에 사용할 Jinja2 프롬프트 템플릿 파일 경로.
+            prompt_template_path (str): 답변 생성에 사용할 Jinja2 프롬프트 템플릿 파일 경로 또는 디렉토리.
             persona_path (str, optional): 시스템 메시지로 사용할 페르소나 파일 경로. Defaults to None.
             client (Optional[openai.OpenAI], optional): 미리 설정된 OpenAI 클라이언트 인스턴스. Defaults to None.
+            use_prompt_pipeline (bool): 프롬프트 파이프라인 사용 여부. Defaults to False.
+            prompt_pipeline_config (Optional[Dict[str, Any]]): 프롬프트 파이프라인 설정. Defaults to None.
         """
         self.model_name = model_name
         self.client = client or openai.OpenAI()
         self.prompt_template_path = prompt_template_path
+        self.use_prompt_pipeline = use_prompt_pipeline
+        self.prompt_pipeline_config = prompt_pipeline_config or {}
 
         # Jinja2 환경을 설정하여 프로젝트 루트에서 템플릿을 로드합니다.
         self.jinja_env = jinja2.Environment(
@@ -72,17 +78,26 @@ class OpenAIGenerator(BaseGenerator):
     ) -> str:
         """
         템플릿화된 프롬프트를 사용하여 OpenAI Chat Completions API로 답변을 생성합니다.
+        프롬프트 파이프라인을 지원합니다.
         """
         # 호출 시 특정 템플릿 경로가 제공되면 그것을 사용하고, 아니면 인스턴스의 기본값을 사용합니다.
         template_to_use = prompt_template_path or self.prompt_template_path
 
+        # 프롬프트 파이프라인 사용 시
+        if self.use_prompt_pipeline:
+            return self._generate_with_pipeline(query, context_docs, template_to_use)
+        else:
+            return self._generate_single_prompt(query, context_docs, template_to_use)
+
+    def _generate_single_prompt(
+        self,
+        query: str,
+        context_docs: List[str],
+        template_path: str,
+    ) -> str:
+        """단일 프롬프트로 답변 생성"""
         try:
-            full_prompt = self._render_prompt(query, context_docs, template_to_use)
-            # ===============================================================
-            # print("==================== FINAL PROMPT TO LLM ====================")
-            # print(full_prompt)
-            # print("=============================================================")
-            # ===============================================================
+            full_prompt = self._render_prompt(query, context_docs, template_path)
         except FileNotFoundError as e:
             print(e)
             return "오류: 프롬프트 템플릿을 찾을 수 없어 답변을 생성할 수 없습니다."
@@ -103,3 +118,43 @@ class OpenAIGenerator(BaseGenerator):
         except Exception as e:
             print(f"OpenAI API 호출 중 오류 발생: {e}")
             return "오류: 모델로부터 답변을 생성하는 데 실패했습니다."
+
+    def _generate_with_pipeline(
+        self,
+        query: str,
+        context_docs: List[str],
+        template_path: str,
+    ) -> str:
+        """프롬프트 파이프라인을 사용하여 답변 생성"""
+        # 기본적으로 conversational 템플릿 사용
+        pipeline_template = "prompts/conversational_v1.jinja2"
+
+        # 컨텍스트 문서가 있는 경우 scientific_qa 템플릿 사용
+        if context_docs:
+            pipeline_template = "prompts/scientific_qa_v1.jinja2"
+
+        # 파이프라인 설정에 따라 템플릿 선택
+        if self.prompt_pipeline_config:
+            query_type = self._classify_query_type(query)
+            if query_type in self.prompt_pipeline_config:
+                pipeline_template = self.prompt_pipeline_config[query_type]
+
+        print(f"🔄 Using prompt pipeline: {pipeline_template}")
+        return self._generate_single_prompt(query, context_docs, pipeline_template)
+
+    def _classify_query_type(self, query: str) -> str:
+        """쿼리 유형을 분류하여 적절한 프롬프트 선택"""
+        query_lower = query.lower()
+
+        # 과학/기술 관련 키워드
+        scientific_keywords = ['과학', '물리', '화학', '생물', '수학', '컴퓨터', '프로그래밍', '알고리즘']
+        if any(keyword in query_lower for keyword in scientific_keywords):
+            return "scientific"
+
+        # 대화형/일반 질문
+        conversational_keywords = ['어떻게', '왜', '무엇을', '설명해', '이야기해']
+        if any(keyword in query_lower for keyword in conversational_keywords):
+            return "conversational"
+
+        # 기본값
+        return "scientific"
