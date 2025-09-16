@@ -17,6 +17,11 @@ from ...constants import (
     PATTERN_DETECTION_CONFIG,
     SCIENTIFIC_TERMS
 )
+from ...config.config_loader import ConfigLoader
+
+# Load configuration for evaluation parameters
+_config_loader = ConfigLoader()
+_evaluation_config = _config_loader.get('error_analysis.evaluation', {})
 
 
 @dataclass
@@ -53,6 +58,8 @@ class ErrorAnalyzer:
             config: Optional configuration
         """
         self.config = config or DictConfig({})
+        self.top_k_check = _evaluation_config.get('top_k_success_check', 10)
+        self.top_k_score_check = _evaluation_config.get('top_k_score_check', 3)
 
     def analyze_errors(
         self,
@@ -106,16 +113,16 @@ class ErrorAnalyzer:
                 system_failures["infrastructure_error"] += 1
                 continue
 
-            # Check if ground truth is in top 10
-            top_10_ids = []
-            for doc in pred_docs[:10]:
+            # Check if ground truth is in top K
+            top_k_ids = []
+            for doc in pred_docs[:self.top_k_check]:
                 if isinstance(doc, dict):
-                    top_10_ids.append(doc.get("id", ""))
+                    top_k_ids.append(doc.get("id", ""))
                 elif isinstance(doc, str):
-                    top_10_ids.append(doc)
+                    top_k_ids.append(doc)
                 else:
-                    top_10_ids.append(str(doc) if doc else "")
-            is_successful = gt_id in top_10_ids
+                    top_k_ids.append(str(doc) if doc else "")
+            is_successful = gt_id in top_k_ids
 
             if is_successful:
                 success_count += 1
@@ -218,7 +225,7 @@ class ErrorAnalyzer:
 
         # Check retrieval quality
         top_scores = []
-        for doc in pred_docs[:3]:
+        for doc in pred_docs[:self.top_k_score_check]:
             if isinstance(doc, dict):
                 top_scores.append(doc.get("score", 0.0))
             else:
@@ -293,16 +300,16 @@ class ErrorAnalyzer:
         successes = []
 
         for pred_docs, gt_id in zip(predicted_docs_list, ground_truth_ids):
-            top_10_ids = []
+            top_k_ids = []
             if pred_docs:
-                for doc in pred_docs[:10]:
+                for doc in pred_docs[:self.top_k_check]:
                     if isinstance(doc, dict):
-                        top_10_ids.append(doc.get("id", ""))
+                        top_k_ids.append(doc.get("id", ""))
                     elif isinstance(doc, str):
-                        top_10_ids.append(doc)
+                        top_k_ids.append(doc)
                     else:
-                        top_10_ids.append(str(doc) if doc else "")
-            successes.append(1 if gt_id in top_10_ids else 0)
+                        top_k_ids.append(str(doc) if doc else "")
+            successes.append(1 if gt_id in top_k_ids else 0)
 
         if query_lengths and successes:
             patterns["query_length_correlation"] = self._calculate_correlation(query_lengths, [float(s) for s in successes])
@@ -348,16 +355,16 @@ class ErrorAnalyzer:
             return domain_stats
 
         for pred_docs, gt_id, domains in zip(predicted_docs_list, ground_truth_ids, query_domains):
-            top_10_ids = []
+            top_k_ids = []
             if pred_docs:
-                for doc in pred_docs[:10]:
+                for doc in pred_docs[:self.top_k_check]:
                     if isinstance(doc, dict):
-                        top_10_ids.append(doc.get("id", ""))
+                        top_k_ids.append(doc.get("id", ""))
                     elif isinstance(doc, str):
-                        top_10_ids.append(doc)
+                        top_k_ids.append(doc)
                     else:
-                        top_10_ids.append(str(doc) if doc else "")
-            is_success = gt_id in top_10_ids
+                        top_k_ids.append(str(doc) if doc else "")
+            is_success = gt_id in top_k_ids
 
             for domain in domains:
                 if domain not in domain_stats:
@@ -552,16 +559,16 @@ class ErrorAnalyzer:
         domain_stats = {}
 
         for pred_docs, gt_id, domains in zip(predicted_docs_list, ground_truth_ids, query_domains):
-            top_10_ids = []
+            top_k_ids = []
             if pred_docs:
-                for doc in pred_docs[:10]:
+                for doc in pred_docs[:self.top_k_check]:
                     if isinstance(doc, dict):
-                        top_10_ids.append(doc.get("id", ""))
+                        top_k_ids.append(doc.get("id", ""))
                     elif isinstance(doc, str):
-                        top_10_ids.append(doc)
+                        top_k_ids.append(doc)
                     else:
-                        top_10_ids.append(str(doc) if doc else "")
-            is_success = gt_id in top_10_ids
+                        top_k_ids.append(str(doc) if doc else "")
+            is_success = gt_id in top_k_ids
 
             for domain in domains:
                 if domain not in domain_stats:
@@ -631,16 +638,16 @@ class ErrorAnalyzer:
         failures = []
 
         for i, (pred_docs, gt_id, query) in enumerate(zip(predicted_docs_list, ground_truth_ids, queries)):
-            top_10_ids = []
+            top_k_ids = []
             if pred_docs:
-                for doc in pred_docs[:10]:
+                for doc in pred_docs[:self.top_k_check]:
                     if isinstance(doc, dict):
-                        top_10_ids.append(doc.get("id", ""))
+                        top_k_ids.append(doc.get("id", ""))
                     elif isinstance(doc, str):
-                        top_10_ids.append(doc)
+                        top_k_ids.append(doc)
                     else:
-                        top_10_ids.append(str(doc) if doc else "")
-            if gt_id not in top_10_ids:
+                        top_k_ids.append(str(doc) if doc else "")
+            if gt_id not in top_k_ids:
                 # This is a failure
                 domain = query_domains[i][0] if query_domains and i < len(query_domains) else "unknown"
                 failures.append({

@@ -14,6 +14,11 @@ from collections import defaultdict, Counter
 
 from .utils import find_rank_of_ground_truth, calculate_top_k_precision
 from .constants import DEFAULT_K_VALUES
+from .config.config_loader import ConfigLoader
+
+# Load configuration for retrieval quality settings
+_config_loader = ConfigLoader()
+_performance_config = _config_loader.get('retrieval_quality.performance_segmentation', {})
 
 
 @dataclass
@@ -60,9 +65,9 @@ class FalsePositiveNegativeAnalysis:
 @dataclass
 class PerformanceSegmentation:
     """Performance segmentation based on AP scores."""
-    high_performance_queries: List[Dict[str, Any]]  # AP > 0.8
-    medium_performance_queries: List[Dict[str, Any]]  # 0.4 < AP ≤ 0.8
-    low_performance_queries: List[Dict[str, Any]]   # AP ≤ 0.4
+    high_performance_queries: List[Dict[str, Any]]  # High performance queries
+    medium_performance_queries: List[Dict[str, Any]]  # Medium performance queries
+    low_performance_queries: List[Dict[str, Any]]   # Low performance queries
     failed_queries: List[Dict[str, Any]]            # AP = 0.0
 
     @property
@@ -527,11 +532,15 @@ class RetrievalQualityAnalyzer:
 
             query_with_score = {**query, "ap_score": ap_score}
 
-            if ap_score > 0.8:
+            high_threshold = _performance_config.get('high_performance_threshold', 0.8)
+            medium_threshold = _performance_config.get('medium_performance_threshold', 0.4)
+            failed_threshold = _performance_config.get('failed_threshold', 0.0)
+
+            if ap_score > high_threshold:
                 high_performance.append(query_with_score)
-            elif ap_score > 0.4:
+            elif ap_score > medium_threshold:
                 medium_performance.append(query_with_score)
-            elif ap_score > 0.0:
+            elif ap_score > failed_threshold:
                 low_performance.append(query_with_score)
             else:
                 failed.append(query_with_score)

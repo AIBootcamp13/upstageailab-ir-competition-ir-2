@@ -1,0 +1,639 @@
+# src/ir_core/analysis/config/analysis_config.yaml
+
+# Analysis Module Configuration
+# Centralized configuration for all analysis components
+# This file replaces hardcoded values throughout the analysis module
+
+# Version and metadata
+version: "1.0.0"
+description: "Configuration for Scientific QA retrieval analysis module"
+last_updated: "2025-01-16"
+
+# =============================================================================
+# ANALYSIS THRESHOLDS
+# =============================================================================
+analysis:
+  thresholds:
+    map_score_low: 0.5
+    retrieval_success_rate_low: 0.7
+    rewrite_rate_high: 0.8
+    rewrite_rate_low: 0.1
+    low_relevance_threshold: 0.3
+    query_complexity_change_threshold: 0.1
+    significant_complexity_change: 0.2
+
+# =============================================================================
+# METRICS CONFIGURATION
+# =============================================================================
+metrics:
+  default_k_values: [1, 3, 5, 10]
+  ndcg_dcg_base: 2  # Base for logarithmic discount in NDCG
+  min_precision: 0.0
+  max_precision: 1.0
+
+# =============================================================================
+# PARALLEL PROCESSING CONFIGURATION
+# =============================================================================
+parallel:
+  max_workers:
+    analysis: 16
+    query_analysis: 32
+    domain_generation: 6
+  batch_size_threshold: 10
+  validation_set_threshold: 5
+  enable_parallel: true
+  query_batch_threshold: 10  # Threshold for parallel query processing
+
+# =============================================================================
+# ERROR ANALYSIS CONFIGURATION
+# =============================================================================
+error_analysis:
+  thresholds:
+    ambiguous_query_threshold: 0.3
+    out_of_domain_threshold: 0.1
+    complex_query_threshold: 0.7
+    false_positive_threshold: 0.8
+    false_negative_threshold: 0.2
+    ranking_error_threshold: 0.5
+    temporal_degradation_threshold: 0.1
+    pattern_significance_threshold: 0.05
+    domain_error_threshold: 0.15
+    arc_bias_threshold: 0.6
+    mmlu_fragmentation_threshold: 0.8
+    source_diversity_threshold: 0.3
+    duplicate_contamination_threshold: 0.1
+
+  # Additional hardcoded values found in error_analyzer.py
+  evaluation:
+    top_k_success_check: 10  # Check if ground truth is in top K results
+    top_k_score_check: 3     # Check top K scores for false positive analysis
+    ranking_error_top_k: 5   # Ground truth not in top K = ranking error
+    complex_query_domain_threshold: 2  # More than N domains = complex multi-concept
+
+  categories:
+    ambiguous_query:
+      description: "Query is too vague or has multiple interpretations"
+      category: "query_understanding"
+      severity: "medium"
+      indicators: ["multiple_meanings", "vague_terms", "unclear_intent"]
+
+    out_of_domain:
+      description: "Query falls outside the system's knowledge domain"
+      category: "query_understanding"
+      severity: "high"
+      indicators: ["unknown_domain", "no_matching_docs", "domain_mismatch"]
+
+    complex_multi_concept:
+      description: "Query contains multiple complex scientific concepts"
+      category: "query_understanding"
+      severity: "high"
+      indicators: ["multiple_domains", "technical_terms", "compound_query"]
+
+    false_positive:
+      description: "Retrieved irrelevant documents with high confidence"
+      category: "retrieval"
+      severity: "medium"
+      indicators: ["high_score_irrelevant", "wrong_domain_retrieved", "topic_mismatch"]
+
+    false_negative:
+      description: "Failed to retrieve relevant documents"
+      category: "retrieval"
+      severity: "high"
+      indicators: ["relevant_doc_missing", "low_score_relevant", "retrieval_failure"]
+
+    ranking_error:
+      description: "Correct documents retrieved but poorly ranked"
+      category: "retrieval"
+      severity: "medium"
+      indicators: ["ground_truth_low_rank", "wrong_order", "ranking_inconsistency"]
+
+    source_bias:
+      description: "Results heavily skewed toward certain sources (e.g., ARC dominance)"
+      category: "retrieval"
+      severity: "medium"
+      indicators: ["arc_over_representation", "mmlu_under_representation", "source_imbalance"]
+
+    duplicate_contamination:
+      description: "Retrieved results contain multiple copies of same content"
+      category: "retrieval"
+      severity: "low"
+      indicators: ["exact_duplicates", "near_duplicates", "content_repetition"]
+
+    keyword_boost_failure:
+      description: "Source-specific keyword boosting not working as expected"
+      category: "retrieval"
+      severity: "medium"
+      indicators: ["boost_not_applied", "wrong_source_boosted", "boost_ineffective"]
+
+    timeout_error:
+      description: "Query processing exceeded time limits"
+      category: "system"
+      severity: "high"
+      indicators: ["processing_timeout", "response_delay", "system_overload"]
+
+    parsing_error:
+      description: "Failed to parse query or document content"
+      category: "system"
+      severity: "medium"
+      indicators: ["malformed_query", "content_extraction_failure", "format_error"]
+
+    infrastructure_error:
+      description: "System infrastructure or connectivity issues"
+      category: "system"
+      severity: "critical"
+      indicators: ["connection_failure", "service_unavailable", "resource_exhaustion"]
+
+# =============================================================================
+# PATTERN DETECTION CONFIGURATION
+# =============================================================================
+pattern_detection:
+  min_pattern_occurrences: 3
+  correlation_threshold: 0.6
+  temporal_window_days: 7
+  domain_error_threshold: 0.15
+  query_length_bins: [10, 20, 30, 50]
+  complexity_score_bins: [0.2, 0.4, 0.6, 0.8]
+  expected_arc_ratio: 0.48
+  expected_mmlu_fragmentation: 0.52
+  source_balance_tolerance: 0.1
+  duplicate_detection_threshold: 2
+
+# =============================================================================
+# QUERY ANALYSIS CONFIGURATION
+# =============================================================================
+query_analysis:
+  length_normalization:
+    max_length_score: 100.0
+    max_term_density: 5.0
+    avg_word_length_factor: 10.0
+    clause_count_factor: 3.0
+
+  complexity:
+    max_length: 200
+    term_density_multiplier: 2.0
+    language_complexity_weight: 0.3
+
+  language_complexity_indicators:
+    - "그리고"
+    - "그러나"
+    - "때문에"
+    - "따라서"
+    - "만약"
+
+  formula_patterns:
+    - "\\b[A-Z][a-z]?\\d*\\b"  # Chemical formulas like H2O, CO2
+    - "\\d+\\s*[+\\-*/=]\\s*\\d+"  # Mathematical expressions
+    - "[a-zA-Z]\\s*=\\s*[^=]+"  # Equations
+
+# =============================================================================
+# DOMAIN CLASSIFICATION
+# =============================================================================
+domain_classification:
+  keywords:
+    physics:
+      - "물리"
+      - "힘"
+      - "에너지"
+      - "운동"
+      - "속도"
+      - "질량"
+      - "전자"
+      - "원자"
+      - "분자"
+      - "반응"
+      - "화합물"
+      - "파동"
+      - "광자"
+      - "중력"
+      - "입자"
+      - "핵"
+      - "방사능"
+      - "전기"
+      - "자기"
+      - "physics"
+      - "force"
+      - "energy"
+      - "motion"
+      - "speed"
+      - "mass"
+      - "electron"
+      - "atom"
+      - "molecule"
+      - "wave"
+      - "photon"
+      - "gravity"
+      - "particle"
+      - "nucleus"
+      - "radiation"
+      - "electric"
+      - "magnetic"
+      - "newton"
+      - "law"
+      - "velocity"
+      - "acceleration"
+      - "momentum"
+
+    biology:
+      - "생물"
+      - "세포"
+      - "유전자"
+      - "단백질"
+      - "RNA"
+      - "DNA"
+      - "미생물"
+      - "생태"
+      - "진화"
+      - "대사"
+      - "호흡"
+      - "광합성"
+      - "가금류"
+      - "알"
+      - "난백"
+      - "난황"
+      - "생식"
+      - "번식"
+      - "유기체"
+      - "조직"
+      - "기관"
+      - "계통"
+      - "biology"
+      - "cell"
+      - "gene"
+      - "protein"
+      - "rna"
+      - "dna"
+      - "microorganism"
+      - "ecology"
+      - "evolution"
+      - "metabolism"
+      - "respiration"
+      - "photosynthesis"
+      - "organism"
+      - "tissue"
+      - "organ"
+      - "system"
+      - "divide"
+      - "reproduction"
+      - "mitosis"
+      - "meiosis"
+
+    chemistry:
+      - "화학"
+      - "원소"
+      - "화합물"
+      - "반응"
+      - "결합"
+      - "용액"
+      - "산"
+      - "염기"
+      - "pH"
+      - "산화"
+      - "환원"
+      - "촉매"
+      - "분자"
+      - "원자"
+      - "이온"
+      - "결정"
+      - "용매"
+      - "용질"
+      - "침전"
+      - "증류"
+
+    astronomy:
+      - "천문"
+      - "별"
+      - "행성"
+      - "은하"
+      - "우주"
+      - "태양"
+      - "달"
+      - "지구"
+      - "블랙홀"
+      - "혜성"
+      - "소행성"
+      - "성운"
+      - "은하수"
+      - "대폭발"
+      - "중력파"
+
+    geology:
+      - "지질"
+      - "암석"
+      - "광물"
+      - "지층"
+      - "화산"
+      - "지진"
+      - "대륙"
+      - "판"
+      - "퇴적"
+      - "퇴적물"
+      - "지각"
+      - "맨틀"
+      - "핵"
+      - "광상"
+      - "지형"
+
+    mathematics:
+      - "수학"
+      - "방정식"
+      - "계산"
+      - "확률"
+      - "통계"
+      - "기하"
+      - "대수"
+      - "미적분"
+      - "행렬"
+      - "벡터"
+      - "함수"
+      - "그래프"
+      - "극한"
+      - "적분"
+
+    general:
+      - "과학"
+      - "연구"
+      - "실험"
+      - "관찰"
+      - "측정"
+      - "계산"
+      - "현상"
+      - "원리"
+      - "분석"
+      - "이론"
+
+# =============================================================================
+# DATASET SOURCES CONFIGURATION
+# =============================================================================
+dataset_sources:
+  arc_challenge:
+    - "ko_ai2_arc__ARC_Challenge__test"
+    - "ko_ai2_arc__ARC_Challenge__train"
+    - "ko_ai2_arc__ARC_Challenge__validation"
+  mmlu_biology:
+    - "ko_mmlu__anatomy__test"
+    - "ko_mmlu__anatomy__train"
+    - "ko_mmlu__anatomy__validation"
+    - "ko_mmlu__college_biology__test"
+    - "ko_mmlu__college_biology__train"
+    - "ko_mmlu__college_biology__validation"
+    - "ko_mmlu__high_school_biology__test"
+    - "ko_mmlu__high_school_biology__train"
+    - "ko_mmlu__high_school_biology__validation"
+    - "ko_mmlu__human_aging__test"
+    - "ko_mmlu__human_aging__train"
+    - "ko_mmlu__human_aging__validation"
+    - "ko_mmlu__human_sexuality__test"
+    - "ko_mmlu__human_sexuality__train"
+    - "ko_mmlu__human_sexuality__validation"
+    - "ko_mmlu__medical_genetics__test"
+    - "ko_mmlu__medical_genetics__train"
+    - "ko_mmlu__medical_genetics__validation"
+    - "ko_mmlu__nutrition__test"
+    - "ko_mmlu__nutrition__train"
+    - "ko_mmlu__nutrition__validation"
+    - "ko_mmlu__virology__test"
+    - "ko_mmlu__virology__train"
+    - "ko_mmlu__virology__validation"
+  mmlu_physics:
+    - "ko_mmlu__conceptual_physics__test"
+    - "ko_mmlu__conceptual_physics__train"
+    - "ko_mmlu__conceptual_physics__validation"
+    - "ko_mmlu__college_physics__test"
+    - "ko_mmlu__college_physics__train"
+    - "ko_mmlu__college_physics__validation"
+    - "ko_mmlu__high_school_physics__test"
+    - "ko_mmlu__high_school_physics__train"
+    - "ko_mmlu__high_school_physics__validation"
+    - "ko_mmlu__electrical_engineering__test"
+    - "ko_mmlu__electrical_engineering__train"
+    - "ko_mmlu__electrical_engineering__validation"
+  mmlu_chemistry:
+    - "ko_mmlu__college_chemistry__test"
+    - "ko_mmlu__college_chemistry__train"
+    - "ko_mmlu__college_chemistry__validation"
+    - "ko_mmlu__high_school_chemistry__test"
+    - "ko_mmlu__high_school_chemistry__train"
+    - "ko_mmlu__high_school_chemistry__validation"
+  mmlu_computer_science:
+    - "ko_mmlu__college_computer_science__test"
+    - "ko_mmlu__college_computer_science__train"
+    - "ko_mmlu__college_computer_science__validation"
+    - "ko_mmlu__high_school_computer_science__test"
+    - "ko_mmlu__high_school_computer_science__train"
+    - "ko_mmlu__high_school_computer_science__validation"
+    - "ko_mmlu__computer_security__test"
+    - "ko_mmlu__computer_security__train"
+    - "ko_mmlu__computer_security__validation"
+  mmlu_astronomy:
+    - "ko_mmlu__astronomy__test"
+    - "ko_mmlu__astronomy__train"
+    - "ko_mmlu__astronomy__validation"
+  mmlu_medicine:
+    - "ko_mmlu__college_medicine__test"
+    - "ko_mmlu__college_medicine__train"
+    - "ko_mmlu__college_medicine__validation"
+  mmlu_other:
+    - "ko_mmlu__global_facts__test"
+    - "ko_mmlu__global_facts__train"
+    - "ko_mmlu__global_facts__validation"
+
+# =============================================================================
+# SOURCE DISTRIBUTION INSIGHTS
+# =============================================================================
+source_distribution:
+  total_docs: 4272
+  unique_sources: 63
+  largest_sources:
+    - ["ko_ai2_arc__ARC_Challenge__test", 943]
+    - ["ko_ai2_arc__ARC_Challenge__train", 866]
+    - ["ko_ai2_arc__ARC_Challenge__validation", 238]
+  arc_dominance: 0.48
+  mmlu_fragmentation: 0.52
+  train_test_imbalance: true
+
+# =============================================================================
+# PROFILING CONFIGURATION
+# =============================================================================
+profiling:
+  use_src_boosts: true
+  use_stopword_filtering: false
+  use_duplicate_filtering: true
+  use_near_dup_penalty: false
+  profile_report_dir: "outputs/reports/data_profile/latest"
+  keywords_top_k: 20
+  min_df: 2
+  max_features: 20000
+  stopwords_top_n: 200
+  per_src_stopwords_top_n: 50
+  near_dup_hamming_threshold: 3
+  simhash_bits: 64
+  lsh_bands: 4
+
+# =============================================================================
+# SCIENTIFIC TERMS CONFIGURATION
+# =============================================================================
+scientific_terms:
+  mode: "merge"  # Options: base_only, dynamic_only, merge
+  base_terms:
+    - "원자"
+    - "분자"
+    - "세포"
+    - "유전자"
+    - "단백질"
+    - "RNA"
+    - "DNA"
+    - "화합물"
+    - "반응"
+    - "에너지"
+    - "힘"
+    - "운동"
+    - "속도"
+    - "가속도"
+    - "질량"
+    - "밀도"
+    - "전자"
+    - "양성자"
+    - "중성자"
+    - "원소"
+    - "결합"
+    - "공유결합"
+    - "이온결합"
+    - "용액"
+    - "용매"
+    - "용질"
+    - "농도"
+    - "몰농도"
+    - "산"
+    - "염기"
+    - "pH"
+    - "산화"
+    - "환원"
+    - "촉매"
+    - "엔탈피"
+    - "엔트로피"
+    - "압력"
+    - "온도"
+    - "열"
+    - "열용량"
+    - "상전이"
+    - "기체"
+    - "액체"
+    - "고체"
+    - "평형"
+    - "속도론"
+    - "파동"
+    - "주파수"
+    - "진폭"
+    - "광자"
+    - "광속"
+    - "굴절"
+    - "반사"
+    - "간섭"
+    - "회절"
+    - "중력"
+    - "일"
+    - "전력"
+    - "전압"
+    - "전류"
+    - "저항"
+    - "자기장"
+    - "전기장"
+    - "쿨롱법칙"
+    - "로렌츠힘"
+    - "운동량"
+    - "충격량"
+    - "각운동량"
+    - "토크"
+    - "포텐셜"
+    - "보존법칙"
+    - "블랙홀"
+    - "행성"
+    - "별"
+    - "성단"
+    - "성운"
+    - "은하"
+    - "은하수"
+    - "우주"
+    - "우주배경복사"
+    - "적색편이"
+    - "허블법칙"
+    - "암석"
+    - "광물"
+    - "지층"
+    - "퇴적암"
+    - "화성암"
+    - "변성암"
+    - "화산"
+    - "마그마"
+    - "용암"
+    - "지진"
+    - "판구조론"
+    - "단층"
+    - "습곡"
+    - "방정식"
+    - "부등식"
+    - "함수"
+    - "도함수"
+    - "적분"
+    - "극한"
+    - "행렬"
+    - "벡터"
+    - "통계"
+    - "평균"
+    - "분산"
+    - "표준편차"
+    - "확률"
+    - "표본"
+    - "모수"
+    - "가설검정"
+    - "회귀"
+    - "미토콘드리아"
+    - "핵"
+    - "리보솜"
+    - "세포막"
+    - "세포벽"
+    - "염색체"
+    - "유전형"
+    - "표현형"
+    - "돌연변이"
+    - "분열"
+    - "감수분열"
+    - "번식"
+    - "생식"
+    - "효소"
+    - "대사"
+    - "경로"
+    - "호흡"
+    - "광합성"
+    - "삼투"
+    - "확산"
+    - "항원"
+    - "항체"
+    - "백신"
+    - "병원체"
+    - "영양소"
+    - "탄수화물"
+    - "지질"
+    - "아미노산"
+    - "핵산"
+    - "호르몬"
+    - "신경전달물질"
+    - "뉴런"
+    - "시냅스"
+
+# =============================================================================
+# QUERY TYPE PATTERNS
+# =============================================================================
+query_type_patterns:
+  what:
+    - "\\b(무엇|뭐|어떤|어떻게|왜|언제|어디|누구|얼마나)\\b"
+  how:
+    - "\\b(어떻게|방법|과정|절차|원리)\\b"
+  why:
+    - "\\b(왜|이유|원인|목적)\\b"
+  when:
+    - "\\b(언제|시기|기간|시간)\\b"
+  where:
+    - "\\b(어디|장소|위치|지역)\\b"
+  calculate:
+    - "\\b(계산|구하|값|수치)\\b"

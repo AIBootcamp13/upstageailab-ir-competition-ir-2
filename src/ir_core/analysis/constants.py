@@ -10,6 +10,8 @@ Updated with insights from data profiling:
 - Actual source distribution (ko_ai2_arc, ko_mmlu domains)
 - Dataset-specific thresholds based on profiling outputs
 - Profiling-enhanced retrieval configuration constants
+
+Now loads configuration from YAML file for better maintainability.
 """
 
 from typing import Dict, List, Set, Any
@@ -18,9 +20,23 @@ import os
 import json
 from pathlib import Path
 
+# Import configuration loader
+from .config import get_config_loader
+
+# Get configuration instance
+_config_loader = get_config_loader()
+
+# Load configuration
+try:
+    _config = _config_loader.load_config()
+except Exception as e:
+    print(f"Warning: Could not load configuration file: {e}")
+    print("Falling back to default values")
+    _config = None
+
 
 # Dataset source mapping based on profiling (63 unique sources total)
-DATASET_SOURCES: Dict[str, List[str]] = {
+DATASET_SOURCES: Dict[str, List[str]] = _config_loader.get('dataset_sources', {}) if _config else {
     "arc_challenge": [
         "ko_ai2_arc__ARC_Challenge__test",
         "ko_ai2_arc__ARC_Challenge__train",
@@ -63,7 +79,7 @@ DATASET_SOURCES: Dict[str, List[str]] = {
 }
 
 # Source distribution insights from profiling (4272 total documents)
-SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = {
+SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = _config_loader.get('source_distribution', {}) if _config else {
     "total_docs": 4272,
     "unique_sources": 63,
     "largest_sources": [
@@ -77,7 +93,7 @@ SOURCE_DISTRIBUTION_INSIGHTS: Dict[str, Any] = {
 }
 
 # Profiling-enhanced retrieval configuration
-PROFILING_CONFIG: Dict[str, Any] = {
+PROFILING_CONFIG: Dict[str, Any] = _config_loader.get('profiling', {}) if _config else {
     "use_src_boosts": True,           # Enable per-source keyword boosting
     "use_stopword_filtering": False,   # Conservative: disable by default
     "use_duplicate_filtering": True,   # Safe: enable exact duplicate removal
@@ -100,7 +116,7 @@ PROFILING_CONFIG: Dict[str, Any] = {
 }
 
 # Scientific domain keywords for classification (Korean and English)
-DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+DOMAIN_KEYWORDS: Dict[str, List[str]] = _config_loader.get('domain_classification.keywords', {}) if _config else {
     "physics": [
         "물리", "힘", "에너지", "운동", "속도", "질량", "전자", "원자", "분자", "반응", "화합물",
         "파동", "광자", "중력", "입자", "핵", "방사능", "전기", "자기",
@@ -174,7 +190,7 @@ def _load_scientific_terms_from_artifact() -> List[str]:
 
 # Scientific terms for complexity scoring and feature extraction
 # Base fallback list (expanded) covering major scientific domains in Korean
-SCIENTIFIC_TERMS_BASE: List[str] = [
+SCIENTIFIC_TERMS_BASE: List[str] = _config_loader.get('scientific_terms.base_terms', []) if _config else [
     # Core chemistry/physics/biology
     '원자', '분자', '세포', '유전자', '단백질', 'RNA', 'DNA', '화합물', '반응', '에너지', '힘',
     '운동', '속도', '가속도', '질량', '밀도', '전자', '양성자', '중성자', '원소', '결합', '공유결합', '이온결합',
@@ -195,15 +211,15 @@ SCIENTIFIC_TERMS_BASE: List[str] = [
     '영양소', '탄수화물', '지질', '아미노산', '핵산', '호르몬', '신경전달물질', '뉴런', '시냅스',
 ]
 
-def _load_persistent_terms_from_conf() -> List[str]:
-    """Load persistent curated terms from conf/scientific_terms.json if present.
+def _load_persistent_terms_from_data() -> List[str]:
+    """Load persistent curated terms from data/scientific_terms.json if present.
 
     Returns a list if the file exists and contains a non-empty list; otherwise returns [].
     """
-    conf_path = Path("conf") / "scientific_terms.json"
+    data_path = Path("data") / "scientific_terms.json"
     try:
-        if conf_path.exists():
-            with conf_path.open("r", encoding="utf-8") as f:
+        if data_path.exists():
+            with data_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, list) and any(str(x).strip() for x in data):
                 # Normalize and dedupe while preserving order
@@ -223,44 +239,58 @@ def _load_persistent_terms_from_conf() -> List[str]:
 # 1) If SCIENTIFIC_TERMS_MODE is set:
 #    - 'base_only' -> use base
 #    - 'dynamic_only' -> use dynamic artifact only
-#    - 'merge' -> ALWAYS merge base + dynamic artifact (hybrid approach)
-# 2) If no mode set -> merge base + dynamic artifact (if any), otherwise use base
-_mode = os.environ.get("SCIENTIFIC_TERMS_MODE", "merge").lower()
+#    - 'merge' -> ALWAYS merge base + dynamic artifact + data file (hybrid approach)
+# 2) If no mode set -> merge base + dynamic artifact + data file (if any), otherwise use base
+_mode = os.environ.get("SCIENTIFIC_TERMS_MODE", _config_loader.get('scientific_terms.mode', "merge") if _config else "merge").lower()
 if _mode == "base_only":
     SCIENTIFIC_TERMS: List[str] = SCIENTIFIC_TERMS_BASE
 elif _mode == "dynamic_only":
     SCIENTIFIC_TERMS = _load_scientific_terms_from_artifact()
 else:  # merge mode (default) - ALWAYS merge for hybrid approach
     _dynamic_terms = _load_scientific_terms_from_artifact()
-    if _dynamic_terms:
-        # Hybrid approach: merge base terms with dynamic terms
+    _data_terms = _load_persistent_terms_from_data()
+    _all_additional_terms = _dynamic_terms + _data_terms
+
+    if _all_additional_terms:
+        # Hybrid approach: merge base terms with dynamic and data terms
         merged: List[str] = []
         seen: Set[str] = set()
-        for t in (SCIENTIFIC_TERMS_BASE + _dynamic_terms):
+        for t in (SCIENTIFIC_TERMS_BASE + _all_additional_terms):
             if t and t not in seen:
                 seen.add(t)
                 merged.append(t)
         SCIENTIFIC_TERMS = merged
-        print(f"🔄 Hybrid mode: Merged {len(SCIENTIFIC_TERMS_BASE)} base + {len(_dynamic_terms)} dynamic = {len(merged)} total terms")
+        print(f"🔄 Hybrid mode: Merged {len(SCIENTIFIC_TERMS_BASE)} base + {len(_dynamic_terms)} dynamic + {len(_data_terms)} data = {len(merged)} total terms")
     else:
         SCIENTIFIC_TERMS = SCIENTIFIC_TERMS_BASE
-        print(f"ℹ️ Hybrid mode: No dynamic terms found, using {len(SCIENTIFIC_TERMS_BASE)} base terms only")
+        print(f"ℹ️ Hybrid mode: No additional terms found, using {len(SCIENTIFIC_TERMS_BASE)} base terms only")
 
 # Query type classification patterns
-QUERY_TYPE_PATTERNS: Dict[str, re.Pattern] = {
-    "what": re.compile(r'\b(무엇|뭐|어떤|어떻게|왜|언제|어디|누구|얼마나)\b', re.IGNORECASE),
-    "how": re.compile(r'\b(어떻게|방법|과정|절차|원리)\b', re.IGNORECASE),
-    "why": re.compile(r'\b(왜|이유|원인|목적)\b', re.IGNORECASE),
-    "when": re.compile(r'\b(언제|시기|기간|시간)\b', re.IGNORECASE),
-    "where": re.compile(r'\b(어디|장소|위치|지역)\b', re.IGNORECASE),
-    "calculate": re.compile(r'\b(계산|구하|값|수치)\b', re.IGNORECASE)
-}
+QUERY_TYPE_PATTERNS: Dict[str, re.Pattern] = {}
+if _config:
+    query_patterns_config = _config_loader.get('query_type_patterns', {})
+    for pattern_name, patterns in query_patterns_config.items():
+        if isinstance(patterns, list) and patterns:
+            # Join multiple patterns with OR
+            combined_pattern = '|'.join(patterns)
+            QUERY_TYPE_PATTERNS[pattern_name] = re.compile(combined_pattern, re.IGNORECASE)
+        elif isinstance(patterns, str):
+            QUERY_TYPE_PATTERNS[pattern_name] = re.compile(patterns, re.IGNORECASE)
+else:
+    QUERY_TYPE_PATTERNS = {
+        "what": re.compile(r'\b(무엇|뭐|어떤|어떻게|왜|언제|어디|누구|얼마나)\b', re.IGNORECASE),
+        "how": re.compile(r'\b(어떻게|방법|과정|절차|원리)\b', re.IGNORECASE),
+        "why": re.compile(r'\b(왜|이유|원인|목적)\b', re.IGNORECASE),
+        "when": re.compile(r'\b(언제|시기|기간|시간)\b', re.IGNORECASE),
+        "where": re.compile(r'\b(어디|장소|위치|지역)\b', re.IGNORECASE),
+        "calculate": re.compile(r'\b(계산|구하|값|수치)\b', re.IGNORECASE)
+    }
 
 # Default K values for precision/recall calculations
-DEFAULT_K_VALUES: List[int] = [1, 3, 5, 10]
+DEFAULT_K_VALUES: List[int] = _config_loader.get('metrics.default_k_values', [1, 3, 5, 10]) if _config else [1, 3, 5, 10]
 
 # Analysis thresholds updated with profiling insights
-ANALYSIS_THRESHOLDS: Dict[str, float] = {
+ANALYSIS_THRESHOLDS: Dict[str, float] = _config_loader.get('analysis.thresholds', {}) if _config else {
     "map_score_low": 0.5,
     "retrieval_success_rate_low": 0.7,
     "rewrite_rate_high": 0.8,
@@ -268,17 +298,10 @@ ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "low_relevance_threshold": 0.3,
     "query_complexity_change_threshold": 0.1,
     "significant_complexity_change": 0.2,
-
-    # Dataset-specific thresholds based on profiling
-    "arc_chunk_size_threshold": 256,      # ARC docs tend to be shorter
-    "mmlu_chunk_size_threshold": 768,     # MMLU docs vary more in length
-    "duplicate_score_penalty": 0.1,      # Penalty for exact duplicates
-    "near_dup_score_penalty": 0.05,      # Lighter penalty for near-duplicates
-    "src_boost_weight": 0.1,             # Conservative boosting weight
 }
 
 # Source-aware chunking recommendations based on profiling
-CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
+CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = _config_loader.get('chunking.recommendations', {}) if _config else {
     "ko_ai2_arc": {
         "recommended_chunk_size": 256,
         "overlap_ratio": 0.1,
@@ -312,39 +335,113 @@ CHUNKING_RECOMMENDATIONS: Dict[str, Dict[str, Any]] = {
 }
 
 # Parallel processing defaults
-PARALLEL_PROCESSING_DEFAULTS: Dict[str, int] = {
+PARALLEL_PROCESSING_DEFAULTS: Dict[str, Any] = _config_loader.get('parallel', {}) if _config else {
     "max_workers_analysis": 16,
     "max_workers_query_analysis": 32,
     "max_workers_domain_generation": 6,
     "batch_size_threshold": 10,
-    "validation_set_threshold": 5
+    "validation_set_threshold": 5,
+    "query_batch_threshold": 10,
+    "enable_parallel": True
 }
 
 # Language complexity assessment
-LANGUAGE_COMPLEXITY_INDICATORS: List[str] = [
+LANGUAGE_COMPLEXITY_INDICATORS: List[str] = _config_loader.get('query_analysis.language_complexity_indicators', []) if _config else [
     '그리고', '그러나', '때문에', '따라서', '만약'
 ]
 
 # Formula detection patterns
-FORMULA_PATTERNS: List[str] = [
+FORMULA_PATTERNS: List[str] = _config_loader.get('query_analysis.formula_patterns', []) if _config else [
     r'\b[A-Z][a-z]?\d*\b',  # Chemical formulas like H2O, CO2
     r'\d+\s*[+\-*/=]\s*\d+',  # Mathematical expressions
     r'[a-zA-Z]\s*=\s*[^=]+',  # Equations
 ]
 
-# Error analysis domain checks (simplified keywords for error categorization)
-ERROR_ANALYSIS_DOMAIN_CHECKS: Dict[str, List[str]] = {
-    "physics": ["물리", "힘", "에너지", "운동", "속도", "질량", "전자", "원자", "분자", "반응", "화합물", "파동", "광자", "중력", "입자", "핵", "방사능", "전기", "자기"],
-    "biology": ["생물", "세포", "유전자", "단백질", "RNA", "DNA", "미생물", "생태", "진화", "대사", "호흡", "광합성", "가금류", "알", "난백", "난황", "생식", "번식", "유기체", "조직", "기관", "계통"],
-    "chemistry": ["화학", "원소", "화합물", "반응", "결합", "용액", "산", "염기", "pH", "산화", "환원", "촉매", "분자", "원자", "이온", "결정", "용매", "용질", "침전", "증류"],
-    "astronomy": ["천문", "별", "행성", "은하", "우주", "태양", "달", "지구", "블랙홀", "혜성", "소행성", "성운", "은하수", "대폭발", "중력파"],
-    "geology": ["지질", "암석", "광물", "지층", "화산", "지진", "대륙", "판", "퇴적", "퇴적물", "지각", "맨틀", "핵", "광상", "지형"],
-    "mathematics": ["수학", "방정식", "계산", "확률", "통계", "기하", "대수", "미적분", "행렬", "벡터", "함수", "그래프", "극한", "적분"],
-    "general": ["과학", "연구", "실험", "관찰", "측정", "계산", "현상", "원리", "분석", "이론"]
+# Error category definitions for comprehensive analysis
+ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = _config_loader.get('error_analysis.categories', {}) if _config else {
+    # Query Understanding Failures
+    "ambiguous_query": {
+        "description": "Query is too vague or has multiple interpretations",
+        "category": "query_understanding",
+        "severity": "medium",
+        "indicators": ["multiple_meanings", "vague_terms", "unclear_intent"]
+    },
+    "out_of_domain": {
+        "description": "Query falls outside the system's knowledge domain",
+        "category": "query_understanding",
+        "severity": "high",
+        "indicators": ["unknown_domain", "no_matching_docs", "domain_mismatch"]
+    },
+    "complex_multi_concept": {
+        "description": "Query contains multiple complex scientific concepts",
+        "category": "query_understanding",
+        "severity": "high",
+        "indicators": ["multiple_domains", "technical_terms", "compound_query"]
+    },
+
+    # Retrieval Failures
+    "false_positive": {
+        "description": "Retrieved irrelevant documents with high confidence",
+        "category": "retrieval",
+        "severity": "medium",
+        "indicators": ["high_score_irrelevant", "wrong_domain_retrieved", "topic_mismatch"]
+    },
+    "false_negative": {
+        "description": "Failed to retrieve relevant documents",
+        "category": "retrieval",
+        "severity": "high",
+        "indicators": ["relevant_doc_missing", "low_score_relevant", "retrieval_failure"]
+    },
+    "ranking_error": {
+        "description": "Correct documents retrieved but poorly ranked",
+        "category": "retrieval",
+        "severity": "medium",
+        "indicators": ["ground_truth_low_rank", "wrong_order", "ranking_inconsistency"]
+    },
+
+    # Retrieval Quality Failures
+    "source_bias": {
+        "description": "Results heavily skewed toward certain sources (e.g., ARC dominance)",
+        "category": "retrieval",
+        "severity": "medium",
+        "indicators": ["arc_over_representation", "mmlu_under_representation", "source_imbalance"]
+    },
+    "duplicate_contamination": {
+        "description": "Retrieved results contain multiple copies of same content",
+        "category": "retrieval",
+        "severity": "low",
+        "indicators": ["exact_duplicates", "near_duplicates", "content_repetition"]
+    },
+    "keyword_boost_failure": {
+        "description": "Source-specific keyword boosting not working as expected",
+        "category": "retrieval",
+        "severity": "medium",
+        "indicators": ["boost_not_applied", "wrong_source_boosted", "boost_ineffective"]
+    },
+
+    # System Failures
+    "timeout_error": {
+        "description": "Query processing exceeded time limits",
+        "category": "system",
+        "severity": "high",
+        "indicators": ["processing_timeout", "response_delay", "system_overload"]
+    },
+    "parsing_error": {
+        "description": "Failed to parse query or document content",
+        "category": "system",
+        "severity": "medium",
+        "indicators": ["malformed_query", "content_extraction_failure", "format_error"]
+    },
+    "infrastructure_error": {
+        "description": "System infrastructure or connectivity issues",
+        "category": "system",
+        "severity": "critical",
+        "indicators": ["connection_failure", "service_unavailable", "resource_exhaustion"]
+    }
 }
 
 # Enhanced error analysis thresholds with profiling insights
-ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = {
+ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = _config_loader.get('error_analysis.thresholds', {}) if _config else {
     "ambiguous_query_threshold": 0.3,  # Low confidence in query understanding
     "out_of_domain_threshold": 0.1,    # Very few domain matches
     "complex_query_threshold": 0.7,    # High complexity score
@@ -354,8 +451,6 @@ ERROR_ANALYSIS_THRESHOLDS: Dict[str, float] = {
     "temporal_degradation_threshold": 0.1,  # Performance drop over time
     "pattern_significance_threshold": 0.05,  # Statistical significance for patterns
     "domain_error_threshold": 0.15,    # Domain-specific error rate threshold
-
-    # Source distribution-aware thresholds
     "arc_bias_threshold": 0.6,         # Alert if >60% results from ARC (bias detection)
     "mmlu_fragmentation_threshold": 0.8, # Alert if results too scattered across MMLU sources
     "source_diversity_threshold": 0.3,  # Minimum source diversity in top results
@@ -446,7 +541,7 @@ ERROR_CATEGORIES: Dict[str, Dict[str, Any]] = {
 }
 
 # Pattern detection configurations with profiling insights
-PATTERN_DETECTION_CONFIG: Dict[str, Any] = {
+PATTERN_DETECTION_CONFIG: Dict[str, Any] = _config_loader.get('pattern_detection', {}) if _config else {
     "min_pattern_occurrences": 3,      # Minimum occurrences to consider a pattern
     "correlation_threshold": 0.6,      # Minimum correlation for pattern significance
     "temporal_window_days": 7,         # Time window for temporal analysis
@@ -462,7 +557,7 @@ PATTERN_DETECTION_CONFIG: Dict[str, Any] = {
 }
 
 # Query length normalization factors
-QUERY_LENGTH_NORMALIZATION: Dict[str, float] = {
+QUERY_LENGTH_NORMALIZATION: Dict[str, float] = _config_loader.get('query_analysis.length_normalization', {}) if _config else {
     "max_length_score": 100.0,
     "max_term_density": 5.0,
     "avg_word_length_factor": 10.0,
@@ -470,7 +565,7 @@ QUERY_LENGTH_NORMALIZATION: Dict[str, float] = {
 }
 
 # Validation set generation domains updated with actual source distribution
-VALIDATION_DOMAINS: Dict[str, str] = {
+VALIDATION_DOMAINS: Dict[str, str] = _config_loader.get('validation.domains', {}) if _config else {
     "physics": "물리학 (힘, 에너지, 운동, 원자, 입자 등) - ko_mmlu conceptual/college/high_school physics",
     "chemistry": "화학 (화합물, 반응, 원소, 산, 염기 등) - ko_mmlu college/high_school chemistry",
     "biology": "생물학 (세포, 유전자, 단백질, 생명, 진화 등) - ko_mmlu anatomy/biology/genetics/aging/nutrition/virology",
@@ -482,7 +577,7 @@ VALIDATION_DOMAINS: Dict[str, str] = {
 }
 
 # Profiling artifacts reference paths (for runtime loading)
-PROFILING_ARTIFACTS: Dict[str, str] = {
+PROFILING_ARTIFACTS: Dict[str, str] = _config_loader.get('profiling_artifacts', {}) if _config else {
     "unique_sources": "unique_src.json",
     "source_counts": "src_counts.json",
     "keywords_per_src": "keywords_per_src.json",

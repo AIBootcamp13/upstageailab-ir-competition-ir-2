@@ -20,10 +20,17 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
         top_k: 반환할 상위 문서 수
         use_profiling_insights: 프로파일링 인사이트를 사용할지 여부 (None이면 settings.yaml의 값 사용)
     """
+    # Get profiling insights setting from configuration
+    insights_config = getattr(settings, 'profiling_insights', {})
+    settings_enabled = insights_config.get('enabled', True)
+
     # If use_profiling_insights is None, use the value from settings
+    # If it's explicitly set by LLM but settings say disabled, respect settings
     if use_profiling_insights is None:
-        insights_config = getattr(settings, 'profiling_insights', {})
-        use_profiling_insights = insights_config.get('enabled', True)
+        use_profiling_insights = settings_enabled
+    elif not settings_enabled:
+        # Settings override LLM choice - if disabled in settings, force to False
+        use_profiling_insights = False
 
     # Ensure it's a boolean
     use_profiling_insights = bool(use_profiling_insights)

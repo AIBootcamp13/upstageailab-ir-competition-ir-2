@@ -21,6 +21,11 @@ from .constants import (
     FORMULA_PATTERNS,
     QUERY_LENGTH_NORMALIZATION
 )
+from .config.config_loader import ConfigLoader
+
+# Load configuration for query analysis settings
+_config_loader = ConfigLoader()
+_query_config = _config_loader.get('query_analysis', {})
 
 
 @dataclass
@@ -248,9 +253,11 @@ class BatchQueryProcessor:
             return []
 
         # Use parallel processing for batches larger than threshold
-        if len(queries) > 10 and self.enable_parallel and max_workers != 0:  # Allow disabling with max_workers=0
+        batch_threshold = _query_config.get('batch_threshold', 10)
+        if len(queries) > batch_threshold and self.enable_parallel and max_workers != 0:  # Allow disabling with max_workers=0
             if max_workers is None:
-                max_workers = self.max_workers or min(4, len(queries))  # More conservative default
+                default_max_workers = _query_config.get('default_max_workers', 4)
+                max_workers = self.max_workers or min(default_max_workers, len(queries))  # More conservative default
 
             print(f"🔄 Analyzing {len(queries)} queries using {max_workers} parallel workers...")
 

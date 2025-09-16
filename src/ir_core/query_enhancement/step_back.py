@@ -82,15 +82,29 @@ class StepBackPrompting:
         Returns:
             Abstract description of the underlying concept
         """
-        prompt = f"""
-        The user asked: "{query}"
+        # Detect if the query is in Korean
+        is_korean = any('\uac00' <= char <= '\ud7a3' for char in query)
 
-        What is the general, underlying concept being asked?
-        Provide a clear, abstract description of what information they're really seeking.
+        if is_korean:
+            prompt = f"""
+            사용자가 물은 내용: "{query}"
 
-        Focus on the fundamental topic or principle, not the specific details.
-        Respond with just the abstracted concept, no explanation.
-        """
+            이 질문의 일반적이고 근본적인 개념은 무엇인가요?
+            사용자가 실제로 찾고 있는 정보에 대한 명확하고 추상적인 설명을 제공하세요.
+
+            근본적인 주제나 원리에 초점을 맞추고, 구체적인 세부사항은 무시하세요.
+            설명 없이 추상적 개념만 응답하세요.
+            """
+        else:
+            prompt = f"""
+            The user asked: "{query}"
+
+            What is the general, underlying concept being asked?
+            Provide a clear, abstract description of what information they're really seeking.
+
+            Focus on the fundamental topic or principle, not the specific details.
+            Respond with just the abstracted concept, no explanation.
+            """
 
         try:
             result = self.llm_client.chat_completion(
@@ -118,13 +132,25 @@ class StepBackPrompting:
         Returns:
             Searchable query with specific keywords
         """
-        prompt = f"""
-        Convert this abstract concept into specific search keywords:
-        "{concept}"
+        # Detect if the original concept contains Korean characters
+        is_korean = any('\uac00' <= char <= '\ud7a3' for char in concept)
 
-        Provide keywords separated by commas, focused on terms likely to appear in documents.
-        Include both general and specific terms related to this concept.
-        """
+        if is_korean:
+            prompt = f"""
+            이 추상적 개념을 특정 검색 키워드로 변환하세요:
+            "{concept}"
+
+            문서에서 나타날 가능성이 높은 용어에 초점을 맞춘 키워드를 쉼표로 구분하여 제공하세요.
+            이 개념과 관련된 일반적이고 구체적인 용어를 모두 포함하세요.
+            """
+        else:
+            prompt = f"""
+            Convert this abstract concept into specific search keywords:
+            "{concept}"
+
+            Provide keywords separated by commas, focused on terms likely to appear in documents.
+            Include both general and specific terms related to this concept.
+            """
 
         try:
             result = self.llm_client.chat_completion(

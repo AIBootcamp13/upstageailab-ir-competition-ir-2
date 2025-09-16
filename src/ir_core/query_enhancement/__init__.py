@@ -13,6 +13,7 @@ Techniques implemented:
 """
 
 from .manager import QueryEnhancementManager
+from .strategic_classifier import StrategicQueryClassifier, QueryType
 from .rewriter import QueryRewriter
 from .step_back import StepBackPrompting
 from .decomposer import QueryDecomposer

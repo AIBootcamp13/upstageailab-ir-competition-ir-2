@@ -1,9 +1,9 @@
 # RAG System Enhancement Plan
 ## Translation Integration & UI Migration Roadmap
 
-**Date Created:** September 15, 2025  
-**Repository:** upstageailab-ir-competition-upstageailab-information-retrieval_2  
-**Branch:** 05_feature/kibana  
+**Date Created:** September 15, 2025
+**Repository:** upstageailab-ir-competition-upstageailab-information-retrieval_2
+**Branch:** 05_feature/kibana
 **Status:** Active - Phase 2 Completed, Phase 3 Ready
 
 ---
@@ -27,7 +27,7 @@ This document outlines a comprehensive plan to integrate translation features in
 ---
 
 ## 🎯 Phase 1: Translation Integration (Priority: HIGH)
-**Estimated Time:** 1-2 days  
+**Estimated Time:** 1-2 days
 **Status:** ✅ COMPLETED - All translation features successfully integrated into CLI menu
 
 ### 1.1 Assess Current Translation Features
@@ -109,7 +109,7 @@ Ready to proceed to **Phase 2: CLI Menu Modularization** or **Phase 3: Streamlit
 ### What Was Accomplished:
 1. **Modular Architecture Foundation** - Created `scripts/cli_menu/modules/__init__.py` with base classes:
    - `BaseMenuModule` - Abstract base class for all menu modules
-   - `CommandRegistry` - Registry for managing CLI commands from multiple modules  
+   - `CommandRegistry` - Registry for managing CLI commands from multiple modules
    - `MenuBuilder` - Builder class for dynamic menu construction
 
 2. **Individual Menu Modules** - Extracted all command categories into separate modules:
@@ -182,7 +182,7 @@ Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: RE
 ---
 
 ## 🏗️ Phase 2: CLI Menu Modularization (Priority: MEDIUM)
-**Estimated Time:** 1 week  
+**Estimated Time:** 1 week
 **Status:** ✅ COMPLETED - CLI menu successfully modularized with plugin architecture
 
 ### 2.1 Analyze Current Structure
@@ -225,7 +225,7 @@ Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: RE
 ---
 
 ## 🎨 Phase 3: Streamlit Migration Assessment (Priority: MEDIUM)
-**Estimated Time:** 2-3 weeks  
+**Estimated Time:** 2-3 weeks
 **Status:** ⏳ PENDING
 
 ### 3.1 Evaluate Current Streamlit Implementation
@@ -267,7 +267,7 @@ Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: RE
 ---
 
 ## 🔌 Phase 4: REST API Evaluation (Priority: LOW)
-**Estimated Time:** 3-4 weeks  
+**Estimated Time:** 3-4 weeks
 **Status:** ⏳ PENDING
 
 ### 4.1 API Design & Architecture
@@ -336,7 +336,7 @@ Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: RE
 ### Getting Started with Phase 2
 1. Review modular architecture in `scripts/cli_menu/modules/`
 2. Examine `BaseMenuModule` and `MenuBuilder` classes
-3. Test modular CLI: `poetry run python scripts/cli_menu.py`
+3. Test modular CLI: `poetry run python cli_menu.py`
 4. Add new menu modules following established patterns
 5. Create unit tests for new modules
 
@@ -349,7 +349,7 @@ poetry install
 ./scripts/execution/run-local.sh start
 
 # Test modular CLI menu
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 ```
 
 ### Testing Commands
@@ -358,7 +358,7 @@ poetry run python scripts/cli_menu.py
 poetry run python scripts/translation/integrate_translation.py --help
 
 # Test modular CLI menu (Phase 2)
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 
 # Test Streamlit UI (Phase 3)
 poetry run streamlit run scripts/visualize_submissions.py

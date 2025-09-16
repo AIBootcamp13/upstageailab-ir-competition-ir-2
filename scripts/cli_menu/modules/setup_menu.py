@@ -44,7 +44,7 @@ class SetupMenu(BaseMenuModule):
                 {
                     "name": "Start Local Services",
                     "command": "./scripts/execution/run-local.sh start",
-                    "description": "Start Elasticsearch, Redis, and Kibana locally",
+                    "description": "Start(or Install) Elasticsearch, Redis, and Kibana locally",
                     "needs_params": False,
                 },
                 {

@@ -93,8 +93,24 @@ class RAGPipeline:
         if self.enhancement_manager:
             # Use new query enhancement system
             enhancement_result = self.enhancement_manager.enhance_query(query)
+
+            # Check if enhancement was bypassed (conversational queries)
+            if enhancement_result.get('technique_used') == 'bypass':
+                print(f"쿼리 개선 우회: '{query}' (유형: {enhancement_result.get('reason', 'unknown')})")
+                return [{"standalone_query": query, "docs": []}]
+
             enhanced_query = enhancement_result.get('enhanced_query', query)
-            print(f"원본 쿼리: '{query}' -> 개선된 쿼리: '{enhanced_query}' (기법: {enhancement_result.get('technique_used', 'none')})")
+            technique_used = enhancement_result.get('technique_used', 'none')
+
+            # Check if HyDE already provided retrieval results
+            if technique_used == 'hyde' and 'retrieval_results' in enhancement_result:
+                hyde_results = enhancement_result['retrieval_results']
+                if hyde_results:
+                    print(f"HyDE 검색 결과 사용: '{query}' -> {len(hyde_results)}개 문서 발견")
+                    return [{"standalone_query": enhanced_query, "docs": hyde_results}]
+
+            print(f"원본 쿼리: '{query}' -> 개선된 쿼리: '{enhanced_query}' (기법: {technique_used})")
+
         elif self.query_rewriter:
             # Fallback to old rewriter for backward compatibility
             enhanced_query = self.query_rewriter.rewrite_query(query)
@@ -175,6 +191,20 @@ class RAGPipeline:
             print(f"🐛 DEBUG Error in full pipeline: {docs}")
             # Return error message as final answer
             return f"Retrieval failed: {docs}"
+
+        # Check if this is a conversational query that should bypass retrieval
+        if self.enhancement_manager and not docs:
+            # Check if the enhancement result indicates bypass
+            enhancement_result = self.enhancement_manager.enhance_query(query)
+            if enhancement_result.get('technique_used') == 'bypass':
+                # Generate a direct conversational response
+                conversational_prompt = f"""
+                사용자가 다음과 같은 질문을 했습니다: "{query}"
+
+                이는 과학 검색이 필요하지 않은 대화형 질문입니다.
+                친절하고 도움이 되는 방식으로 답변해주세요.
+                """
+                return self.generator.generate(query=conversational_prompt, context_docs=[])
 
         if docs and isinstance(docs, list):
             context_docs_content = [item.get('content', '') for item in docs if isinstance(item, dict)]

@@ -67,15 +67,39 @@ class HyDE:
         Returns:
             Hypothetical answer that would appear in a reference document
         """
-        prompt = f"""
-        Provide a detailed, comprehensive answer to this question as if you were writing a reference document:
+        # Detect if the query is in Korean
+        is_korean = any('\uac00' <= char <= '\ud7a3' for char in query)
 
-        Question: {query}
+        if is_korean:
+            prompt = f"""
+            이 질문에 대한 가상의 문서를 작성하세요. 마치 위키피디아나 과학 교과서의 한 단락처럼 자연스럽게 작성하세요:
 
-        Write a detailed answer that would appear in an encyclopedia or textbook.
-        Include specific facts, examples, and explanations that would be found in relevant documents.
-        Be comprehensive but focused on the core topic.
-        """
+            질문: {query}
+
+            다음 형식으로 작성하세요:
+            - 자연스러운 문장으로 답변
+            - 관련 사실과 예시 포함
+            - 전문 용어 적절히 사용
+            - 2-3개의 문단으로 구성
+            - 검색에 유용한 구체적인 내용 포함
+
+            가상의 참고 문서 내용:
+            """
+        else:
+            prompt = f"""
+            Write a hypothetical document passage that would answer this question. Write it as if it were a paragraph from Wikipedia or a science textbook:
+
+            Question: {query}
+
+            Write in this format:
+            - Natural, flowing sentences
+            - Include relevant facts and examples
+            - Use appropriate technical terms
+            - 2-3 paragraphs
+            - Specific content useful for search
+
+            Hypothetical reference document content:
+            """
 
         try:
             result = self.llm_client.chat_completion(
@@ -187,16 +211,40 @@ class HyDE:
             Dictionary with enhancement info and results
         """
         if self.should_use_hyde(query):
-            results = self.retrieve_with_hyde(query, top_k)
-            hypothetical_answer = self.generate_hypothetical_answer(query)
+            try:
+                results = self.retrieve_with_hyde(query, top_k)
+                hypothetical_answer = self.generate_hypothetical_answer(query)
 
-            return {
-                'used_hyde': True,
-                'original_query': query,
-                'hypothetical_answer': hypothetical_answer,
-                'results': results,
-                'result_count': len(results)
-            }
+                return {
+                    'used_hyde': True,
+                    'original_query': query,
+                    'hypothetical_answer': hypothetical_answer,
+                    'results': results,
+                    'result_count': len(results)
+                }
+            except Exception as e:
+                print(f"HyDE enhancement failed: {e}")
+                # Fallback: generate hypothetical answer without retrieval
+                try:
+                    hypothetical_answer = self.generate_hypothetical_answer(query)
+                    return {
+                        'used_hyde': True,
+                        'original_query': query,
+                        'hypothetical_answer': hypothetical_answer,
+                        'results': [],
+                        'result_count': 0,
+                        'error': str(e)
+                    }
+                except Exception as e2:
+                    print(f"HyDE hypothetical answer generation also failed: {e2}")
+                    return {
+                        'used_hyde': False,
+                        'original_query': query,
+                        'hypothetical_answer': None,
+                        'results': [],
+                        'result_count': 0,
+                        'error': f"{e}, {e2}"
+                    }
         else:
             return {
                 'used_hyde': False,

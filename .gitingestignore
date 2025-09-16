@@ -1,0 +1,18 @@
+# Large data files
+data/*.jsonl
+
+# Python virtual environment and cache
+/.venv/
+pycache/
+*.pyc
+
+# Generated outputs, reports, and logs
+/outputs/
+/wandb/
+*.log
+
+# Local environment configuration (contains secrets)
+.env
+
+# Configuration backups
+*.backup

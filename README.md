@@ -53,7 +53,7 @@
 
 ```bash
 # 프로젝트 루트에서 실행
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 ```
 
 메뉴를 통해 다음 작업들을 수행할 수 있습니다:
@@ -207,6 +207,7 @@ flowchart TD
 ```bash
 git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
+git checkout 05_feature/kibana
 ```
 ### **2️⃣ 의존성 설치**
 
@@ -221,7 +222,7 @@ poetry install
 로컬 Elasticsearch와 Redis를 시작하려면 대화형 CLI 메뉴의 **Setup & Infrastructure** 카테고리를 사용하세요:
 
 ```bash
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 ```
 
 메뉴에서 다음 옵션들을 선택할 수 있습니다:
@@ -234,7 +235,7 @@ poetry run python scripts/cli_menu.py
 데이터 색인은 대화형 CLI 메뉴의 **Data Management** 카테고리를 통해 수행합니다:
 
 ```bash
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 ```
 
 **Reindex Documents** 옵션을 선택하여 Elasticsearch에 문서를 색인할 수 있습니다.
@@ -262,7 +263,7 @@ PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.j
 제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
 
 ```bash
-poetry run python scripts/cli_menu.py
+poetry run python cli_menu.py
 ```
 
 다양한 모델 옵션(OpenAI, Qwen2, Llama 등)을 선택하여 제출 파일을 생성할 수 있습니다.

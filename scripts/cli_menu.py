@@ -17,7 +17,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 # Import modular components
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 from cli_menu.modules import MenuBuilder
 from cli_menu.modules.command_executor import CommandExecutor
 from cli_menu.modules.setup_menu import get_setup_menu
@@ -34,7 +34,7 @@ class ModularCLIMenu:
     """Modular CLI menu for RAG project operations."""
 
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent
+        self.project_root = Path(os.path.realpath(__file__)).parent.parent
         self.executor = CommandExecutor(self.project_root)
         self.commands = self._build_commands()
 

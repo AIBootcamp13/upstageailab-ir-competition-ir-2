@@ -67,33 +67,32 @@ class QueryRewriter:
 
         if is_korean:
             prompt = f"""
-            이 쿼리를 효과적인 검색 쿼리로 변환하세요:
-            1. 핵심 개념과 주요 용어를 추출
-            2. 관련 동의어와 기술 용어 추가
-            3. 문서 검색에 더 구체적이고 포괄적으로 만들기
-            4. 주제의 일반적이고 구체적인 측면 모두 포함
-
-            중요한 지침:
-            - 입력이 한국어이면 출력도 한국어로 유지
-            - 의미를 100% 유지하면서 검색 최적화
-            - 불필요한 말줄임표나 이모지 제거
-            - 더 자연스러운 표현으로 변경 (의미는 동일하게)
+            이 쿼리를 검색에 최적화된 형태로 재작성하세요.
 
             원본 쿼리: {original_query}
 
-            재작성된 쿼리만 제공하세요.
+            지침:
+            - 핵심 개념과 주요 용어 유지
+            - 관련 동의어와 기술 용어 추가 가능
+            - 더 자연스럽고 구체적인 표현 사용
+            - 의미 100% 유지
+            - 한국어로 출력
+
+            재작성된 쿼리만 한 줄로 출력하세요. 설명이나 추가 텍스트 없이 쿼리만 제공하세요.
             """
         else:
             prompt = f"""
-            Transform this query into an effective search query by:
-            1. Extracting core concepts and key terms
-            2. Adding relevant synonyms and related technical terms
-            3. Making it more specific and comprehensive for document retrieval
-            4. Including both general and specific aspects of the topic
+            Rewrite this query in an optimized form for search.
 
             Original query: {original_query}
 
-            Provide only the rewritten query, no explanation.
+            Guidelines:
+            - Keep core concepts and key terms
+            - Add relevant synonyms and technical terms if helpful
+            - Use more natural and specific phrasing
+            - Preserve 100% of original meaning
+
+            Output only the rewritten query on one line. No explanations or additional text.
             """
 
         try:

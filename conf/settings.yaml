@@ -40,7 +40,7 @@ REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------
-INDEX_NAME: documents_ko_with_embeddings_new        # Current active index
+INDEX_NAME: documents_ko_with_embeddings_fixed        # Fixed index with proper dense_vector mapping
 INDEX_ALIAS: documents         # Index alias for seamless switching
 INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
 KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
@@ -106,12 +106,21 @@ OUTPUT_PATH: outputs/submission.csv  # Final submission file
 # -----------------------
 query_enhancement:
   enabled: true               # Enable query enhancement
-  default_technique: decomposition # Default enhancement technique
+  use_strategic_classifier: true  # Use strategic classification for technique selection
+  default_technique: hyde # Default fallback technique
   max_tokens: 500            # Max tokens for enhancement
   temperature: 0.3           # Temperature for enhancement models
   openai_model: gpt-3.5-turbo # Model for enhancement
 
-  # Available enhancement techniques (ordered by priority)
+  # Strategic Classification Settings
+  # ---------------------------------
+  strategic_classifier:
+    enabled: true             # Enable strategic query classification
+    confidence_threshold: 0.6 # Minimum confidence for classification
+    bypass_conversational: true  # Skip retrieval for conversational queries
+    enable_sequential: true   # Allow sequential technique application
+
+  # Available enhancement techniques (ordered by priority when not using strategic classifier)
   techniques:
     rewriting:                # Query rewriting for clarity
       enabled: true
@@ -216,7 +225,7 @@ prompts:
 
 # Debug Configuration
 # ------------------
-debug: false                # Enable debug mode
+debug: true                # Enable debug mode
 debug_limit: 3              # Limit for debug operations
 
 # Analysis Configuration
