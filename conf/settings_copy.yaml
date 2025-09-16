@@ -228,7 +228,7 @@ prompts:
   generation_qa: prompts/scientific_qa_v1.jinja2
   persona: prompts/persona_qa.txt
   question_generation: prompts/question_generation_v1.jinja2
-  rephrase_query: prompts/rewrite_query2.jinja2
+  rephrase_query: prompts/rewrite_query3.jinja2
   tool_description: prompts/tool_desc_recall_v1.txt
 
 # =================================================================

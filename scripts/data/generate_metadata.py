@@ -1,49 +1,41 @@
 #!/usr/bin/env python3
 """
-Generate metadata (summary, keywords, hypothetical questions) for documents using local LLM.
-Uses EleutherAI/polyglot-ko-12.8b with 4-bit quantization for Korean text generation.
+Generate metadata (summary, keywords, hypothetical questions) for documents using OpenAI API.
+Uses gpt-4o-mini model for Korean text generation with concurrent requests.
 """
 
 import json
 import logging
+import os
+import asyncio
 from pathlib import Path
-from typing import Dict, List, Any
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from typing import Dict, List, Any, Optional
 import fire
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MetadataGenerator:
-    def __init__(self, model_name: str = "EleutherAI/polyglot-ko-12.8b", max_new_tokens: int = 512):
+    def __init__(self, model_name: str = "gpt-4o-mini", api_key: Optional[str] = None):
         self.model_name = model_name
-        self.max_new_tokens = max_new_tokens
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Using device: {self.device}")
+        self.api_key = api_key or os.getenv('OPENAI_API_KEY')
+        if not self.api_key:
+            raise ValueError("OPENAI_API_KEY environment variable must be set")
+        logger.info(f"Using OpenAI model: {model_name}")
 
-        # Configure 4-bit quantization
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4"
-        )
+    async def generate_metadata_batch(self, contents: List[str]) -> List[Dict[str, Any]]:
+        """Generate metadata for a batch of documents concurrently."""
+        import openai
+        client = openai.AsyncOpenAI(api_key=self.api_key)
 
-        logger.info(f"Loading model {model_name}...")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+        async def generate_single(content: str) -> Dict[str, Any]:
+            return await self.generate_metadata_async(client, content)
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=bnb_config,
-            device_map="auto",
-            torch_dtype=torch.float16
-        )
-        logger.info("Model loaded successfully")
+        tasks = [generate_single(content) for content in contents]
+        results = await asyncio.gather(*tasks)
+        return results
 
-    def generate_metadata(self, content: str) -> Dict[str, Any]:
+    async def generate_metadata_async(self, client, content: str) -> Dict[str, Any]:
         """Generate summary, keywords, and hypothetical questions for a document."""
         prompt = f"""다음 과학 문서를 분석하여 메타데이터를 생성하시오.
 
@@ -59,23 +51,24 @@ class MetadataGenerator:
 가상 질문: [이 문서에 답할 수 있는 3-5개의 가상 질문 목록, 각 줄에 하나씩]
 """
 
-        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024).to(self.device)
-
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                temperature=0.7,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
+        try:
+            response = await client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=512,
+                temperature=0.7
             )
+            response_text = response.choices[0].message.content
+            if response_text is None:
+                raise ValueError("No response content received")
 
-        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        response = response[len(prompt):].strip()  # Remove the prompt from response
+            # Parse the response
+            metadata = self._parse_response(response_text)
+            return metadata
 
-        # Parse the response
-        metadata = self._parse_response(response)
-        return metadata
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            raise
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
         """Parse the LLM response into structured metadata."""
@@ -112,7 +105,7 @@ class MetadataGenerator:
             'hypothetical_questions': hypothetical_questions
         }
 
-def process_documents(input_file: str, output_file: str, batch_size: int = 10, start_idx: int = 0):
+async def process_documents(input_file: str, output_file: str, batch_size: int = 10, start_idx: int = 0, limit: Optional[int] = None):
     """Process documents in batches and generate metadata."""
     generator = MetadataGenerator()
 
@@ -127,7 +120,9 @@ def process_documents(input_file: str, output_file: str, batch_size: int = 10, s
                 documents.append(json.loads(line))
 
     total_docs = len(documents)
-    logger.info(f"Loaded {total_docs} documents")
+    if limit is not None:
+        total_docs = min(total_docs, start_idx + limit)
+    logger.info(f"Loaded {total_docs} documents (limited to {limit} if specified)")
 
     # Check if output file exists and get processed count
     processed_ids = set()
@@ -139,19 +134,28 @@ def process_documents(input_file: str, output_file: str, batch_size: int = 10, s
                     processed_ids.add(doc['docid'])
         logger.info(f"Found {len(processed_ids)} already processed documents")
 
-    # Process documents starting from start_idx
+    # Process documents in batches starting from start_idx
     with open(output_path, 'a', encoding='utf-8') as f:
         for i in range(start_idx, total_docs, batch_size):
-            batch = documents[i:i+batch_size]
-            logger.info(f"Processing batch {i//batch_size + 1}/{(total_docs + batch_size - 1)//batch_size}")
+            batch_docs = documents[i:i+batch_size]
+            batch_contents = []
+            batch_indices = []
 
-            for doc in batch:
+            for j, doc in enumerate(batch_docs):
                 if doc['docid'] in processed_ids:
-                    logger.info(f"Skipping already processed document {doc['docid']}")
                     continue
+                batch_contents.append(doc['content'])
+                batch_indices.append((i + j, doc))
 
-                try:
-                    metadata = generator.generate_metadata(doc['content'])
+            if not batch_contents:
+                continue
+
+            logger.info(f"Processing batch {i//batch_size + 1} with {len(batch_contents)} documents")
+
+            try:
+                metadata_list = await generator.generate_metadata_batch(batch_contents)
+
+                for (idx, doc), metadata in zip(batch_indices, metadata_list):
                     enhanced_doc = {
                         **doc,
                         'summary': metadata['summary'],
@@ -162,13 +166,23 @@ def process_documents(input_file: str, output_file: str, batch_size: int = 10, s
                     f.flush()
                     logger.info(f"Processed document {doc['docid']}")
 
-                except Exception as e:
-                    logger.error(f"Error processing document {doc['docid']}: {e}")
-                    # Write the original document if metadata generation fails
+            except Exception as e:
+                logger.error(f"Error processing batch starting at {i}: {e}")
+                # Write original documents if batch fails
+                for idx, doc in batch_indices:
                     f.write(json.dumps(doc, ensure_ascii=False) + '\n')
                     f.flush()
 
     logger.info("Metadata generation completed")
 
+import argparse
+
 if __name__ == "__main__":
-    fire.Fire(process_documents)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_file', required=True)
+    parser.add_argument('--output_file', required=True)
+    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--start_idx', type=int, default=0)
+    parser.add_argument('--limit', type=int, default=None)
+    args = parser.parse_args()
+    asyncio.run(process_documents(args.input_file, args.output_file, args.batch_size, args.start_idx, args.limit))

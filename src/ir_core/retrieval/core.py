@@ -6,7 +6,7 @@ from typing import Optional, List, Any, cast
 
 from ..infra import get_es
 from ..config import settings
-from ..embeddings.core import encode_texts
+from ..embeddings.core import encode_texts, encode_query
 from .boosting import load_keywords_per_src, build_boosted_query
 from .preprocessing import filter_stopwords
 from .deduplication import (
@@ -222,7 +222,7 @@ def hybrid_retrieve(
 
     # --- End of Caching Logic ---
 
-    q_emb = encode_texts([query])[0]
+    q_emb = encode_query(query)
     cosines = (doc_embs_np @ q_emb).tolist()
 
     results = []

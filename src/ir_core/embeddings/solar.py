@@ -50,7 +50,7 @@ class SolarEmbeddingProvider(BaseEmbeddingProvider):
 
         # Prepare request payload
         payload = {
-            "model": kwargs.get("model", "solar-embedding-1-large"),
+            "model": kwargs.get("model", "solar-embedding-1-large-passage"),
             "input": texts
         }
 
@@ -94,5 +94,7 @@ class SolarEmbeddingProvider(BaseEmbeddingProvider):
         Returns:
             numpy array of shape (4096,)
         """
+        # Use query model for queries
+        kwargs.setdefault("model", "solar-embedding-1-large-query")
         result = self.encode_texts([query], **kwargs)
         return result[0] if len(result) > 0 else np.zeros(self.dimension, dtype=np.float32)

@@ -220,7 +220,7 @@ def switch_to_solar():
         'EMBEDDING_DIMENSION': 4096,
         'INDEX_NAME': "documents_solar_with_embeddings_new",
         'model': {
-            'embedding_model': "solar-embedding-1-large",
+            'embedding_model': "solar-embedding-1-large-passage",
             'alpha': 0.4,
             'bm25_k': 200,
             'rerank_k': 10
@@ -243,7 +243,7 @@ def switch_to_solar():
 
     print("✅ Switched to Solar API configuration")
     print("   - Embedding provider: solar")
-    print("   - Embedding model: solar-embedding-1-large (4096d)")
+    print("   - Embedding model: solar-embedding-1-large-passage (4096d)")
     print("   - Index: documents_solar_with_embeddings_new")
     print("   - Documents: data/documents_bilingual.jsonl")
     print("   - Translation: disabled")

@@ -24,15 +24,15 @@
 
 # Retrieval Configuration
 # ----------------------
-ALPHA: 0.4                    # Revert to balanced retrieval
-BM25_K: 200                   # Number of documents to retrieve with BM25
+ALPHA: 0.5                    # Revert to balanced retrieval
+BM25_K: 400                   # Number of documents to retrieve with BM25
 RERANK_K: 10                  # Number of documents to rerank with dense retrieval
 
 # Embedding Configuration
 # ----------------------
 EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS  # Sentence transformer model
-EMBEDDING_DIMENSION: 768      # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
-EMBEDDING_PROVIDER: huggingface        # Provider type: 'huggingface' or 'solar'
+EMBEDDING_DIMENSION: 4096     # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
+EMBEDDING_PROVIDER: solar              # Provider type: 'huggingface' or 'solar'
 EMBEDDING_BATCH_SIZE: 32        # Batch size for encoding texts
 EMBEDDING_MAX_LENGTH: 512       # Maximum sequence length for tokenizer
 EMBEDDING_DEVICE: auto           # Device for model: 'auto', 'cuda', 'cpu'
@@ -53,7 +53,7 @@ REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------
-INDEX_NAME: documents_ko_with_embeddings_new          # Fixed index with proper dense_vector mapping
+INDEX_NAME: documents_solar_with_embeddings_new       # Fixed index with proper dense_vector mapping
 INDEX_ALIAS: documents         # Index alias for seamless switching
 INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
 KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
@@ -191,7 +191,7 @@ translation:
 # Profiling and Optimization
 # -------------------------
 profiling_insights:
-  enabled: false             # Enable profiling insights
+  enabled: true             # Enable profiling insights
   cache_ttl_seconds: 300     # Cache TTL for profiling data
   memory_batch_fallback: 16  # Memory optimization batch size
   query_expansion_terms: 3   # Number of expansion terms
@@ -227,7 +227,7 @@ wandb:
 # Hydra Configuration Groups
 # -------------------------
 defaults:
-  - data: science_qa_ko        # Default data configuration
+  - data: science_qa_bilingual # Default data configuration
   - pipeline: default       # Default pipeline configuration
   # - prompts: default      # REMOVED: Using prompts from main config instead
   - optional experiment:       # Optional experiment overrides
@@ -238,7 +238,7 @@ defaults:
 model:
   alpha: 0.4                # Retrieval alpha parameter
   bm25_k: 200               # BM25 retrieval count
-  embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  embedding_model: solar-embedding-1-large-passage
   rerank_k: 10              # Reranking count
 
 # =================================================================
@@ -253,7 +253,7 @@ prompts:
   generation_qa: prompts/scientific_qa_v1.jinja2
   persona: prompts/persona_qa.txt
   question_generation: prompts/question_generation_v1.jinja2
-  rephrase_query: prompts/rewrite_query2.jinja2
+  rephrase_query: prompts/rewrite_query3.jinja2
   tool_description: prompts/tool_desc_recall_v1.txt
 
 # =================================================================
@@ -276,7 +276,7 @@ analysis:
 # -----------------------
 evaluate:
   max_workers:              # Workers for evaluation
-  topk: 5                   # Top-K for evaluation metrics
+  topk: 3                   # Top-K for evaluation metrics
 
 # Validation Set Creation
 # ----------------------

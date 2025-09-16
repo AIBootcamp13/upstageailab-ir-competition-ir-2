@@ -15,7 +15,7 @@ class OllamaQueryRewriter(BaseQueryRewriter):
     def __init__(
         self,
         model_name: str = "qwen2:7b",
-        prompt_template_path: str = "prompts/rewrite_query2.jinja2",
+        prompt_template_path: str = "prompts/rewrite_query3.jinja2",
         ollama_base_url: str = "http://localhost:11434",
         max_tokens: int = 150,
         temperature: float = 0.1,

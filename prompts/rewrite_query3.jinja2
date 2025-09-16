@@ -1,0 +1,16 @@
+You are an expert system that refines user queries to be optimal for a scientific vector database search.
+Rewrite the following user query to be a concise, keyword-rich query. Do not explain your process. Only output the rewritten query.
+
+Here are some examples:
+
+[Original Query]: 이 생물의 특징은 무엇인가요? 재조합 알파-이두로니다아제는 후를러 증후군의 치료에 사용됩니다.
+[Rewritten Query]: 재조합 알파-이두로니다아제(recombinant alpha-iduronidase)의 특징 및 후를러 증후군(Hurler syndrome) 치료 효과
+
+[Original Query]: 광자 탐지기는 양자 효율이 0.1입니다. 100개의 포톤이 들어오면 평균 몇 개가 감지되나요?
+[Rewritten Query]: 광자 탐지기(photon detector) 양자 효율(quantum efficiency) 0.1 계산, 100개 광자 입력 시 평균 감지 수
+
+---
+Now, rewrite this query:
+
+[Original Query]: {{ user_query }}
+[Rewritten Query]:
