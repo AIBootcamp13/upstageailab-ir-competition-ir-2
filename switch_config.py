@@ -84,6 +84,7 @@ def switch_to_korean():
 
     # Update only the specific settings that need to change
     updates = {
+        'EMBEDDING_PROVIDER': "huggingface",
         'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
         'EMBEDDING_DIMENSION': 768,
         'INDEX_NAME': "documents_ko_with_embeddings_new",
@@ -110,6 +111,7 @@ def switch_to_korean():
     update_data_config("ko")
 
     print("✅ Switched to Korean configuration")
+    print("   - Embedding provider: huggingface")
     print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
     print("   - Index: documents_ko_with_embeddings_new")
     print("   - Documents: data/documents_ko.jsonl")
@@ -125,6 +127,7 @@ def switch_to_english():
 
     # Update only the specific settings that need to change
     updates = {
+        'EMBEDDING_PROVIDER': "huggingface",
         'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
         'EMBEDDING_DIMENSION': 768,
         'INDEX_NAME': "documents_en_with_embeddings_new",
@@ -151,6 +154,7 @@ def switch_to_english():
     update_data_config("en")
 
     print("✅ Switched to English configuration")
+    print("   - Embedding provider: huggingface")
     print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
     print("   - Index: documents_en_with_embeddings_new")
     print("   - Documents: data/documents_bilingual.jsonl")
@@ -165,6 +169,7 @@ def switch_to_bilingual():
 
     # Update only the specific settings that need to change
     updates = {
+        'EMBEDDING_PROVIDER': "huggingface",
         'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
         'EMBEDDING_DIMENSION': 768,
         'INDEX_NAME': "documents_bilingual_with_embeddings_new",
@@ -191,6 +196,7 @@ def switch_to_bilingual():
     update_data_config("bilingual")
 
     print("✅ Switched to Bilingual configuration")
+    print("   - Embedding provider: huggingface")
     print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
     print("   - Index: documents_bilingual_with_embeddings_new")
     print("   - Documents: data/documents_bilingual.jsonl")
