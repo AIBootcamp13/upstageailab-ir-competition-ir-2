@@ -201,7 +201,7 @@ class QueryDecomposer:
         """
         # Simple heuristics for complex queries
         complexity_indicators = [
-            ' and ', ' or ', ' vs ', ' vs. ', ' compared ', ' difference ',
+            ' and ', ' or ', ' vs ', ' vs. ', ' compared ', ' difference ', 'differences', 'compare', 'explain', 'describe', 'between', ' versus ',
             ' 비교 ', ' 차이 ', ' 대 ', ' versus ', ' vs ',
             ' how ', ' why ', ' what ', ' when ', ' where ',
             ' 어떻게 ', ' 왜 ', ' 무엇 ', ' 언제 ', ' 어디 ',

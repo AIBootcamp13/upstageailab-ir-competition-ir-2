@@ -97,8 +97,12 @@ class QueryTranslator:
             query: Query text
 
         Returns:
-            Language code (e.g., 'en', 'ko', 'ja')
+            Language code (e.g., 'en', 'ko', 'ja') or 'unknown' if detection not available
         """
+        # If googletrans is not available, return unknown
+        if not GOOGLETRANS_AVAILABLE:
+            return 'unknown'
+
         # Simple language detection based on character sets
         # This is a fallback when googletrans async issues occur
 
@@ -229,19 +233,16 @@ class QueryTranslator:
         """
         Determine if query should be translated.
 
+        For now, always return False as translation is not implemented.
+
         Args:
             query: Query to analyze
 
         Returns:
-            True if translation is recommended
+            False (translation disabled)
         """
-        if not self.translator:
-            return False
-
-        detected_lang = self.detect_language(query)
-
-        # Translate if not already in English
-        return detected_lang not in ['en', 'unknown']
+        # Translation is currently disabled
+        return False
 
     def enhance_with_translation(self, query: str, top_k: int = 5) -> Dict[str, Any]:
         """

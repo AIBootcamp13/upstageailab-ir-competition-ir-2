@@ -8,10 +8,6 @@ from typing import Dict, List, Any, Optional, Union, cast
 from dataclasses import dataclass, field
 from omegaconf import DictConfig, OmegaConf
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from .metrics import RetrievalMetrics
-from .query_analyzer import QueryAnalyzer
 from .components import (
     MetricCalculator,
     QueryBatchProcessor,
@@ -24,10 +20,6 @@ from .components import (
 from .retrieval_analyzer import RetrievalQualityAnalyzer
 from .utils import find_rank_of_ground_truth, calculate_top_k_precision
 from .constants import (
-    SCIENTIFIC_TERMS,
-    DOMAIN_KEYWORDS,
-    ANALYSIS_THRESHOLDS,
-    ERROR_ANALYSIS_DOMAIN_CHECKS,
     DEFAULT_K_VALUES,
     PARALLEL_PROCESSING_DEFAULTS
 )

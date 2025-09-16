@@ -196,6 +196,54 @@ def switch_to_bilingual():
     print("   - Documents: data/documents_bilingual.jsonl")
     print("   - Translation: disabled")
 
+def switch_to_solar():
+    """Switch configuration to Solar API setup (4096D embeddings)"""
+    print("🔄 Switching to Solar API configuration...")
+
+    # Check if UPSTAGE_API_KEY is set
+    if not os.getenv('UPSTAGE_API_KEY'):
+        print("⚠️  Warning: UPSTAGE_API_KEY environment variable not set!")
+        print("   Please set it in your .env file or environment before using Solar embeddings.")
+
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_PROVIDER': "solar",
+        'EMBEDDING_DIMENSION': 4096,
+        'INDEX_NAME': "documents_solar_with_embeddings_new",
+        'model': {
+            'embedding_model': "solar-embedding-1-large",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
+
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
+
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration to use bilingual data (Solar can handle both languages)
+    update_data_config("bilingual")
+
+    print("✅ Switched to Solar API configuration")
+    print("   - Embedding provider: solar")
+    print("   - Embedding model: solar-embedding-1-large (4096d)")
+    print("   - Index: documents_solar_with_embeddings_new")
+    print("   - Documents: data/documents_bilingual.jsonl")
+    print("   - Translation: disabled")
+    print("\n⚠️  Make sure UPSTAGE_API_KEY is set in your environment!")
+    print("⚠️  Make sure the Solar index exists or create it with Solar embeddings!")
+
 def update_data_config(language):
     """Update the data configuration in consolidated settings.yaml while preserving formatting"""
     # Define the mapping of language to data config name
@@ -235,6 +283,7 @@ def show_current_config():
     model_config = load_model_config()
 
     print("📋 Current Configuration:")
+    print(f"   Embedding Provider: {settings.get('EMBEDDING_PROVIDER', 'huggingface')}")
     print(f"   Embedding Model: {settings.get('EMBEDDING_MODEL', 'Not set')}")
     print(f"   Embedding Dimension: {settings.get('EMBEDDING_DIMENSION', 'Not set')}")
     print(f"   Index Name: {settings.get('INDEX_NAME', 'Not set')}")
@@ -256,12 +305,18 @@ def show_current_config():
 
     print(f"   Data Configuration: {data_config}")
 
+    # Check for API keys
+    if settings.get('EMBEDDING_PROVIDER') == 'solar':
+        api_key_set = bool(os.getenv('UPSTAGE_API_KEY'))
+        print(f"   Solar API Key Set: {'✅ Yes' if api_key_set else '❌ No'}")
+
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python switch_config.py [korean|english|bilingual|show]")
+        print("Usage: python switch_config.py [korean|english|bilingual|solar|show]")
         print("  korean   - Switch to Korean configuration")
         print("  english  - Switch to English configuration")
         print("  bilingual- Switch to Bilingual configuration")
+        print("  solar    - Switch to Solar API configuration (4096D embeddings)")
         print("  show     - Show current configuration")
         return
 
@@ -273,6 +328,8 @@ def main():
         switch_to_english()
     elif command == "bilingual":
         switch_to_bilingual()
+    elif command == "solar":
+        switch_to_solar()
     elif command == "show":
         show_current_config()
     else:

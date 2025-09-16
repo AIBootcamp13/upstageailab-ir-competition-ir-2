@@ -470,8 +470,22 @@ profiling:
   lsh_bands: 4
 
 # =============================================================================
-# SCIENTIFIC TERMS CONFIGURATION
+# PROFILING CONFIGURATION
 # =============================================================================
+profiling:
+  use_src_boosts: true
+  use_stopword_filtering: false
+  use_duplicate_filtering: true
+  use_near_dup_penalty: false
+  profile_report_dir: "outputs/reports/data_profile/latest"
+  keywords_top_k: 20
+  min_df: 2
+  max_features: 20000
+  stopwords_top_n: 200
+  per_src_stopwords_top_n: 50
+  near_dup_hamming_threshold: 3
+  simhash_bits: 64
+  lsh_bands: 4
 scientific_terms:
   mode: "merge"  # Options: base_only, dynamic_only, merge
   base_terms:
@@ -637,3 +651,62 @@ query_type_patterns:
     - "\\b(어디|장소|위치|지역)\\b"
   calculate:
     - "\\b(계산|구하|값|수치)\\b"
+
+# =============================================================================
+# CHUNKING CONFIGURATION
+# =============================================================================
+chunking:
+  recommendations:
+    ko_ai2_arc:
+      recommended_chunk_size: 256
+      overlap_ratio: 0.1
+      reasoning: "ARC challenges are typically shorter, focused questions"
+    ko_mmlu_biology:
+      recommended_chunk_size: 512
+      overlap_ratio: 0.15
+      reasoning: "Biology content varies; moderate chunks work well"
+    ko_mmlu_physics:
+      recommended_chunk_size: 512
+      overlap_ratio: 0.15
+      reasoning: "Physics often includes formulas; moderate overlap helps"
+    ko_mmlu_chemistry:
+      recommended_chunk_size: 384
+      overlap_ratio: 0.2
+      reasoning: "Chemistry includes complex reactions; higher overlap"
+    ko_mmlu_medicine:
+      recommended_chunk_size: 768
+      overlap_ratio: 0.1
+      reasoning: "Medical content tends to be longer and detailed"
+    default:
+      recommended_chunk_size: 512
+      overlap_ratio: 0.1
+      reasoning: "General fallback for unknown sources"
+
+# =============================================================================
+# VALIDATION CONFIGURATION
+# =============================================================================
+validation:
+  domains:
+    physics: "물리학 (힘, 에너지, 운동, 원자, 입자 등) - ko_mmlu conceptual/college/high_school physics"
+    chemistry: "화학 (화합물, 반응, 원소, 산, 염기 등) - ko_mmlu college/high_school chemistry"
+    biology: "생물학 (세포, 유전자, 단백질, 생명, 진화 등) - ko_mmlu anatomy/biology/genetics/aging/nutrition/virology"
+    astronomy: "천문학 (별, 행성, 은하, 우주, 태양 등) - ko_mmlu astronomy"
+    computer_science: "컴퓨터과학 (알고리즘, 보안, 프로그래밍 등) - ko_mmlu computer_science/security"
+    medicine: "의학 (진단, 치료, 인체, 질병 등) - ko_mmlu college_medicine"
+    general_science: "일반과학 (과학적 사고, 실험, 관찰 등) - ko_ai2_arc ARC_Challenge"
+    global_facts: "일반상식 (사실, 지식, 정보 등) - ko_mmlu global_facts"
+
+# =============================================================================
+# PROFILING ARTIFACTS CONFIGURATION
+# =============================================================================
+profiling_artifacts:
+  unique_sources: "unique_src.json"
+  source_counts: "src_counts.json"
+  keywords_per_src: "keywords_per_src.json"
+  stopwords_global: "stopwords_global.json"
+  per_src_stopwords: "per_src_stopwords.json"
+  duplicates: "duplicates.json"
+  near_duplicates: "near_duplicates.json"
+  per_src_length_stats: "per_src_length_stats.json"
+  field_presence: "field_presence.json"
+  summary: "summary.json"

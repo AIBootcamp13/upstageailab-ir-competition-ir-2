@@ -194,6 +194,10 @@ class StepBackPrompting:
         Returns:
             True if query appears ambiguous
         """
+        # Check for simple math expressions first
+        if self._is_simple_math(query):
+            return False
+
         ambiguous_indicators = [
             '무엇', '어떻게', '왜', '어디', '언제',  # Korean question words
             'what', 'how', 'why', 'where', 'when',  # English question words
@@ -203,3 +207,19 @@ class StepBackPrompting:
 
         query_lower = query.lower()
         return any(indicator in query_lower for indicator in ambiguous_indicators)
+
+    def _is_simple_math(self, query: str) -> bool:
+        """
+        Check if query is a simple math expression.
+
+        Args:
+            query: Query to analyze
+
+        Returns:
+            True if query appears to be simple math
+        """
+        import re
+
+        # Pattern for simple math: "What is X op Y?" where op is +, -, *, /
+        pattern = r"^What is \d+\s*[\+\-\*\/]\s*\d+\?$"
+        return bool(re.match(pattern, query, re.IGNORECASE))

@@ -48,6 +48,36 @@ class UtilitiesMenu(BaseMenuModule):
                     "needs_params": False,
                 },
                 {
+                    "name": "Show Current Configuration",
+                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py show",
+                    "description": "Display current RAG system configuration (embeddings, index, etc.)",
+                    "needs_params": False,
+                },
+                {
+                    "name": "Switch to Korean Configuration",
+                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py korean",
+                    "description": "Switch to Korean configuration (768D embeddings, Korean data)",
+                    "needs_params": False,
+                },
+                {
+                    "name": "Switch to English Configuration",
+                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py english",
+                    "description": "Switch to English configuration (384D embeddings, bilingual data)",
+                    "needs_params": False,
+                },
+                {
+                    "name": "Switch to Bilingual Configuration",
+                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py bilingual",
+                    "description": "Switch to Bilingual configuration (768D embeddings, mixed data)",
+                    "needs_params": False,
+                },
+                {
+                    "name": "Switch to Solar API Configuration",
+                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py solar",
+                    "description": "Switch to Solar API configuration (4096D embeddings, requires API key)",
+                    "needs_params": False,
+                },
+                {
                     "name": "Clean Distributions",
                     "command": "./scripts/infra/cleanup-distros.sh",
                     "description": "Clean up downloaded service distributions",
@@ -76,6 +106,8 @@ class UtilitiesMenu(BaseMenuModule):
             "streamlit_available": False,
             "infrastructure_scripts_exist": False,
             "script_listing_available": False,
+            "config_switcher_available": False,
+            "settings_file_exists": False,
         }
 
         # Check test scripts
@@ -108,6 +140,14 @@ class UtilitiesMenu(BaseMenuModule):
         list_script = self.project_root / "scripts" / "list_scripts.py"
         results["script_listing_available"] = list_script.exists()
 
+        # Check configuration switcher
+        config_script = self.project_root / "scripts" / "switch_config.py"
+        results["config_switcher_available"] = config_script.exists()
+
+        # Check settings file
+        settings_file = self.project_root / "conf" / "settings.yaml"
+        results["settings_file_exists"] = settings_file.exists()
+
         # Check Streamlit availability
         try:
             import streamlit
@@ -137,9 +177,19 @@ class UtilitiesMenu(BaseMenuModule):
         if not validation["infrastructure_scripts_exist"]:
             instructions.append("⚠️  Infrastructure scripts missing - check scripts/infra/ directory")
 
+        if not validation["config_switcher_available"]:
+            instructions.append("⚠️  Configuration switcher missing - check scripts/switch_config.py")
+
+        if not validation["settings_file_exists"]:
+            instructions.append("⚠️  Settings file missing - check conf/settings.yaml")
+
         if not validation["streamlit_available"]:
             instructions.append("⚠️  Streamlit not available - install for UI functionality")
             instructions.append("   Run: poetry add streamlit")
+
+        if validation["config_switcher_available"] and validation["settings_file_exists"]:
+            instructions.append("✅ Configuration switching is available!")
+            instructions.append("   Use: PYTHONPATH=src poetry run python scripts/switch_config.py [korean|english|bilingual|solar|show]")
 
         if validation["utility_scripts_exist"]:
             instructions.append("✅ Core utility components are available!")
@@ -162,6 +212,15 @@ class UtilitiesMenu(BaseMenuModule):
             "",
             "# List all available scripts",
             "poetry run python scripts/list_scripts.py",
+            "",
+            "# Show current configuration",
+            "PYTHONPATH=src poetry run python scripts/switch_config.py show",
+            "",
+            "# Switch configurations",
+            "PYTHONPATH=src poetry run python scripts/switch_config.py korean    # Korean (768D)",
+            "PYTHONPATH=src poetry run python scripts/switch_config.py english   # English (384D)",
+            "PYTHONPATH=src poetry run python scripts/switch_config.py bilingual # Bilingual (768D)",
+            "PYTHONPATH=src poetry run python scripts/switch_config.py solar     # Solar API (4096D)",
             "",
             "# Clean up distributions",
             "./scripts/infra/cleanup-distros.sh",
