@@ -7,6 +7,7 @@ Unit tests for query enhancement techniques.
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import numpy as np
+import os
 
 from ir_core.query_enhancement.rewriter import QueryRewriter
 from ir_core.query_enhancement.step_back import StepBackPrompting
@@ -202,8 +203,9 @@ class TestHyDE:
         model.encode.return_value = np.random.rand(768).astype(np.float32)
         return model
 
-    @patch('ir_core.retrieval.core.dense_retrieve')
-    @patch('ir_core.embeddings.core.encode_query')
+    @patch('ir_core.query_enhancement.hyde.dense_retrieve')
+    @patch('ir_core.query_enhancement.hyde.encode_query')
+    @patch.dict(os.environ, {"UPSTAGE_API_KEY": "dummy_key"})
     def test_retrieve_with_hyde(self, mock_encode_query, mock_dense_retrieve, mock_openai_client):
         """Test HyDE retrieval."""
         # Setup mocks
