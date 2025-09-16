@@ -44,7 +44,7 @@ class StrategicQueryClassifier:
             re.compile(r'\b(얘기해|말해|이야기해|해주|해줄래|해주세요)\b', re.IGNORECASE),
 
             # Social interactions
-            re.compile(r'\b(안녕|인사|반가워|잘 있었어|오랜만|보고 싶었어)\b', re.IGNORECASE),
+            re.compile(r'\b(안녕|인사|반가워|반갑다|잘 있었어|오랜만|보고 싶었어)\b', re.IGNORECASE),
             re.compile(r'\b(도와|부탁|제발|부디|미안|고마워|감사)\b', re.IGNORECASE),
             re.compile(r'\b(추천|소개|말해|얘기|이야기|대화)\b', re.IGNORECASE),
 
@@ -118,9 +118,18 @@ class StrategicQueryClassifier:
                 scores[QueryType.CONCEPTUAL] += 1
 
         # Score conversational patterns
+        conversational_matches = 0
         for pattern in self.conversational_patterns:
             if pattern.search(query):
+                conversational_matches += 1
                 scores[QueryType.CONVERSATIONAL] += 1
+
+        # Boost conversational score for short queries that are clearly greetings
+        if word_count <= 3 and conversational_matches > 0:
+            # Check if it's a clear greeting/social interaction
+            greeting_words = ['안녕', '반갑', '인사', 'hello', 'hi', 'hey']
+            if any(word in query for word in greeting_words):
+                scores[QueryType.CONVERSATIONAL] += 3  # Strong boost for clear greetings
 
         # Score multi-turn indicators
         for indicator in self.multi_turn_indicators:

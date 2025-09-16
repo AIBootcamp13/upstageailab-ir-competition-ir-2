@@ -104,14 +104,31 @@ class HyDE:
         try:
             result = self.llm_client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
+                model=self.model_name,  # Add required model parameter
                 max_tokens=self.max_tokens * 2,  # Allow longer responses for detailed answers
                 temperature=self.temperature
             )
 
-            if not result['success'] or not result['content']:
+            if not result['success']:
+                print(f"HyDE LLM call failed: {result.get('error', 'Unknown error')}")
                 return query  # Fallback to original query
 
-            return result['content'].strip()
+            content = result.get('content', '').strip()
+            if not content:
+                print("HyDE generated empty content")
+                return query  # Fallback to original query
+
+            # Validate content quality - must be substantially longer than original query
+            if len(content) < len(query) * 2:
+                print(f"HyDE generated insufficient content: {len(content)} chars (original: {len(query)} chars)")
+                return query  # Fallback to original query
+
+            # Check if content is just repeating the query
+            if content.lower() == query.lower() or query.lower() in content.lower() and len(content) < 100:
+                print(f"HyDE generated trivial content: '{content}'")
+                return query  # Fallback to original query
+
+            return content
 
         except Exception as e:
             print(f"Hypothetical answer generation failed: {e}")

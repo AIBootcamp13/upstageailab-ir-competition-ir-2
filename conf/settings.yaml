@@ -24,7 +24,7 @@
 
 # Retrieval Configuration
 # ----------------------
-ALPHA: 0.4                    # Balance between BM25 (0.0) and dense retrieval (1.0)
+ALPHA: 0.4                    # Revert to balanced retrieval
 BM25_K: 200                   # Number of documents to retrieve with BM25
 RERANK_K: 10                  # Number of documents to rerank with dense retrieval
 
@@ -138,9 +138,9 @@ prompt_pipeline_config:
 # Query Enhancement System
 # -----------------------
 query_enhancement:
-  enabled: true               # Enable query enhancement
+  enabled: true               # Re-enable query enhancement
   use_strategic_classifier: true  # Use strategic classification for technique selection
-  default_technique: hyde # Default fallback technique
+  default_technique: rewriting # Changed from hyde to match sample behavior
   max_tokens: 500            # Max tokens for enhancement
   temperature: 0.3           # Temperature for enhancement models
   openai_model: gpt-3.5-turbo # Model for enhancement
@@ -174,7 +174,7 @@ query_enhancement:
 # Translation System
 # -----------------
 translation:
-  enabled: false              # Enable translation features
+  enabled: false              # Disable translation to keep queries in Korean
   source_lang: ko            # Source language (ko=en, en=ko)
   target_lang: en            # Target language
   batch_size: 100            # Batch size for translation

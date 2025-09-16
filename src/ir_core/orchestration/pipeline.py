@@ -48,8 +48,12 @@ class RAGPipeline:
             from pathlib import Path
             from omegaconf import OmegaConf
 
-            # Register environment resolver
-            OmegaConf.register_new_resolver("env", os.getenv)
+            # Register environment resolver (only if not already registered)
+            try:
+                OmegaConf.register_new_resolver("env", os.getenv)
+            except ValueError:
+                # Resolver already registered, continue
+                pass
 
             # Load consolidated configuration
             config_path = Path(__file__).parent.parent.parent.parent / "conf" / "settings.yaml"

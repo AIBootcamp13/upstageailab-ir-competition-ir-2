@@ -90,3 +90,7 @@ multirun/
 
 # Kibana
 .local_kibana
+debug_performance.py
+test_techniques.py
+bash-direct-retrieval-examples.md
+query_enhancement_examples.md

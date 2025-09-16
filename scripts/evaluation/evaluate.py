@@ -175,7 +175,7 @@ def run(cfg: DictConfig) -> None:
 
     print(f"{len(eval_items)}개의 평가 쿼리를 처리합니다...")
 
-    def process_item(item, pipeline, cfg):
+    def process_item(item, pipeline, cfg, index):
         global shutdown_requested
 
         # Check if shutdown was requested
@@ -222,6 +222,7 @@ def run(cfg: DictConfig) -> None:
                 "topk": topk_ids,
                 "answer": answer_text,
                 "references": references,
+                "_original_index": index,  # Preserve original order
             }
             return record
 
@@ -236,8 +237,8 @@ def run(cfg: DictConfig) -> None:
         with concurrent.futures.ThreadPoolExecutor(max_workers=cfg.evaluate.max_workers) as executor:
             # Use map with timeout to allow for cancellation
             future_to_item = {
-                executor.submit(lambda item=item: process_item(item, pipeline, cfg)): item
-                for item in eval_items
+                executor.submit(lambda item=item, idx=idx: process_item(item, pipeline, cfg, idx)): item
+                for idx, item in enumerate(eval_items)
             }
 
             results = []
@@ -268,8 +269,13 @@ def run(cfg: DictConfig) -> None:
             wandb.finish()
         return
 
-    # Sort results by eval_id to maintain order
-    results.sort(key=lambda x: x['eval_id'] if x else 0)
+    # Sort results by original index to maintain order from evaluation file
+    results.sort(key=lambda x: x['_original_index'] if x and '_original_index' in x else float('inf'))
+
+    # Remove the temporary _original_index field before writing
+    for record in results:
+        if record and '_original_index' in record:
+            del record['_original_index']
 
     # Write results
     for record in results:
