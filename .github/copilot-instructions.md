@@ -59,13 +59,13 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 #### Available Configurations
 ```bash
 # Switch to Korean configuration (768d embeddings)
-PYTHONPATH=src poetry run python scripts/switch_config.py korean
+PYTHONPATH=src poetry run python switch_config.py korean
 
 # Switch to English configuration (384d embeddings)
-PYTHONPATH=src poetry run python scripts/switch_config.py english
+PYTHONPATH=src poetry run python switch_config.py english
 
 # Switch to Bilingual configuration (768d embeddings)
-PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
+PYTHONPATH=src poetry run python switch_config.py bilingual
 ```
 
 #### Configuration Details
@@ -84,27 +84,27 @@ PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
 #### Best Practices to Avoid Wasted Resources
 1. **Check current configuration** before starting work:
    ```bash
-   PYTHONPATH=src poetry run python scripts/switch_config.py status
+   PYTHONPATH=src poetry run python switch_config.py status
    ```
 
 2. **Create required indexes** with correct embedding model:
    ```bash
    # Korean index (768d)
-   PYTHONPATH=src poetry run python scripts/switch_config.py korean
+   PYTHONPATH=src poetry run python switch_config.py korean
    PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings_new
 
    # English index (384d)
-   PYTHONPATH=src poetry run python scripts/switch_config.py english
+   PYTHONPATH=src poetry run python switch_config.py english
    PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings_new
 
    # Bilingual index (768d)
-   PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
+   PYTHONPATH=src poetry run python switch_config.py bilingual
    PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings_new
    ```
 
 3. **Verify configuration** after switching:
    ```bash
-   PYTHONPATH=src poetry run python scripts/switch_config.py korean  # Switch
+   PYTHONPATH=src poetry run python switch_config.py korean  # Switch
    PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py debug=true debug_limit=2  # Test
    ```
 

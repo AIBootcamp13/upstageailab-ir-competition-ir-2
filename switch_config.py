@@ -21,7 +21,7 @@ yaml_handler.indent(mapping=2, sequence=4, offset=2)
 
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -36,7 +36,7 @@ def load_settings() -> Dict[str, Any]:
 
 def load_settings_preserve_format():
     """Load settings while preserving YAML structure and comments"""
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'r', encoding='utf-8') as f:
         return yaml_handler.load(f)
 
@@ -54,7 +54,7 @@ def save_model_config(config: Dict[str, Any]) -> None:
 
 def save_settings(settings: Dict[str, Any]) -> None:
     """Save settings to settings.yaml while preserving formatting and comments"""
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
 
     # Load the current file with ruamel.yaml to preserve structure
     with open(settings_file, 'r', encoding='utf-8') as f:
@@ -102,7 +102,7 @@ def switch_to_korean():
     _update_nested_dict(current_data, updates)
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
@@ -143,7 +143,7 @@ def switch_to_english():
     _update_nested_dict(current_data, updates)
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
@@ -183,7 +183,7 @@ def switch_to_bilingual():
     _update_nested_dict(current_data, updates)
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
@@ -228,7 +228,7 @@ def switch_to_solar():
     _update_nested_dict(current_data, updates)
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
@@ -273,7 +273,7 @@ def update_data_config(language):
                 break
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 

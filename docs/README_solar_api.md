@@ -43,13 +43,13 @@ echo 'export UPSTAGE_API_KEY=your_key' >> ~/.bashrc
 ### 2. Solar 구성으로 전환
 
 ```bash
-PYTHONPATH=src poetry run python scripts/switch_config.py solar
+PYTHONPATH=src poetry run python switch_config.py solar
 ```
 
 ### 3. 구성 확인
 
 ```bash
-PYTHONPATH=src poetry run python scripts/switch_config.py show
+PYTHONPATH=src poetry run python switch_config.py show
 ```
 
 다음을 확인하세요:
@@ -184,7 +184,7 @@ print(f"Retrieved {len(hits)} documents")
 
 ```bash
 # Solar 임베딩으로 평가 실행
-PYTHONPATH=src poetry run python scripts/switch_config.py solar
+PYTHONPATH=src poetry run python switch_config.py solar
 PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py \
   --config-dir conf \
   pipeline=qwen-full \
@@ -225,7 +225,7 @@ SOLAR_MODEL=solar-embedding-1-large            # 모델 이름
 Solar 프로바이더는 `conf/settings.yaml`의 다음 설정을 준수합니다:
 
 ```yaml
-SOLAR_API_KEY: ""          # API 키 (환경에서)
+UPSTAGE_API_KEY: ${env:UPSTAGE_API_KEY}  # Upstage API 키
 SOLAR_BASE_URL: https://api.upstage.ai/v1/solar
 SOLAR_MODEL: solar-embedding-1-large
 EMBEDDING_DIMENSION: 4096  # Solar용 고정값
@@ -328,7 +328,7 @@ except Exception as e:
 
 3. **구성 전환**:
    ```bash
-   PYTHONPATH=src poetry run python scripts/switch_config.py solar
+   PYTHONPATH=src poetry run python switch_config.py solar
    ```
 
 4. **새 인덱스 생성**:
@@ -357,7 +357,7 @@ HuggingFace로 롤백하려면:
 
 ```bash
 # 이전 구성으로 다시 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py korean  # 또는 english/bilingual
+PYTHONPATH=src poetry run python switch_config.py korean  # 또는 english/bilingual
 
 # 필요시 백업 복원
 cp conf/settings.yaml.backup conf/settings.yaml

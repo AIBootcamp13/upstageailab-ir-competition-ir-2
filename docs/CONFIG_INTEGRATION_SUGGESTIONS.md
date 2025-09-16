@@ -84,7 +84,7 @@ class IndexManager:
 #### Integration
 ```bash
 # Enhanced switch command
-PYTHONPATH=src poetry run python scripts/switch_config.py solar --auto-reindex
+PYTHONPATH=src poetry run python switch_config.py solar --auto-reindex
 ```
 
 ### 3. Configuration Validation System
@@ -139,7 +139,7 @@ def test_configuration() -> bool:
 
 #### CLI Wizard
 ```bash
-PYTHONPATH=src poetry run python scripts/switch_config.py wizard
+PYTHONPATH=src poetry run python switch_config.py wizard
 ```
 
 #### Features
@@ -201,7 +201,7 @@ def detect_environment() -> dict:
 
 #### Auto-suggestions
 ```bash
-$ PYTHONPATH=src poetry run python scripts/switch_config.py suggest
+$ PYTHONPATH=src poetry run python switch_config.py suggest
 
 Based on your environment, I recommend:
 - Solar API (API key detected)
@@ -209,7 +209,7 @@ Based on your environment, I recommend:
 - CUDA available for acceleration
 
 Suggested command:
-PYTHONPATH=src poetry run python scripts/switch_config.py solar --auto-reindex
+PYTHONPATH=src poetry run python switch_config.py solar --auto-reindex
 ```
 
 ### 6. Configuration History and Rollback
@@ -237,10 +237,10 @@ class ConfigHistory:
 #### Usage
 ```bash
 # After switching
-PYTHONPATH=src poetry run python scripts/switch_config.py history
+PYTHONPATH=src poetry run python switch_config.py history
 
 # Rollback if needed
-PYTHONPATH=src poetry run python scripts/switch_config.py rollback
+PYTHONPATH=src poetry run python switch_config.py rollback
 ```
 
 ### 7. Performance Benchmarking
@@ -264,7 +264,7 @@ def benchmark_configurations():
 
 #### Integration
 ```bash
-PYTHONPATH=src poetry run python scripts/switch_config.py benchmark
+PYTHONPATH=src poetry run python switch_config.py benchmark
 ```
 
 ### 8. Docker/Container Integration
@@ -324,13 +324,13 @@ def config_ui():
 #### Shared Configurations
 ```bash
 # Export configuration
-PYTHONPATH=src poetry run python scripts/switch_config.py export my_config.yaml
+PYTHONPATH=src poetry run python switch_config.py export my_config.yaml
 
 # Import configuration
-PYTHONPATH=src poetry run python scripts/switch_config.py import my_config.yaml
+PYTHONPATH=src poetry run python switch_config.py import my_config.yaml
 
 # Share with team
-PYTHONPATH=src poetry run python scripts/switch_config.py share my_config --team rag-team
+PYTHONPATH=src poetry run python switch_config.py share my_config --team rag-team
 ```
 
 #### Configuration Templates

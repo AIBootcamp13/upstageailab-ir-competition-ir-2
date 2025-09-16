@@ -1,4 +1,21 @@
-# **Information Retrieval**
+
+<div align="center">
+
+<!-- **🚀 Made with ❤️ by Team Information Retrieval** -->
+
+[![CI](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2/actions/workflows/ci.yml/badge.svg)](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2/actions)
+[![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://python.org)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.9.0-yellow.svg)](https://elastic.co)
+[![Redis](https://img.shields.io/badge/Redis-Latest-red.svg)](https://redis.io)
+[![Kibana](https://img.shields.io/badge/Kibana-8.9.0-pink.svg)](https://elastic.co/kibana)
+[![Poetry](https://img.shields.io/badge/Poetry-Dependency%20Management-green.svg)](https://python-poetry.org)
+
+</div>
+
+
+# **Information Retrieval for Scientific Documents Q&A**
+
+
 
 과학적 상식 검색을 위한 모듈형 RAG 파이프라인
 
@@ -67,9 +84,12 @@ poetry run python cli_menu.py
 > 자세한 메뉴 설명은 아래의 **사용법** 섹션을 참고하세요.
 > 실험 및 고급 사용법에 대한 더 자세한 안내는 **[워크플로우 가이드](docs/usage/workflow-guide.md)**를 참고하세요.
 > 병렬 처리에 대한 자세한 정보는 **[병렬 처리 가이드](docs/usage/parallel-processing-guide.md)**를 참고하세요.
-## **🎯 개요**
 
-### **환경 요구사항**
+---
+
+## 🎯 개요
+
+### 환경 요구사항
 
 | 구분 | 사양 |
 | OS | Ubuntu 20.04 (권장) |
@@ -77,7 +97,7 @@ poetry run python cli_menu.py
 | 의존성 관리 | Poetry |
 | 필수 도구 | curl, tar, make, gcc |
 
-### **주요 기능**
+### 주요 기능
 
 * ✅ Elasticsearch + Redis 기반 인덱싱 및 캐싱
 * ✅ 모듈형 RAG 파이프라인
@@ -85,24 +105,25 @@ poetry run python cli_menu.py
 * ✅ 임베딩, 검색, 평가 유틸리티 제공
 * ✅ Docker 없는 로컬 개발 환경 지원
 * ✅ Ollama 통합: 비용 효율적인 로컬 AI 모델
+* ✅ Kibana :인데이터 시각화 및 분석
 
-## **🏆 대회 정보**
+## 🏆 대회 정보
 
-### **📊 개요**
+### 📊 개요
 
 과학적 상식 검색 작업을 위한 Information Retrieval 시스템 구축
 
-### **📅 일정**
+### 📅 일정
 
 * **시작 날짜**: 2025-09-08
 * **최종 제출**: 2025-09-18 (19:00)
 
-### **📈 평가 지표**
+### 📈 평가 지표
 
 * **주요 지표**: MAP (Mean Average Precision)
 * **데이터셋**: 인덱싱용 4,272개 문서, 평가용 220개 쿼리
 
-## **📁 프로젝트 구조**
+## 📁 프로젝트 구조
 ```
 📦 프로젝트 루트
 ├── 📄 README.md
@@ -133,7 +154,7 @@ poetry run python cli_menu.py
 ├── 📂 tests/
 └── ... (other standard dirs)
 ```
-### **🔧 주요 컴포넌트**
+#### **🔧 주요 컴포넌트**
 
 | 모듈 | 기능 | 주요 함수 |
 |------|------|-----------|
@@ -150,9 +171,9 @@ poetry run python cli_menu.py
 | **evaluation** | 평가 메트릭 | `precision_at_k()`, `mrr()` |
 
 
-## **🏗️ 아키텍처**
+## 🏗️ 아키텍처
 
-### **시스펨 플로우**
+#### **시스펨 플로우**
 
 ```mermaid
 ---
@@ -200,24 +221,24 @@ flowchart TD
 
 > 자세한 아키텍처 다이어그램은 [시스템 개요](docs/assets/diagrams/system-overview.md), [RAG 아키텍처](docs/assets/diagrams/rag-architecture.md), [시퀀스 플로우](docs/assets/diagrams/system-sequence-flow.md)를 참고하세요.
 
-## **🚀 설치 및 실행**
+## 🚀 설치 및 실행
 
-### **1️⃣ 저장소 클론**
+### 1️⃣ 저장소 클론
 
 ```bash
 git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
 git checkout 05_feature/kibana
 ```
-### **2️⃣ 의존성 설치**
+
+### 2️⃣ 의존성 설치
 
 ```bash
 # Poetry를 사용한 의존성 설치
 poetry install
 ```
 
-
-### **3️⃣ 서비스 시작**
+### 3️⃣ 서비스 시작
 
 로컬 Elasticsearch와 Redis를 시작하려면 대화형 CLI 메뉴의 **Setup & Infrastructure** 카테고리를 사용하세요:
 
@@ -230,7 +251,7 @@ poetry run python cli_menu.py
 - Check Service Status: 서비스 상태 확인
 - Stop Local Services: 서비스 중지
 
-### **4️⃣ 초기 데이터 인덱싱**
+### 4️⃣ 초기 데이터 인덱싱
 
 데이터 색인은 대화형 CLI 메뉴의 **Data Management** 카테고리를 통해 수행합니다:
 
@@ -245,12 +266,12 @@ poetry run python cli_menu.py
 * 항상 `poetry run` 또는 `poetry shell`로 가상환경을 활성화하세요. 에디터가 가상환경을 사용하지 않으면 pydantic/tqdm 등이 "탐지되지 않음"으로 표시될 수 있습니다.
 * VSCode 사용 시, 왼쪽 하단 또는 Command Palette에서 Poetry 가상환경을 선택해 인터프리터를 맞추면 편리합니다.
 
-### 재인덱싱(재구축) 사용법
+#### 재인덱싱(재구축) 사용법
 
 데이터 재색인은 CLI 메뉴의 **Data Management** 카테고리에서 **Reindex Documents** 옵션을 통해 쉽게 수행할 수 있습니다. 수동으로 실행해야 하는 경우:
 
 ```bash
-PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index test --batch-size 500
+PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index documents_ko_with_embeddings_new --batch-size 500
 ```
 
 팁:
@@ -258,7 +279,7 @@ PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.j
 * ES가 로컬에 없거나 테스트용으로 동작하지 않는 경우 `--index`를 임의의 값으로 지정해도 에러가 발생할 수 있습니다.
 * 에디터에서 `elasticsearch`나 `tqdm` 같은 라이브러리가 "해결되지 않음"으로 보이면 VSCode의 Python 인터프리터를 Poetry venv로 설정하세요.
 
-### 테스트 데이터 인프런스 (대회 제출용)
+#### 테스트 데이터 인프런스 (대회 제출용)
 
 제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
 
@@ -270,9 +291,9 @@ poetry run python cli_menu.py
 
 ---
 
-## � 사용법
+## 📖 사용법
 
-### 대화형 CLI 메뉴
+#### 대화형 CLI 메뉴
 
 프로젝트의 모든 주요 작업은 대화형 CLI 메뉴를 통해 수행할 수 있습니다. 메뉴는 다음과 같은 카테고리로 구성되어 있습니다:
 
@@ -328,9 +349,43 @@ poetry run python cli_menu.py
   <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="600">
 </p>
 
+### 🔧 Configuration Management
+
+프로젝트의 임베딩 모델, 검색 인덱스, API 설정 등을 쉽게 전환할 수 있는 구성 관리 도구입니다.
+
+#### Quick Configuration Switch
+
+```bash
+# 한국어 설정으로 전환 (768D 임베딩)
+PYTHONPATH=src poetry run python switch_config.py korean
+
+# 영어 설정으로 전환 (768D 임베딩)
+PYTHONPATH=src poetry run python switch_config.py english
+
+# 다국어 설정으로 전환 (768D 임베딩)
+PYTHONPATH=src poetry run python switch_config.py bilingual
+
+# Solar API 설정으로 전환 (4096D 임베딩)
+PYTHONPATH=src poetry run python switch_config.py solar
+
+# 현재 설정 확인
+PYTHONPATH=src poetry run python switch_config.py show
+```
+
+#### Available Configurations
+
+| Configuration | Embedding Model | Dimensions | Index | Data File |
+|---------------|----------------|------------|-------|-----------|
+| `korean` | KR-SBERT-V40K-klueNLI-augSTS | 768D | documents_ko_with_embeddings_new | documents_ko.jsonl |
+| `english` | KR-SBERT-V40K-klueNLI-augSTS | 768D | documents_en_with_embeddings_new | documents_bilingual.jsonl |
+| `bilingual` | KR-SBERT-V40K-klueNLI-augSTS | 768D | documents_bilingual_with_embeddings_new | documents_bilingual.jsonl |
+| `solar` | solar-embedding-1-large | 4096D | documents_solar_with_embeddings_new | documents_bilingual.jsonl |
+
+> 📖 **자세한 사용법**: [Configuration Switcher 가이드](docs/README_switch_config.md)
+
 ---
 
-## �📊 결과
+## 📊 결과
 
 ### 🏅 성능 지표
 
@@ -402,7 +457,9 @@ poetry run python cli_menu.py
 ---
 
 
-## � 참고 자료
+---
+
+## 📚 참고 자료
 
 ### 📖 문서
 
@@ -414,7 +471,7 @@ poetry run python cli_menu.py
 - [개발 계획 및 로드맵](docs/current-work/development-plans.md)
 - [현재 작업 개요](docs/current-work/README.md)
 
-###  유용한 링크
+### 🔗 유용한 링크
 
 - [Elasticsearch 공식 문서](https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index.html)
 - [Redis 공식 문서](https://redis.io/documentation)
@@ -427,14 +484,3 @@ poetry run python cli_menu.py
 이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
 ---
-
-<div align="center">
-
-<!-- **🚀 Made with ❤️ by Team Information Retrieval** -->
-
-[![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://python.org)
-[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.9.0-yellow.svg)](https://elastic.co)
-[![Redis](https://img.shields.io/badge/Redis-Latest-red.svg)](https://redis.io)
-[![Poetry](https://img.shields.io/badge/Poetry-Dependency%20Management-green.svg)](https://python-poetry.org)
-
-</div>

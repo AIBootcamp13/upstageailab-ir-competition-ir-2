@@ -49,31 +49,31 @@ class UtilitiesMenu(BaseMenuModule):
                 },
                 {
                     "name": "Show Current Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py show",
+                    "command": "PYTHONPATH=src poetry run python switch_config.py show",
                     "description": "Display current RAG system configuration (embeddings, index, etc.)",
                     "needs_params": False,
                 },
                 {
                     "name": "Switch to Korean Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py korean",
+                    "command": "PYTHONPATH=src poetry run python switch_config.py korean",
                     "description": "Switch to Korean configuration (768D embeddings, Korean data)",
                     "needs_params": False,
                 },
                 {
                     "name": "Switch to English Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py english",
+                    "command": "PYTHONPATH=src poetry run python switch_config.py english",
                     "description": "Switch to English configuration (384D embeddings, bilingual data)",
                     "needs_params": False,
                 },
                 {
                     "name": "Switch to Bilingual Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py bilingual",
+                    "command": "PYTHONPATH=src poetry run python switch_config.py bilingual",
                     "description": "Switch to Bilingual configuration (768D embeddings, mixed data)",
                     "needs_params": False,
                 },
                 {
                     "name": "Switch to Solar API Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/switch_config.py solar",
+                    "command": "PYTHONPATH=src poetry run python switch_config.py solar",
                     "description": "Switch to Solar API configuration (4096D embeddings, requires API key)",
                     "needs_params": False,
                 },
@@ -178,7 +178,7 @@ class UtilitiesMenu(BaseMenuModule):
             instructions.append("⚠️  Infrastructure scripts missing - check scripts/infra/ directory")
 
         if not validation["config_switcher_available"]:
-            instructions.append("⚠️  Configuration switcher missing - check scripts/switch_config.py")
+            instructions.append("⚠️  Configuration switcher missing - check switch_config.py")
 
         if not validation["settings_file_exists"]:
             instructions.append("⚠️  Settings file missing - check conf/settings.yaml")
@@ -189,7 +189,7 @@ class UtilitiesMenu(BaseMenuModule):
 
         if validation["config_switcher_available"] and validation["settings_file_exists"]:
             instructions.append("✅ Configuration switching is available!")
-            instructions.append("   Use: PYTHONPATH=src poetry run python scripts/switch_config.py [korean|english|bilingual|solar|show]")
+            instructions.append("   Use: PYTHONPATH=src poetry run python switch_config.py [korean|english|bilingual|solar|show]")
 
         if validation["utility_scripts_exist"]:
             instructions.append("✅ Core utility components are available!")
@@ -214,13 +214,13 @@ class UtilitiesMenu(BaseMenuModule):
             "poetry run python scripts/list_scripts.py",
             "",
             "# Show current configuration",
-            "PYTHONPATH=src poetry run python scripts/switch_config.py show",
+            "PYTHONPATH=src poetry run python switch_config.py show",
             "",
             "# Switch configurations",
-            "PYTHONPATH=src poetry run python scripts/switch_config.py korean    # Korean (768D)",
-            "PYTHONPATH=src poetry run python scripts/switch_config.py english   # English (384D)",
-            "PYTHONPATH=src poetry run python scripts/switch_config.py bilingual # Bilingual (768D)",
-            "PYTHONPATH=src poetry run python scripts/switch_config.py solar     # Solar API (4096D)",
+            "PYTHONPATH=src poetry run python switch_config.py korean    # Korean (768D)",
+            "PYTHONPATH=src poetry run python switch_config.py english   # English (384D)",
+            "PYTHONPATH=src poetry run python switch_config.py bilingual # Bilingual (768D)",
+            "PYTHONPATH=src poetry run python switch_config.py solar     # Solar API (4096D)",
             "",
             "# Clean up distributions",
             "./scripts/infra/cleanup-distros.sh",

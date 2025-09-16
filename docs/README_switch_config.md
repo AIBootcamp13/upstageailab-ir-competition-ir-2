@@ -46,19 +46,19 @@
 
 ```bash
 # 한국어 구성으로 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py korean
+PYTHONPATH=src poetry run python switch_config.py korean
 
 # 영어 구성으로 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py english
+PYTHONPATH=src poetry run python switch_config.py english
 
 # 이중언어 구성으로 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py bilingual
+PYTHONPATH=src poetry run python switch_config.py bilingual
 
 # Solar API 구성으로 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py solar
+PYTHONPATH=src poetry run python switch_config.py solar
 
 # 현재 구성 표시
-PYTHONPATH=src poetry run python scripts/switch_config.py show
+PYTHONPATH=src poetry run python switch_config.py show
 ```
 
 ### 구성 세부사항
@@ -111,7 +111,7 @@ PYTHONPATH=src poetry run python scripts/switch_config.py show
 ### 현재 구성 확인
 
 ```bash
-PYTHONPATH=src poetry run python scripts/switch_config.py show
+PYTHONPATH=src poetry run python switch_config.py show
 ```
 
 출력 포함 사항:
@@ -170,10 +170,10 @@ solar_provider = get_embedding_provider('solar')
 
 ```bash
 # 한국어 구성으로 재설정
-PYTHONPATH=src poetry run python scripts/switch_config.py korean
+PYTHONPATH=src poetry run python switch_config.py korean
 
 # 설정 확인
-PYTHONPATH=src poetry run python scripts/switch_config.py show
+PYTHONPATH=src poetry run python switch_config.py show
 ```
 
 ## 성능 고려사항
@@ -216,10 +216,10 @@ PYTHONPATH=src poetry run python scripts/switch_config.py show
 echo "UPSTAGE_API_KEY=your_key_here" >> .env
 
 # 2. 구성 전환
-PYTHONPATH=src poetry run python scripts/switch_config.py solar
+PYTHONPATH=src poetry run python switch_config.py solar
 
 # 3. 설정 확인
-PYTHONPATH=src poetry run python scripts/switch_config.py show
+PYTHONPATH=src poetry run python switch_config.py show
 
 # 4. 인덱스 생성
 PYTHONPATH=src poetry run python scripts/maintenance/create_index.py \
@@ -245,7 +245,7 @@ print(f'임베딩 형태: {emb.shape}')  # (4096,)이어야 함
 # 다양한 구성 테스트
 for config in ['korean', 'english', 'bilingual', 'solar']:
     echo "$config 구성 테스트중..."
-    PYTHONPATH=src poetry run python scripts/switch_config.py $config
+    PYTHONPATH=src poetry run python switch_config.py $config
     PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py debug=true debug_limit=5
 done
 ```
