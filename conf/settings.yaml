@@ -42,7 +42,7 @@ EMBEDDING_DTYPE: float32          # Data type for embeddings
 
 # Solar API Configuration
 # ----------------------
-UPSTAGE_API_KEY: ${env:UPSTAGE_API_KEY}  # Upstage API key for Solar embeddings
+UPSTAGE_API_KEY: ""  # Upstage API key for Solar embeddings (set via environment variable)
 SOLAR_BASE_URL: https://api.upstage.ai/v1/solar  # Solar API base URL
 SOLAR_MODEL: solar-embedding-1-large  # Solar model name
 
