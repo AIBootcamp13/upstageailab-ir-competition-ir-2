@@ -3,6 +3,8 @@
 import os
 import sys
 import json
+import csv
+import math
 import signal
 import concurrent.futures
 from typing import cast
@@ -203,10 +205,19 @@ def run(cfg: DictConfig) -> None:
 
             topk_ids = [d.get("id") for d in docs[: cfg.evaluate.topk]]
             context_texts = [d.get("content", "") for d in docs[: cfg.evaluate.topk]]
-            references = [
-                {"score": d.get("score", 0.0), "content": d.get("content", "")}
-                for d in docs[: cfg.evaluate.topk]
-            ]
+            references = []
+            for d in docs[: cfg.evaluate.topk]:
+                score = d.get("score", 0.0)
+                # Handle NaN values
+                if score is not None and not (isinstance(score, float) and math.isnan(score)):
+                    score = float(score)
+                else:
+                    score = 0.0
+
+                references.append({
+                    "score": score,
+                    "content": d.get("content", "")
+                })
 
             # Check again before generation
             if shutdown_requested:
@@ -277,11 +288,20 @@ def run(cfg: DictConfig) -> None:
         if record and '_original_index' in record:
             del record['_original_index']
 
-    # Write results
-    for record in results:
-        if record:
-            with open(output_path, "a", encoding="utf-8") as outf:
-                outf.write(json.dumps(record, ensure_ascii=False) + "\n")
+    # Write results in CSV format
+    if results:
+        fieldnames = ['eval_id', 'standalone_query', 'topk', 'answer', 'references']
+        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for record in results:
+                if record:
+                    # Convert complex fields to strings for CSV
+                    csv_record = record.copy()
+                    csv_record['topk'] = ','.join(record['topk']) if record.get('topk') else ''
+                    csv_record['references'] = json.dumps(record['references'], ensure_ascii=False) if record.get('references') else ''
+                    writer.writerow(csv_record)
 
     print(f"\n평가 완료. {len(results)}개의 쿼리가 처리되었습니다. 제출 기록이 다음 파일에 저장되었습니다: {output_path}")
 

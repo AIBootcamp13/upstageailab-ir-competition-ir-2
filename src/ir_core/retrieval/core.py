@@ -225,13 +225,29 @@ def hybrid_retrieve(
     q_emb = encode_query(query)
     cosines = (doc_embs_np @ q_emb).tolist()
 
+    # Handle NaN values in cosine similarities
+    cosines = [float(c) if not np.isnan(c) else 0.0 for c in cosines]
+
     results = []
     for hit, cos in zip(bm25_hits, cosines):
         bm25_score = hit.get("_score", 0.0) or 0.0
+
+        # Handle NaN values from Elasticsearch
+        if np.isnan(bm25_score):
+            bm25_score = 0.0
+        if np.isnan(cos):
+            cos = 0.0
+
         if alpha is None:
             score = cos
         else:
-            score = alpha * (bm25_score / (bm25_score + 1.0)) + (1 - alpha) * cos
+            # Normalize BM25 score to avoid division by zero or NaN
+            if bm25_score > 0:
+                normalized_bm25 = bm25_score / (bm25_score + 1.0)
+            else:
+                normalized_bm25 = 0.0
+            score = alpha * normalized_bm25 + (1 - alpha) * cos
+
         results.append({"hit": hit, "cosine": float(cos), "score": float(score)})
 
     # Sort by combined score (descending)

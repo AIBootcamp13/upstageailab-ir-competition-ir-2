@@ -135,7 +135,7 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
 
     def _mean_pool(self, last_hidden, attention_mask):
         """Mean pool the hidden states."""
-        mask = attention_mask.unsqueeze(-1).expand(last_hidden.size()).float()
+        mask = attention_mask.unsqueeze(-1).expand(last_hidden.size()).to(last_hidden.dtype)
         summed = torch.sum(last_hidden * mask, dim=1)
         counts = torch.clamp(mask.sum(dim=1), min=1e-9)
         return summed / counts
@@ -213,10 +213,17 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                 emb = self._mean_pool(last_hidden, encoded["attention_mask"])
                 emb = emb.cpu().numpy()
 
+                # Handle NaN and inf values before normalization
+                emb = np.nan_to_num(emb, nan=0.0, posinf=1.0, neginf=-1.0)
+
                 # L2 normalize
                 norms = np.linalg.norm(emb, axis=1, keepdims=True)
-                norms[norms == 0] = 1.0
+                norms = np.nan_to_num(norms, nan=1.0, posinf=1.0, neginf=1.0)  # Handle NaN norms
+                norms[norms == 0] = 1.0  # Avoid division by zero
                 emb = emb / norms
+
+                # Final safety check - replace any remaining NaN/inf values
+                emb = np.nan_to_num(emb, nan=0.0, posinf=1.0, neginf=-1.0)
 
                 dtype = getattr(np, getattr(settings, 'EMBEDDING_DTYPE', 'float32'))
                 all_embs.append(emb.astype(dtype))

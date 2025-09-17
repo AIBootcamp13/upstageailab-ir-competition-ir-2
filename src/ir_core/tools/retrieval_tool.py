@@ -1,5 +1,7 @@
 # src/ir_core/tools/retrieval_tool.py
 
+# src/ir_core/tools/retrieval_tool.py
+import math
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from ..retrieval import hybrid_retrieve
@@ -49,11 +51,18 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
         doc_id = source_doc.get("docid") or inner.get("_id")
         content = source_doc.get("content", "No content available.")
         score = hit.get("score")
+
+        # Handle NaN values by converting them to 0.0
+        if score is not None and not math.isnan(score):
+            score = float(score)
+        else:
+            score = 0.0
+
         if doc_id:
             formatted_results.append({
                 "id": doc_id,
                 "content": content,
-                "score": float(score) if score is not None else None
+                "score": score
             })
 
     # ID를 기준으로 중복을 제거하면서 순서를 보존합니다.
@@ -66,9 +75,16 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
             order.append(_id)
         else:
             # 점수가 더 높은 항목을 유지합니다.
-            existing_score = seen[_id].get("score")
-            new_score = item.get("score")
-            if existing_score is None or (new_score is not None and new_score > existing_score):
+            existing_score = seen[_id].get("score", 0.0)
+            new_score = item.get("score", 0.0)
+
+            # Handle NaN values in comparison
+            if math.isnan(existing_score):
+                existing_score = 0.0
+            if math.isnan(new_score):
+                new_score = 0.0
+
+            if new_score > existing_score:
                 seen[_id] = item
 
     return [seen[k] for k in order]

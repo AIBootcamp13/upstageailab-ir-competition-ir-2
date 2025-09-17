@@ -49,7 +49,7 @@ SOLAR_MODEL: solar-embedding-1-large  # Solar model name
 # Polyglot-Ko Configuration
 # ------------------------
 POLYGLOT_MODEL: EleutherAI/polyglot-ko-1.3b   # Polyglot-Ko model for embedding extraction
-POLYGLOT_QUANTIZATION: 16bit   # Quantization: '8bit', '4bit', '16bit', or 'full' for full precision
+POLYGLOT_QUANTIZATION: full   # Quantization: '8bit', '4bit', '16bit', or 'full' for full precision
 POLYGLOT_BATCH_SIZE: 8         # Batch size for Polyglot-Ko (smaller for memory efficiency)
 POLYGLOT_MAX_THREADS: 8        # Maximum threads for Polyglot-Ko processing
 
