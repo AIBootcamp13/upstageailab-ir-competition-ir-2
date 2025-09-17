@@ -7,6 +7,9 @@ import openai
 import requests
 from openai.types.chat import ChatCompletionMessageToolCall
 from omegaconf import DictConfig
+from rich import print as rprint
+from rich.panel import Panel
+from rich.text import Text
 
 from ..generation.base import BaseGenerator
 from ..generation import get_generator
@@ -100,7 +103,8 @@ class RAGPipeline:
 
             # Check if enhancement was bypassed (conversational queries)
             if enhancement_result.get('technique_used') == 'CONVERSATIONAL_SKIP':
-                print(f"쿼리 개선 우회: '{query}' (유형: {enhancement_result.get('reason', 'unknown')})")
+                reason = enhancement_result.get('reason', 'unknown')
+                rprint(f"[dim cyan]쿼리 개선 우회:[/dim cyan] [yellow]'{query}'[/yellow] [dim](유형: {reason})[/dim]")
                 return [{"standalone_query": query, "docs": []}]
 
             enhanced_query = enhancement_result.get('enhanced_query', query)
@@ -110,19 +114,37 @@ class RAGPipeline:
             if technique_used == 'hyde' and 'retrieval_results' in enhancement_result:
                 hyde_results = enhancement_result['retrieval_results']
                 if hyde_results:
-                    print(f"HyDE 검색 결과 사용: '{query}' -> {len(hyde_results)}개 문서 발견")
+                    rprint(f"[bold green]HyDE 검색 결과 사용:[/bold green] [yellow]'{query}'[/yellow] -> [green]{len(hyde_results)}개 문서 발견[/green]")
                     return [{"standalone_query": enhanced_query, "docs": hyde_results}]
 
-            print(f"원본 쿼리: '{query}' -> 개선된 쿼리: '{enhanced_query}' (기법: {technique_used})")
+            # Create structured output for query enhancement
+            original_text = Text(f"원본 쿼리: {query}", style="bold red")
+            enhanced_text = Text(f"개선된 쿼리: {enhanced_query}", style="bold green")
+            technique_text = Text(f"기법: {technique_used}", style="bold blue")
+
+            panel = Panel.fit(
+                f"{original_text}\n{enhanced_text}\n{technique_text}",
+                title="[bold magenta]쿼리 개선 결과[/bold magenta]",
+                border_style="magenta"
+            )
+            rprint(panel)
 
         elif self.query_rewriter:
             # Fallback to old rewriter for backward compatibility
             enhanced_query = self.query_rewriter.rewrite_query(query)
-            print(f"원본 쿼리: '{query}' -> 재작성된 쿼리: '{enhanced_query}'")
+            original_text = Text(f"원본 쿼리: {query}", style="bold red")
+            enhanced_text = Text(f"재작성된 쿼리: {enhanced_query}", style="bold green")
+
+            panel = Panel.fit(
+                f"{original_text}\n{enhanced_text}",
+                title="[bold cyan]쿼리 재작성 결과[/bold cyan]",
+                border_style="cyan"
+            )
+            rprint(panel)
         else:
             # No enhancement
             enhanced_query = query
-            print(f"쿼리 개선 없이 사용: '{query}'")
+            rprint(f"[dim yellow]쿼리 개선 없이 사용:[/dim yellow] [yellow]'{query}'[/yellow]")
 
         tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 

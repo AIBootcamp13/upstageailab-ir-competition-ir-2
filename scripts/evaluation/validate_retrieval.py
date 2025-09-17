@@ -7,6 +7,9 @@ from typing import cast
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ir_core.orchestration.rewriter_openai import QueryRewriter
+from rich import print as rprint
+from rich.panel import Panel
+from rich.text import Text
 
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -53,6 +56,41 @@ def run(cfg: DictConfig) -> None:
     """
     _add_src_to_path()
 
+    # Configure logging
+    import logging
+    from rich.logging import RichHandler
+
+    # Create logger
+    logger = logging.getLogger(__name__)
+
+    # Clear existing handlers to avoid duplicates
+    logger.handlers.clear()
+
+    # Create formatters
+    detailed_formatter = logging.Formatter('[%(asctime)s] %(name)s %(levelname)s: %(message)s')
+
+    # File handler (overwrite mode)
+    log_file = "outputs/logs/evaluation.log"
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+    file_handler.setFormatter(detailed_formatter)
+    file_handler.setLevel(logging.DEBUG)
+
+    # Rich console handler
+    rich_handler = RichHandler(rich_tracebacks=True, markup=True)
+    rich_handler.setLevel(logging.INFO)
+
+    # Add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(rich_handler)
+    logger.setLevel(logging.DEBUG)
+
+    # Log startup information
+    logger.info("=== Starting Validation Run ===")
+    logger.info(f"Validation file: {cfg.data.validation_path}")
+    logger.info(f"Debug mode: {getattr(cfg, 'debug', False)}")
+    logger.info(f"Debug limit: {getattr(cfg, 'debug_limit', 'unlimited')}")
+
     # 필요한 모듈들을 지연 임포트합니다.
     from ir_core.config import settings
     from ir_core.generation import get_generator
@@ -84,24 +122,24 @@ def run(cfg: DictConfig) -> None:
             config_path = HydraConfig.get().runtime.output_dir
             config_file = os.path.join(config_path, ".hydra", "config.yaml")
             if os.path.exists(config_file):
-                print(f"Merged Config File: {config_file}")
+                logger.info(f"Merged Config File: {config_file}")
                 wandb.log({"config_file_path": config_file})
             else:
-                print(f"Config file not found at expected location: {config_file}")
+                logger.warning(f"Config file not found at expected location: {config_file}")
         except Exception as e:
-            print(f"Could not determine config file path: {e}")
+            logger.error(f"Could not determine config file path: {e}")
 
-    print("--- 검증 실행 시작 (Starting Validation Run) ---")
-    print(f"사용할 검증 파일: {cfg.data.validation_path}")
-    print(f"적용된 설정:\n{OmegaConf.to_yaml(cfg)}")
+    logger.info("--- 검증 실행 시작 (Starting Validation Run) ---")
+    logger.info(f"사용할 검증 파일: {cfg.data.validation_path}")
+    logger.debug(f"적용된 설정:\n{OmegaConf.to_yaml(cfg)}")
 
     # --- 설정 오버라이드 (Overriding Settings) ---
     # Hydra 설정을 기존의 전역 settings 객체에 반영합니다.
     # 이는 파이프라인의 다른 부분들이 최신 파라미터를 사용하도록 보장합니다.
     settings.ALPHA = cfg.model.alpha
     settings.RERANK_K = cfg.model.rerank_k
-    print(f"Alpha 값을 {settings.ALPHA}(으)로 오버라이드합니다.")
-    print(f"Rerank_k 값을 {settings.RERANK_K}(으)로 오버라이드합니다.")
+    logger.info(f"Alpha 값을 {settings.ALPHA}(으)로 오버라이드합니다.")
+    logger.info(f"Rerank_k 값을 {settings.RERANK_K}(으)로 오버라이드합니다.")
 
     # RAG 파이프라인을 초기화합니다.
     # 설정에서 지정된 경로의 도구 설명 프롬프트를 읽어옵니다.
@@ -109,7 +147,7 @@ def run(cfg: DictConfig) -> None:
         with open(cfg.prompts.tool_description, "r", encoding="utf-8") as f:
             tool_desc = f.read()
     except FileNotFoundError:
-        print(
+        logger.error(
             f"오류: '{cfg.prompts.tool_description}'에서 도구 설명 파일을 찾을 수 없습니다."
         )
         return
@@ -131,20 +169,21 @@ def run(cfg: DictConfig) -> None:
     try:
         validation_data = list(read_jsonl(cfg.data.validation_path))
     except FileNotFoundError:
-        print(f"오류: '{cfg.data.validation_path}'에서 검증 파일을 찾을 수 없습니다.")
+        logger.error(f"오류: '{cfg.data.validation_path}'에서 검증 파일을 찾을 수 없습니다.")
         return
 
     # --- 샘플 제한 로직 (Sample Limiting Logic) ---
     # cfg.limit 값이 설정된 경우, 데이터셋을 해당 크기만큼만 사용합니다.
     if cfg.limit:
-        print(f"데이터셋을 {cfg.limit}개의 샘플로 제한합니다.")
+        logger.info(f"데이터셋을 {cfg.limit}개의 샘플로 제한합니다.")
         validation_data = validation_data[: cfg.limit]
 
-    # Debug mode: Log prompts and answers for first few queries
+    # Debug mode: Limit processing to debug_limit queries for faster debugging
     debug_mode = getattr(cfg, 'debug', False)
     if debug_mode:
         debug_limit = getattr(cfg, 'debug_limit', 3)
-        print(f"🐛 Debug mode enabled - will log prompts and answers for first {debug_limit} queries")
+        logger.info(f"🐛 Debug mode enabled - processing only first {debug_limit} queries for fast debugging")
+        validation_data = validation_data[:debug_limit]
 
     # === ANALYSIS FRAMEWORK INTEGRATION ===
     # The new analysis framework will handle all metrics collection and logging
@@ -162,7 +201,7 @@ def run(cfg: DictConfig) -> None:
         if max_workers is None:
             # Auto-determine workers: use min(sample_size, reasonable_max)
             max_workers = min(len(validation_data), 4)
-        print(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
+        logger.info(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
 
         def process_single_query(item, idx=0):
             """Process a single query for parallel execution."""
@@ -181,34 +220,53 @@ def run(cfg: DictConfig) -> None:
                 if retrieval_output and isinstance(retrieval_output, list) and len(retrieval_output) > 0:
                     retrieval_result = retrieval_output[0]
                     if not isinstance(retrieval_result, dict):
-                        print(f"Warning: Expected dict, got {type(retrieval_result)} for query '{query}'")
+                        logger.warning(f"Expected dict, got {type(retrieval_result)} for query '{query}'")
                         retrieval_result = {"docs": []}
                 else:
                     retrieval_result = {"docs": []}
 
-                # Debug mode: Log full pipeline for first few queries
-                if debug_mode and idx < debug_limit:
-                    print(f"\n🐛 DEBUG Query {idx + 1}: {query}")
+                # Debug mode: Log full pipeline for all queries (since we're limiting processing)
+                if debug_mode:
+                    query_text = Text(f"Query {idx + 1}: {query}", style="bold yellow")
+
                     try:
                         full_answer = pipeline.run(query)
-                        print(f"🐛 DEBUG Answer: {full_answer[:200]}..." if len(full_answer) > 200 else f"🐛 DEBUG Answer: {full_answer}")
+                        answer_text = Text(f"Answer: {full_answer[:200]}{'...' if len(full_answer) > 200 else ''}", style="green")
+
+                        debug_content = f"{query_text}\n{answer_text}"
 
                         # Log retrieved context
                         docs = retrieval_result.get("docs", [])
                         if docs:
-                            print(f"🐛 DEBUG Retrieved {len(docs)} documents:")
+                            docs_text = Text(f"Retrieved {len(docs)} documents:", style="bold blue")
+                            debug_content += f"\n{docs_text}"
                             for i, doc in enumerate(docs[:3]):  # Show first 3 docs
                                 content_preview = doc.get("content", "")[:100]
                                 score = doc.get("score", 0)
-                                print(f"  Doc {i+1} (score: {score:.3f}): {content_preview}...")
+                                doc_text = Text(f"  Doc {i+1} (score: {score:.3f}): {content_preview}...", style="dim white")
+                                debug_content += f"\n{doc_text}"
                         else:
-                            print("🐛 DEBUG No documents retrieved")
+                            no_docs_text = Text("No documents retrieved", style="red")
+                            debug_content += f"\n{no_docs_text}"
+
+                        panel = Panel.fit(
+                            debug_content,
+                            title=f"[bold magenta]🐛 DEBUG Query {idx + 1}[/bold magenta]",
+                            border_style="magenta"
+                        )
+                        rprint(panel)
                     except Exception as e:
-                        print(f"🐛 DEBUG Error in full pipeline: {e}")
+                        error_text = Text(f"Error in full pipeline: {e}", style="red")
+                        panel = Panel.fit(
+                            f"{query_text}\n{error_text}",
+                            title=f"[bold magenta]🐛 DEBUG Query {idx + 1}[/bold magenta]",
+                            border_style="red"
+                        )
+                        rprint(panel)
 
                 return query_data, retrieval_result
             except Exception as e:
-                print(f"Error processing query '{query}': {e}")
+                logger.error(f"Error processing query '{query}': {e}")
                 return query_data, {"docs": []}
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -255,58 +313,58 @@ def run(cfg: DictConfig) -> None:
         original_name = wandb.run.name
         updated_name = f"{original_name}-MAP_{analysis_result.map_score:.3f}"
         wandb.run.name = updated_name
-        print(f"WandB 실행 이름 업데이트: {original_name} -> {updated_name}")
+        logger.info(f"WandB 실행 이름 업데이트: {original_name} -> {updated_name}")
 
-    print("\n--- 검증 완료 (Validation Complete) ---")
-    print(f"검증된 쿼리 수: {analysis_result.total_queries}")
-    print(f"MAP Score: {analysis_result.map_score:.4f}")
-    print(f"Retrieval Success Rate: {analysis_result.retrieval_success_rate:.1%}")
-    print(f"Rewrite Rate: {analysis_result.rewrite_rate:.1%}")
+    logger.info("--- 검증 완료 (Validation Complete) ---")
+    logger.info(f"검증된 쿼리 수: {analysis_result.total_queries}")
+    logger.info(f"MAP Score: {analysis_result.map_score:.4f}")
+    logger.info(f"Retrieval Success Rate: {analysis_result.retrieval_success_rate:.1%}")
+    logger.info(f"Rewrite Rate: {analysis_result.rewrite_rate:.1%}")
 
     # Phase 4: Enhanced Error Analysis Output
-    print("\n--- Phase 4: Enhanced Error Analysis ---")
+    logger.info("--- Phase 4: Enhanced Error Analysis ---")
 
     if analysis_result.query_understanding_failures:
-        print("🔍 Query Understanding Failures:")
+        logger.info("🔍 Query Understanding Failures:")
         for error_type, count in analysis_result.query_understanding_failures.items():
             if count > 0:
-                print(f"  • {error_type}: {count} queries")
+                logger.info(f"  • {error_type}: {count} queries")
 
     if analysis_result.retrieval_failures:
-        print("📊 Retrieval Failures:")
+        logger.info("📊 Retrieval Failures:")
         for error_type, count in analysis_result.retrieval_failures.items():
             if count > 0:
-                print(f"  • {error_type}: {count} queries")
+                logger.info(f"  • {error_type}: {count} queries")
 
     if analysis_result.system_failures:
-        print("⚠️  System Failures:")
+        logger.info("⚠️  System Failures:")
         for error_type, count in analysis_result.system_failures.items():
             if count > 0:
-                print(f"  • {error_type}: {count} queries")
+                logger.info(f"  • {error_type}: {count} queries")
 
     if analysis_result.domain_error_rates:
-        print("🌍 Domain-Specific Error Rates:")
+        logger.info("🌍 Domain-Specific Error Rates:")
         for domain, rate in analysis_result.domain_error_rates.items():
-            print(f"  • {domain}: {rate:.1%} error rate")
+            logger.info(f"  • {domain}: {rate:.1%} error rate")
 
     if analysis_result.error_patterns.get("query_length_correlation"):
         corr = analysis_result.error_patterns["query_length_correlation"]
-        print(f"📈 Query Length vs Success Correlation: {corr:.3f}")
+        logger.info(f"📈 Query Length vs Success Correlation: {corr:.3f}")
 
-    print("---------------------------")
+    logger.info("---------------------------")
     if analysis_result.recommendations:
-        print("📋 Recommendations:")
+        logger.info("📋 Recommendations:")
         for rec in analysis_result.recommendations:
-            print(f"  • {rec}")
-    print("---------------------------")
+            logger.info(f"  • {rec}")
+    logger.info("---------------------------")
     if analysis_result.error_recommendations:
-        print("🔧 Enhanced Error Analysis Recommendations:")
+        logger.info("🔧 Enhanced Error Analysis Recommendations:")
         for rec in analysis_result.error_recommendations:
-            print(f"  • {rec}")
-    print("---------------------------")
+            logger.info(f"  • {rec}")
+    logger.info("---------------------------")
 
     if wandb.run is not None:
-        print(f"WandB 실행 URL: {wandb.run.url}")
+        logger.info(f"WandB 실행 URL: {wandb.run.url}")
     wandb.finish()
 
 

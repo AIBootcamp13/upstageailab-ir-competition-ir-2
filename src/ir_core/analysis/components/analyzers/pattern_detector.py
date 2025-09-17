@@ -73,7 +73,18 @@ class PatternDetector:
         successes = []
 
         for pred_docs, gt_id in zip(predicted_docs_list, ground_truth_ids):
-            top_10_ids = [doc.get("id", "") for doc in pred_docs[:10]] if pred_docs else []
+            # Handle case where pred_docs might contain strings instead of dicts
+            top_10_ids = []
+            if pred_docs:
+                for doc in pred_docs[:10]:
+                    if isinstance(doc, dict):
+                        top_10_ids.append(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        # If doc is a string, use it as the ID directly
+                        top_10_ids.append(doc)
+                    else:
+                        # Handle other types by converting to string
+                        top_10_ids.append(str(doc))
             successes.append(1 if gt_id in top_10_ids else 0)
 
         if query_lengths and successes:
@@ -121,7 +132,18 @@ class PatternDetector:
         domain_stats = {}
 
         for pred_docs, gt_id, domains in zip(predicted_docs_list, ground_truth_ids, query_domains):
-            top_10_ids = [doc.get("id", "") for doc in pred_docs[:10]] if pred_docs else []
+            # Handle case where pred_docs might contain strings instead of dicts
+            top_10_ids = []
+            if pred_docs:
+                for doc in pred_docs[:10]:
+                    if isinstance(doc, dict):
+                        top_10_ids.append(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        # If doc is a string, use it as the ID directly
+                        top_10_ids.append(doc)
+                    else:
+                        # Handle other types by converting to string
+                        top_10_ids.append(str(doc))
             is_success = gt_id in top_10_ids
 
             for domain in domains:
@@ -192,7 +214,18 @@ class PatternDetector:
         failures = []
 
         for i, (pred_docs, gt_id, query) in enumerate(zip(predicted_docs_list, ground_truth_ids, queries)):
-            top_10_ids = [doc.get("id", "") for doc in pred_docs[:10]] if pred_docs else []
+            # Handle case where pred_docs might contain strings instead of dicts
+            top_10_ids = []
+            if pred_docs:
+                for doc in pred_docs[:10]:
+                    if isinstance(doc, dict):
+                        top_10_ids.append(doc.get("id", ""))
+                    elif isinstance(doc, str):
+                        # If doc is a string, use it as the ID directly
+                        top_10_ids.append(doc)
+                    else:
+                        # Handle other types by converting to string
+                        top_10_ids.append(str(doc))
             if gt_id not in top_10_ids:
                 # This is a failure
                 domain = query_domains[i][0] if query_domains and i < len(query_domains) else "unknown"

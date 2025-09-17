@@ -31,11 +31,26 @@ from ir_core.utils.wandb import generate_run_name
 shutdown_requested = False
 
 def signal_handler(signum, frame):
-    """Handle interrupt signals gracefully"""
+    """Handle interrupt signals gracefully but forcefully."""
     global shutdown_requested
-    print("\n⚠️  Interrupt signal received. Shutting down gracefully...")
-    print("   Waiting for current tasks to complete...")
+    if shutdown_requested: # If Ctrl+C is pressed a second time
+        print("\n🛑 Force exiting immediately.")
+        os._exit(1) # Hard exit
+
+    print("\n⚠️  Interrupt signal received. Forcing shutdown...")
     shutdown_requested = True
+
+    try:
+        # Attempt to cleanly finish the wandb run if it exists
+        if wandb.run:
+            print("   Cleaning up WandB run...")
+            wandb.finish(exit_code=1)
+    except Exception as e:
+        print(f"   Could not clean up WandB run: {e}")
+    finally:
+        # Force exit the script
+        print("✅ Shutdown complete.")
+        sys.exit(0)
 
 @hydra.main(config_path="../../conf", config_name="settings", version_base=None)
 def run(cfg: DictConfig) -> None:

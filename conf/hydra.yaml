@@ -1,0 +1,61 @@
+# Hydra configuration for logging
+# This file configures Hydra's logging behavior for the RAG system
+
+# Default Hydra configuration
+defaults:
+  - _self_
+
+# Logging configuration
+# Configure Hydra to save logs to file with overwrite
+hydra:
+  run:
+    dir: outputs/logs/${hydra:runtime.get_time}
+  sweep:
+    dir: outputs/logs/${hydra:runtime.get_time}
+    subdir: ${hydra:job.num}
+
+# Job logging configuration
+job_logging:
+  version: 1
+  formatters:
+    simple:
+      format: '[%(levelname)s] - %(message)s'
+    detailed:
+      format: '[%(asctime)s] %(name)s %(levelname)s: %(message)s'
+    colored:
+      format: '[%(asctime)s] %(name)s %(levelname)s: %(message)s'
+      class: colorlog.ColoredFormatter
+      log_colors:
+        DEBUG: 'cyan'
+        INFO: 'green'
+        WARNING: 'yellow'
+        ERROR: 'red'
+        CRITICAL: 'red,bg_white'
+
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: colored
+      stream: ext://sys.stdout
+
+    file:
+      class: logging.FileHandler
+      formatter: detailed
+      filename: outputs/logs/evaluation.log
+      mode: 'w'  # Overwrite mode
+      encoding: utf-8
+
+    rich_console:
+      class: rich.logging.RichHandler
+      formatter: colored
+      rich_tracebacks: true
+      markup: true
+
+  root:
+    level: INFO
+    handlers: [console, file, rich_console]
+
+  disable_existing_loggers: false
+
+# Disable Hydra's default logging to avoid conflicts
+disable_hydra_logging: false

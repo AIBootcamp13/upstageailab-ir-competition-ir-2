@@ -181,7 +181,14 @@ def hybrid_retrieve(
 
     if redis_client:
         # 1. Try to fetch embeddings from Redis cache first
-        doc_ids = [h.get("_id") for h in bm25_hits]
+        doc_ids = []
+        for h in bm25_hits:
+            if isinstance(h, dict):
+                doc_ids.append(h.get("_id", ""))
+            elif isinstance(h, str):
+                doc_ids.append(h)
+            else:
+                doc_ids.append(str(h) if h else "")
         cached_embs_raw = cast(List[Any], redis_client.mget(doc_ids))
 
         for i, emb_raw in enumerate(cached_embs_raw):
@@ -191,11 +198,19 @@ def hybrid_retrieve(
             else:
                 # If not found, mark it for encoding
                 doc_embs.append(None) # Placeholder
-                texts_to_encode.append(bm25_hits[i]["_source"].get("content", ""))
+                if isinstance(bm25_hits[i], dict):
+                    texts_to_encode.append(bm25_hits[i].get("_source", {}).get("content", ""))
+                else:
+                    texts_to_encode.append(str(bm25_hits[i]) if bm25_hits[i] else "")
                 indices_to_encode.append(i)
     else:
         # If Redis is not available, encode everything
-        texts_to_encode = [h["_source"].get("content", "") for h in bm25_hits]
+        texts_to_encode = []
+        for h in bm25_hits:
+            if isinstance(h, dict):
+                texts_to_encode.append(h.get("_source", {}).get("content", ""))
+            else:
+                texts_to_encode.append(str(h) if h else "")
         indices_to_encode = list(range(len(bm25_hits)))
         doc_embs = [None] * len(bm25_hits)
 
@@ -223,6 +238,17 @@ def hybrid_retrieve(
     # --- End of Caching Logic ---
 
     q_emb = encode_query(query)
+
+    # Add dimension validation to catch configuration mismatches early
+    if doc_embs_np.shape[1] != q_emb.shape[0]:
+        error_msg = (
+            f"Dimension mismatch: Document embeddings have dimension {doc_embs_np.shape[1]}, "
+            f"but query embedding has dimension {q_emb.shape[0]}. "
+            "Check for conflicting configurations."
+        )
+        print(f"❌ {error_msg}")
+        return []
+
     cosines = (doc_embs_np @ q_emb).tolist()
 
     # Handle NaN values in cosine similarities

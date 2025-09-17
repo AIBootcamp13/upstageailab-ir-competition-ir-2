@@ -105,7 +105,7 @@ class HyDE:
             result = self.llm_client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model=self.model_name,  # Add required model parameter
-                max_tokens=self.max_tokens * 2,  # Allow longer responses for detailed answers
+                max_tokens=self.max_tokens,  # Use configured max_tokens directly
                 temperature=self.temperature
             )
 

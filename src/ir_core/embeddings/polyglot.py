@@ -67,8 +67,7 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                             dtype=torch.float16,
                             device_map="auto" if torch.cuda.device_count() > 1 else device,
                             max_memory={0: "8GB", "cpu": "4GB"} if torch.cuda.device_count() > 1 else None,
-                            low_cpu_mem_usage=True,
-                            timeout=600  # 10 minute timeout
+                            low_cpu_mem_usage=True
                         )
                         print(f"✅ Loaded 16-bit quantized Polyglot-Ko model: {self.model_name}")
                     except Exception as e:
@@ -87,8 +86,7 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                             self.model_name,
                             quantization_config=quantization_config,
                             device_map="auto",
-                            dtype=torch.float16,
-                            timeout=600  # 10 minute timeout
+                            dtype=torch.float16
                         )
                         print(f"✅ Loaded 8-bit quantized Polyglot-Ko model: {self.model_name}")
                     except Exception as e:
@@ -112,9 +110,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
             device = self._get_device()
             self._model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
-                dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                low_cpu_mem_usage=True,
-                timeout=600  # 10 minute timeout
+                dtype=torch.float32,  # Use float32 for full precision
+                low_cpu_mem_usage=True
             )
             # Handle meta device case - use to_empty() when moving from meta to regular device
             if self._model.device.type == 'meta':

@@ -7,5 +7,5 @@ This directory contains development-related documentation for contributors and m
 ### `CONTRIBUTING.md`
 Guidelines for contributing to the RAG system project.
 
-### `query-enhancement-manager.md`
-Technical documentation for the query enhancement manager component.
+### `index-naming-convention.md`
+Technical documentation for the index naming convention.

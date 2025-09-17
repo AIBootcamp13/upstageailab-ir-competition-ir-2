@@ -4,6 +4,23 @@ Modern CLI for RAG Project Configuration Management
 
 This tool provides a modern command-line interface for managing
 embedding configurations and other project operations.
+
+Available Profiles:
+- korean: Korean setup using KR-SBERT (768d)
+- english: English setup using all-MiniLM-L6-v2 (384d)
+- bilingual: Bilingual setup using KR-SBERT (768d)
+- solar: Solar API setup (4096d)
+- polyglot: Polyglot-Ko-3.8B setup (3072d)
+- polyglot-3b: Polyglot-Ko-3.8B setup (3072d)
+- polyglot-1b: Polyglot-Ko-1.3B setup (2048d)
+
+Usage Examples:
+  PYTHONPATH=src poetry run python cli.py config list
+  PYTHONPATH=src poetry run python cli.py config switch korean
+  PYTHONPATH=src poetry run python cli.py config validate
+  PYTHONPATH=src poetry run python cli.py status
+
+For full documentation, see: docs/CLI_TOOL_README.md
 """
 
 import typer
@@ -148,32 +165,49 @@ def status():
             typer.echo(f"   ❌ {file_path} (missing)")
 
 
-@app.command("setup")
-def setup(
-    profile: Optional[str] = typer.Option(None, help="Profile to set up after initialization"),
-    force: bool = typer.Option(False, "--force", "-f", help="Force setup even if already configured")
-):
-    """Initial project setup and configuration."""
-    typer.echo("🚀 Setting up RAG project...")
+@app.command("help")
+def show_help():
+    """Shows detailed help and usage examples."""
+    help_text = """
+🔧 RAG CLI Tool - Quick Reference Guide
+========================================
 
-    # Check if already configured
-    if not force:
-        try:
-            from switch_config import load_settings
-            settings = load_settings()
-            if settings.get('EMBEDDING_MODEL'):
-                typer.echo("⚠️  Project appears to already be configured.")
-                if not typer.confirm("Continue with setup anyway?"):
-                    raise typer.Abort()
-        except:
-            pass
+📋 AVAILABLE PROFILES:
+  korean      - Korean KR-SBERT (768d) for Korean documents
+  english     - English MiniLM (384d) for English documents
+  bilingual   - Korean KR-SBERT (768d) for bilingual documents
+  solar       - Solar API (4096d) for high-quality embeddings
+  polyglot    - Polyglot-Ko-3.8B (3072d) for Korean text
+  polyglot-3b - Polyglot-Ko-3.8B (3072d) optimized settings
+  polyglot-1b - Polyglot-Ko-1.3B (2048d) lightweight option
 
-    # Setup steps would go here
-    typer.echo("✅ Setup completed successfully!")
+🚀 COMMON WORKFLOWS:
 
-    if profile:
-        typer.echo(f"\n🔄 Switching to {profile} profile...")
-        config_switch(profile)
+  # Check project status
+  PYTHONPATH=src poetry run python cli.py status
+
+  # List all available profiles
+  PYTHONPATH=src poetry run python cli.py config list
+
+  # Switch to Korean configuration
+  PYTHONPATH=src poetry run python cli.py config switch korean
+
+  # Validate current configuration
+  PYTHONPATH=src poetry run python cli.py config validate
+
+  # Show current settings
+  PYTHONPATH=src poetry run python cli.py config show
+
+  # Setup project with specific profile
+  PYTHONPATH=src poetry run python cli.py setup --profile bilingual
+
+📖 FOR DETAILED DOCUMENTATION:
+  See: docs/CLI_TOOL_README.md
+
+🔗 COMPATIBILITY:
+  This tool works alongside switch_config.py and updates the same settings.yaml
+"""
+    typer.echo(help_text)
 
 
 if __name__ == "__main__":
