@@ -31,8 +31,8 @@ RERANK_K: 10                  # Number of documents to rerank with dense retriev
 # Embedding Configuration
 # ----------------------
 EMBEDDING_MODEL: snunlp/KR-SBERT-V40K-klueNLI-augSTS  # Sentence transformer model
-EMBEDDING_DIMENSION: 4096     # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
-EMBEDDING_PROVIDER: solar              # Provider type: 'huggingface' or 'solar'
+EMBEDDING_DIMENSION: 768      # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
+EMBEDDING_PROVIDER: huggingface        # Provider type: 'huggingface' or 'solar'
 EMBEDDING_BATCH_SIZE: 32        # Batch size for encoding texts
 EMBEDDING_MAX_LENGTH: 512       # Maximum sequence length for tokenizer
 EMBEDDING_DEVICE: auto           # Device for model: 'auto', 'cuda', 'cpu'
@@ -53,7 +53,7 @@ REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------
-INDEX_NAME: documents_solar_with_embeddings_new       # Fixed index with proper dense_vector mapping
+INDEX_NAME: documents_ko_with_embeddings_fixed        # Fixed index with proper dense_vector mapping
 INDEX_ALIAS: documents         # Index alias for seamless switching
 INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
 KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
@@ -72,7 +72,7 @@ GENERATOR_SYSTEM_MESSAGE: ''   # Override system message (empty = use file)
 
 # Tool Calling Configuration
 # -------------------------
-TOOL_CALLING_MODEL: gpt-3.5-turbo-1106  # Model for tool calling and orchestration
+TOOL_CALLING_MODEL: gpt-4o-mini  # Model for tool calling and orchestration
 
 # Query Rewriting Configuration
 # ----------------------------
@@ -100,7 +100,7 @@ DEFAULT_TOP_K: 5              # Default number of documents to return
 pipeline:
   generator_type: openai       # Generator backend: 'openai', 'ollama', or 'huggingface'
   generator_model_name: gpt-3.5-turbo  # Model name/identifier
-  tool_calling_model: gpt-3.5-turbo-1106  # Model for tool calling
+  tool_calling_model: gpt-4o-mini  # Model for tool calling
   rewriter_model: gpt-4o-mini  # Model for query rewriting
   query_rewriter_type: openai  # Rewriter backend: 'openai' or 'ollama'
   huggingface:
@@ -227,7 +227,7 @@ wandb:
 # Hydra Configuration Groups
 # -------------------------
 defaults:
-  - data: science_qa_bilingual # Default data configuration
+  - data: science_qa_ko        # Default data configuration
   - pipeline: default       # Default pipeline configuration
   # - prompts: default      # REMOVED: Using prompts from main config instead
   - optional experiment:       # Optional experiment overrides
@@ -238,7 +238,7 @@ defaults:
 model:
   alpha: 0.4                # Retrieval alpha parameter
   bm25_k: 200               # BM25 retrieval count
-  embedding_model: solar-embedding-1-large-passage
+  embedding_model: snunlp/KR-SBERT-V40K-klueNLI-augSTS
   rerank_k: 10              # Reranking count
 
 # =================================================================
@@ -275,7 +275,7 @@ analysis:
 # Evaluation Configuration
 # -----------------------
 evaluate:
-  max_workers:              # Workers for evaluation
+  max_workers: 4            # Workers for evaluation
   topk: 3                   # Top-K for evaluation metrics
 
 # Validation Set Creation

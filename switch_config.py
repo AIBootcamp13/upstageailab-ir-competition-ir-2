@@ -87,7 +87,7 @@ def switch_to_korean():
         'EMBEDDING_PROVIDER': "huggingface",
         'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
         'EMBEDDING_DIMENSION': 768,
-        'INDEX_NAME': "documents_ko_with_embeddings_new",
+        'INDEX_NAME': "documents_ko_with_embeddings_fixed",
         'model': {
             'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
             'alpha': 0.4,
@@ -113,7 +113,7 @@ def switch_to_korean():
     print("✅ Switched to Korean configuration")
     print("   - Embedding provider: huggingface")
     print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
-    print("   - Index: documents_ko_with_embeddings_new")
+    print("   - Index: documents_ko_with_embeddings_fixed")
     print("   - Documents: data/documents_ko.jsonl")
     print("   - Translation: disabled")
     print("\n⚠️  Make sure the Korean index exists or create it with the Korean embedding model!")

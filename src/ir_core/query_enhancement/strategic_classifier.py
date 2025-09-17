@@ -13,6 +13,7 @@ class QueryType(Enum):
     AMBIGUOUS = "ambiguous"             # Vague or broad questions
     COMPLEX = "complex"                 # Multi-part or compound questions
     SPECIFIC = "specific"               # Clear, specific questions
+    SIMPLE = "simple"                   # Very clear, direct questions that need no enhancement
     OUT_OF_DOMAIN = "out_of_domain"     # Questions outside scientific scope
 
 
@@ -100,6 +101,7 @@ class StrategicQueryClassifier:
             QueryType.AMBIGUOUS: 0,
             QueryType.COMPLEX: 0,
             QueryType.SPECIFIC: 0,
+            QueryType.SIMPLE: 0,
             QueryType.OUT_OF_DOMAIN: 0
         }
 
@@ -158,6 +160,29 @@ class StrategicQueryClassifier:
             scores[QueryType.CONCEPTUAL] += 1  # Short queries often conceptual
         elif word_count > 20:
             scores[QueryType.COMPLEX] += 1    # Long queries often complex
+        elif 6 <= word_count <= 15:
+            scores[QueryType.SIMPLE] += 1     # Medium-length queries often simple and direct
+
+        # Score SIMPLE queries: clear, direct questions with specific terms
+        simple_indicators = [
+            # Specific scientific terms that indicate clear intent
+            re.compile(r'\b(DNA|RNA|세포|유전자|단백질|효소|호르몬)\b', re.IGNORECASE),
+            re.compile(r'\b(원자|분자|화학|물리|생물|지구과학|천문학)\b', re.IGNORECASE),
+            re.compile(r'\b(계산|측정|실험|연구|분석|관찰)\b', re.IGNORECASE),
+            # Direct question patterns
+            re.compile(r'\b(무엇인가|어떤가|얼마나|어디인가)\b.*\?', re.IGNORECASE),
+            re.compile(r'\b(예|아니오)\b.*\?', re.IGNORECASE),
+        ]
+
+        for indicator in simple_indicators:
+            if indicator.search(query):
+                scores[QueryType.SIMPLE] += 2  # Give higher weight to simple indicators
+
+        # Boost SIMPLE score for queries that are direct and specific
+        if (word_count >= 6 and word_count <= 15 and
+            scores[QueryType.CONCEPTUAL] == 0 and
+            scores[QueryType.AMBIGUOUS] == 0):
+            scores[QueryType.SIMPLE] += 3  # Strong boost for medium-length direct queries
 
         # Special handling for AI-directed questions
         ai_directed_patterns = [
@@ -279,6 +304,14 @@ class StrategicQueryClassifier:
                     'reason': 'Apply HyDE to conceptual sub-queries'
                 })
 
+        elif primary_type == QueryType.SIMPLE:
+            # Simple queries: Bypass enhancement entirely
+            recommendations.append({
+                'technique': 'bypass',
+                'priority': 1,
+                'reason': 'Simple, direct queries should bypass enhancement and go directly to retrieval'
+            })
+
         elif primary_type == QueryType.OUT_OF_DOMAIN:
             # Out-of-domain: Skip retrieval
             recommendations.append({
@@ -315,6 +348,7 @@ class StrategicQueryClassifier:
             QueryType.AMBIGUOUS: "모호하거나 범위가 넓은 질문",
             QueryType.COMPLEX: "복합 질문",
             QueryType.SPECIFIC: "구체적 질문",
+            QueryType.SIMPLE: "단순 직접적 질문",
             QueryType.OUT_OF_DOMAIN: "범위 외 질문"
         }
 
@@ -341,6 +375,6 @@ class StrategicQueryClassifier:
         primary_type = classification['primary_type']
         techniques = classification['recommended_techniques']
 
-        # Bypass for conversational or out-of-domain queries
-        return (primary_type in ['conversational', 'out_of_domain'] or
+        # Bypass for conversational, simple, or out-of-domain queries
+        return (primary_type in ['conversational', 'simple', 'out_of_domain'] or
                 any(t['technique'] == 'bypass' for t in techniques))

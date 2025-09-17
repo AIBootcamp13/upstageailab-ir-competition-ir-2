@@ -134,7 +134,7 @@ class HyDE:
             print(f"Hypothetical answer generation failed: {e}")
             return query
 
-    def get_hyde_embedding(self, query: str) -> np.ndarray:
+    def get_hyde_embedding(self, query: str) -> Optional[np.ndarray]:
         """
         Get embedding of hypothetical answer.
 
@@ -142,10 +142,33 @@ class HyDE:
             query: Original query
 
         Returns:
-            Embedding vector of the hypothetical answer
+            Embedding vector of the hypothetical answer, or None if failed
         """
-        hypothetical_answer = self.generate_hypothetical_answer(query)
-        return encode_query(hypothetical_answer)
+        try:
+            hypothetical_answer = self.generate_hypothetical_answer(query)
+
+            # Additional validation of hypothetical answer
+            if not hypothetical_answer or len(hypothetical_answer.strip()) < 10:
+                print(f"HyDE generated insufficient content: '{hypothetical_answer}'")
+                return None
+
+            # Check if content is just the query repeated
+            if hypothetical_answer.lower().strip() == query.lower().strip():
+                print(f"HyDE generated identical content to query: '{hypothetical_answer}'")
+                return None
+
+            embedding = encode_query(hypothetical_answer)
+
+            # Validate embedding
+            if embedding is None or len(embedding) == 0:
+                print(f"HyDE embedding encoding failed for content: '{hypothetical_answer[:50]}...'")
+                return None
+
+            return embedding
+
+        except Exception as e:
+            print(f"HyDE embedding generation failed: {e}")
+            return None
 
     def retrieve_with_hyde(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -161,6 +184,20 @@ class HyDE:
         try:
             # Generate hypothetical answer and its embedding
             hyde_embedding = self.get_hyde_embedding(query)
+
+            # Validate embedding
+            if hyde_embedding is None or len(hyde_embedding) == 0:
+                print(f"HyDE embedding is invalid for query: {query[:50]}...")
+                return []
+
+            # Ensure embedding is proper shape and type
+            if not isinstance(hyde_embedding, np.ndarray):
+                print(f"HyDE embedding is not numpy array for query: {query[:50]}...")
+                return []
+
+            if hyde_embedding.ndim != 1:
+                print(f"HyDE embedding has wrong dimensions {hyde_embedding.shape} for query: {query[:50]}...")
+                return []
 
             # Use dense retrieval with the hypothetical answer embedding
             es_results = dense_retrieve(hyde_embedding, size=top_k)
@@ -185,7 +222,36 @@ class HyDE:
 
         except Exception as e:
             print(f"HyDE retrieval failed: {e}")
-            return []
+            # Fallback to standard dense retrieval
+            try:
+                print(f"Falling back to standard dense retrieval for query: {query[:50]}...")
+                from ..embeddings.core import encode_query as core_encode_query
+                from ..retrieval.core import dense_retrieve as core_dense_retrieve
+
+                query_embedding = core_encode_query(query)
+                es_results = core_dense_retrieve(query_embedding, size=top_k)
+
+                # Format results
+                formatted_results = []
+                for hit in es_results:
+                    source_doc = hit.get("_source", {})
+                    doc_id = source_doc.get("docid") or hit.get("_id")
+                    content = source_doc.get("content", "No content available.")
+                    score = hit.get("_score", 0.0)
+
+                    formatted_results.append({
+                        "id": doc_id,
+                        "content": content,
+                        "score": float(score) if score is not None else 0.0,
+                        "title": source_doc.get("title", ""),
+                        "source": "dense_fallback"
+                    })
+
+                return formatted_results
+
+            except Exception as fallback_e:
+                print(f"Fallback dense retrieval also failed: {fallback_e}")
+                return []
 
     def should_use_hyde(self, query: str) -> bool:
         """
