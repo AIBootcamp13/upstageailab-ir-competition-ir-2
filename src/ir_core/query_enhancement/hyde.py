@@ -72,33 +72,35 @@ class HyDE:
 
         if is_korean:
             prompt = f"""
-            이 질문에 대한 가상의 문서를 작성하세요. 마치 위키피디아나 과학 교과서의 한 단락처럼 자연스럽게 작성하세요:
+            이 질문에 대한 가상의 참고 문서를 작성하세요. 반드시 원래 질문의 주제와 직접적으로 관련된 내용을 작성해야 합니다.
 
-            질문: {query}
+            원래 질문: {query}
 
-            다음 형식으로 작성하세요:
-            - 자연스러운 문장으로 답변
-            - 관련 사실과 예시 포함
-            - 전문 용어 적절히 사용
-            - 2-3개의 문단으로 구성
-            - 검색에 유용한 구체적인 내용 포함
+            다음 요구사항을 엄격히 지켜주세요:
+            1. 질문의 핵심 주제({query})에 대한 구체적인 답변 작성
+            2. 관련된 과학적 사실, 개념, 예시 포함
+            3. 전문 용어 적절히 사용하되 설명
+            4. 2-3개의 문단으로 구성
+            5. 검색에 유용한 구체적인 세부사항 포함
+            6. 질문과 관련 없는 다른 주제로 벗어나지 말 것
 
-            가상의 참고 문서 내용:
+            가상의 참고 문서 내용 (질문과 직접 관련된 내용만):
             """
         else:
             prompt = f"""
-            Write a hypothetical document passage that would answer this question. Write it as if it were a paragraph from Wikipedia or a science textbook:
+            Write a hypothetical document passage that directly answers this question. Stay strictly on topic.
 
-            Question: {query}
+            Original question: {query}
 
-            Write in this format:
-            - Natural, flowing sentences
-            - Include relevant facts and examples
-            - Use appropriate technical terms
-            - 2-3 paragraphs
-            - Specific content useful for search
+            Follow these requirements strictly:
+            1. Write a specific answer to the core topic of the question
+            2. Include relevant scientific facts, concepts, and examples
+            3. Use appropriate technical terms with explanations
+            4. Structure in 2-3 paragraphs
+            5. Include specific details useful for search
+            6. Do NOT deviate to unrelated topics
 
-            Hypothetical reference document content:
+            Hypothetical reference document content (stay on topic):
             """
 
         try:
@@ -126,6 +128,16 @@ class HyDE:
             # Check if content is just repeating the query
             if content.lower() == query.lower() or query.lower() in content.lower() and len(content) < 100:
                 print(f"HyDE generated trivial content: '{content}'")
+                return query  # Fallback to original query
+
+            # Validate relevance - check if key terms from query appear in content
+            query_words = set(query.lower().split())
+            content_words = set(content.lower().split())
+            overlap = len(query_words.intersection(content_words))
+            overlap_ratio = overlap / len(query_words) if query_words else 0
+
+            if overlap_ratio < 0.3:  # Less than 30% overlap
+                print(f"HyDE generated irrelevant content (overlap ratio: {overlap_ratio:.2f}): '{content[:100]}...'")
                 return query  # Fallback to original query
 
             return content

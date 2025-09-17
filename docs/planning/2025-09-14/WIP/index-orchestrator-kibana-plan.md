@@ -76,7 +76,7 @@ Milestones & Checklist
 4) Index creation & mapping (30-60 minutes)
 - [ ] Implement `create_index(index_name, dim)` which creates an ES index with `embedding` field dims equal to `dim` and reasonable text fields. Include settings for bulk indexing (refresh interval, number of replicas) so bulking is fast.
 - [ ] Ensure the function fails gracefully if index already exists (or offer `--force` to recreate).
-- Curl example included in `.github/data-context.md`.
+- Curl example included in `.ai/context/data-context.md`.
 - Outcome: index creation can be run standalone and verified in Kibana.
 
 5) Compute embedding dimension discovery (15–30 minutes)
@@ -122,7 +122,7 @@ Note: Audit docs now include validation metrics (MAP and total_queries) for both
 11) Tests & docs (1–2 hours)
 - [ ] Unit tests: test `probe_embedding_dim` (mock embeddings), test `create_index` in dry-run mode (mock ES client)
 - [ ] Integration test: run `reindex_orchestrator.py --dry-run` against a small sample and assert that it would create index with correct dims and not touch ES
-- [ ] Documentation: update `.github/data-context.md` and add a short README for `scripts/maintenance/reindex_orchestrator.py` explaining how to run it and how to verify in Kibana
+- [ ] Documentation: update `.ai/context/data-context.md` and add a short README for `scripts/maintenance/reindex_orchestrator.py` explaining how to run it and how to verify in Kibana
 - Outcome: basic test coverage and developer docs exist
 
 12) Optional: multi-field A/B strategy (future)

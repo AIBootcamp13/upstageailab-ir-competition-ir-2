@@ -60,6 +60,9 @@ def run(cfg: DictConfig) -> None:
 
     _add_src_to_path()
 
+    # Set evaluation mode environment variable to disable HyDE if configured
+    os.environ['RAG_EVALUATION_MODE'] = 'true'
+
     # Check if shutdown was requested before starting
     if shutdown_requested:
         print("Shutdown requested before starting. Exiting...")
@@ -199,7 +202,7 @@ def run(cfg: DictConfig) -> None:
         if shutdown_requested:
             return None
 
-        query = item.get("msg", [{}])[-1].get("content", "")
+        query = item.get("msg", [{}])[-1].get("content", "") or item.get("query", "")
         eval_id = item.get("eval_id")
         if not query or eval_id is None:
             return None
@@ -208,10 +211,11 @@ def run(cfg: DictConfig) -> None:
             retrieval_out = pipeline.run_retrieval_only(query)
             standalone_query = query
             docs = []
-            if retrieval_out and isinstance(retrieval_out, list) and retrieval_out[0]:
+            if retrieval_out and isinstance(retrieval_out, list) and len(retrieval_out) > 0:
                 retrieval_result = retrieval_out[0]
-                standalone_query = retrieval_result.get("standalone_query", query)
-                docs = retrieval_result.get("docs", [])
+                if isinstance(retrieval_result, dict):
+                    standalone_query = retrieval_result.get("standalone_query", query)
+                    docs = retrieval_result.get("docs", [])
 
             # Ensure docs is a list of dictionaries
             if not isinstance(docs, list) or not all(isinstance(d, dict) for d in docs):

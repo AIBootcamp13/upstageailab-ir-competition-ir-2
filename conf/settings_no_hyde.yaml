@@ -181,9 +181,8 @@ query_enhancement:
       enabled: true
       priority: 3
     hyde:                    # Hypothetical document embedding
-      enabled: true           # Re-enable HyDE for other query types
+      enabled: false          # Disable HyDE for testing
       priority: 4
-      disable_for_evaluation: true  # Disable HyDE in evaluation to prevent irrelevant results
     translation:             # Cross-language translation
       enabled: true
       priority: 5

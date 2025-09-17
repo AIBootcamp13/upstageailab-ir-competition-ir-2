@@ -46,6 +46,10 @@ SCRIPT_DESCRIPTIONS = {
     "data/clean_scientific_terms.py": "Cleans and processes scientific terms.",
     "data/update_progress.py": "Updates progress tracking for data processing.",
 
+    # Fine-tuning scripts
+    "fine_tune_retrieval.py": "Fine-tunes embedding and reranker models using enhanced validation data.",
+    "test_fine_tuned_models.py": "Tests and evaluates fine-tuned retrieval models.",
+
     # Infrastructure scripts
     "infra/start-elasticsearch.sh": "Downloads and starts local Elasticsearch.",
     "infra/start-redis.sh": "Downloads, builds, and starts local Redis.",

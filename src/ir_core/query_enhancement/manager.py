@@ -1,7 +1,9 @@
 # src/ir_core/query_enhancement/manager.py
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Set
+import os
 import openai
+from functools import lru_cache
 from ..config import settings
 from .llm_client import LLMClient, create_llm_client, detect_client_type
 from .rewriter import QueryRewriter
@@ -50,7 +52,7 @@ class QueryEnhancementManager:
             self.llm_client = OpenAIClient(openai_client)
         else:
             # Auto-detect client type based on model name
-            client_type = detect_client_type(self.model_name)
+            client_type = detect_client_type(str(self.model_name))
             if client_type == "openai":
                 self.llm_client = create_llm_client("openai")
             elif client_type == "ollama":
@@ -128,12 +130,40 @@ class QueryEnhancementManager:
                 'reason': 'Query enhancement disabled in configuration'
             }
 
-        # If specific technique requested, apply it directly without intent classification
+        # --- REFACTOR: Addresses [R-02] ---
+        # Determine disabled techniques based on environment/config and pass as a parameter
+        # This avoids modifying the instance state (self.techniques_config)
+        disabled_techniques = set()
+        is_evaluation_mode = os.getenv('RAG_EVALUATION_MODE', 'false').lower() == 'true'
+        if is_evaluation_mode:
+            hyde_config = self.techniques_config.get('hyde', {})
+            if hyde_config.get('disable_for_evaluation', False):
+                disabled_techniques.add('hyde')
+
+        # If specific technique requested, apply it directly
         if technique:
+            if technique in disabled_techniques:
+                 return {
+                    'enhanced': False,
+                    'original_query': query,
+                    'enhanced_query': query,
+                    'technique_used': 'none',
+                    'reason': f"Technique '{technique}' is disabled in the current mode."
+                }
             return self._apply_specific_technique(query, technique)
 
-        # First, classify query intent using LLM for better accuracy
-        intent = self._classify_query_intent(query, conversation_history)
+        # Main logic for auto-selection
+        return self._auto_select_and_enhance(query, conversation_history, disabled_techniques)
+
+    def _auto_select_and_enhance(self, query: str, conversation_history: Optional[List[Dict[str, str]]], disabled_techniques: Set[str]) -> Dict[str, Any]:
+        """
+        Internal implementation of query enhancement logic.
+        """
+        # Convert conversation_history to a hashable type for caching
+        history_tuple = tuple(tuple(d.items()) for d in conversation_history) if conversation_history else None
+
+        # Classify query intent using LLM for better accuracy
+        intent = self._classify_query_intent(query, history_tuple)
 
         # SHORT-CIRCUIT: If conversational, bypass entire RAG pipeline
         if intent in ["conversational", "conversational_follow_up"]:
@@ -148,14 +178,13 @@ class QueryEnhancementManager:
                 'intent': intent
             }
 
-        # For non-conversational queries, use strategic classifier for technique selection
+        # Use strategic classifier for technique selection
         if self.use_strategic_classifier:
             classification = self.strategic_classifier.classify_query(query)
         else:
-            # Fallback to simple analysis
             classification = self._fallback_classification(query)
 
-        # Check if retrieval should be bypassed (for simple, out-of-domain queries)
+        # Check if retrieval should be bypassed
         if self.strategic_classifier.should_bypass_retrieval(classification):
             return {
                 'enhanced': False,
@@ -167,7 +196,7 @@ class QueryEnhancementManager:
                 'intent': intent
             }
 
-        return self._auto_select_and_apply_with_classification(query, classification)
+        return self._auto_select_and_apply_with_classification(query, classification, disabled_techniques)
 
     def _fallback_classification(self, query: str) -> Dict[str, Any]:
         """
@@ -264,7 +293,7 @@ class QueryEnhancementManager:
 
         return self._apply_specific_technique(query, selected_technique)
 
-    def _auto_select_and_apply_with_classification(self, query: str, classification: Dict[str, Any]) -> Dict[str, Any]:
+    def _auto_select_and_apply_with_classification(self, query: str, classification: Dict[str, Any], disabled_techniques: Set[str]) -> Dict[str, Any]:
         """
         Automatically select and apply the best enhancement technique based on strategic classification.
 
@@ -298,8 +327,9 @@ class QueryEnhancementManager:
                     'reason': 'Strategic classifier recommends bypassing enhancement'
                 }
 
-            # Check if technique is enabled
-            if self.techniques_config.get(technique, {}).get('enabled', False):
+            # --- REFACTOR: Addresses [R-02] ---
+            # Check against the passed `disabled_techniques` set
+            if technique not in disabled_techniques and self.techniques_config.get(technique, {}).get('enabled', False):
                 primary_technique = technique
                 break
         else:
@@ -314,12 +344,12 @@ class QueryEnhancementManager:
 
         # Check if technique supports sequential application
         if len(recommended_techniques) > 1 and primary_technique == 'decomposition':
-            return self._apply_sequential_techniques(query, recommended_techniques)
+            return self._apply_sequential_techniques(query, recommended_techniques, disabled_techniques)
 
         # Apply single technique
         return self._apply_specific_technique(query, primary_technique)
 
-    def _apply_sequential_techniques(self, query: str, techniques: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _apply_sequential_techniques(self, query: str, techniques: List[Dict[str, Any]], disabled_techniques: Set[str]) -> Dict[str, Any]:
         """
         Apply multiple techniques in sequence (e.g., decomposition then HyDE).
 
@@ -338,6 +368,9 @@ class QueryEnhancementManager:
             technique = technique_info['technique']
 
             if technique == 'decomposition':
+                # Check if technique is disabled
+                if technique in disabled_techniques:
+                    continue
                 # Apply decomposition first
                 decomp_result = self._apply_decomposition(current_query)
                 if decomp_result['enhanced'] and decomp_result.get('decomposition_info', {}).get('should_decompose'):
@@ -348,6 +381,9 @@ class QueryEnhancementManager:
                     break  # Decomposition is typically the final step for complex queries
 
             elif technique == 'hyde':
+                # Check if technique is disabled
+                if technique in disabled_techniques:
+                    continue
                 # Apply HyDE
                 hyde_result = self._apply_hyde(current_query)
                 if hyde_result['enhanced']:
@@ -356,6 +392,9 @@ class QueryEnhancementManager:
                     final_result = hyde_result
 
             elif technique == 'rewriting':
+                # Check if technique is disabled
+                if technique in disabled_techniques:
+                    continue
                 # Apply rewriting
                 rewrite_result = self._apply_rewriting(current_query)
                 if rewrite_result['enhanced']:
@@ -364,6 +403,9 @@ class QueryEnhancementManager:
                     final_result = rewrite_result
 
             elif technique == 'step_back':
+                # Check if technique is disabled
+                if technique in disabled_techniques:
+                    continue
                 # Apply step-back
                 stepback_result = self._apply_step_back(current_query)
                 if stepback_result['enhanced']:
@@ -627,7 +669,9 @@ class QueryEnhancementManager:
 
         return technique_info.get(technique, {})
 
-    def _classify_query_intent(self, query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+    # --- REFACTOR: Addresses [R-03] ---
+    @lru_cache(maxsize=1024)
+    def _classify_query_intent(self, query: str, conversation_history: Optional[tuple] = None) -> str:
         """
         Classify query intent using LLM with detailed prompt for better accuracy.
 
@@ -659,8 +703,10 @@ class QueryEnhancementManager:
 
         # Format conversation history
         if conversation_history:
+            # Reconstruct history from the hashable tuple
+            history_list = [dict(turn) for turn in conversation_history]
             history_text = "\n".join([f"User: {turn.get('user', '')}\nAssistant: {turn.get('assistant', '')}"
-                                    for turn in conversation_history[-3:]])  # Last 3 turns
+                                    for turn in history_list[-3:]])  # Last 3 turns
         else:
             history_text = "(이전 대화 없음)"
 

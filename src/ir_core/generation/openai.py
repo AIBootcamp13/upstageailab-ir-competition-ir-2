@@ -45,18 +45,20 @@ class OpenAIGenerator(BaseGenerator):
             lstrip_blocks=True,
         )
 
-        # --- 페르소나 로딩 로직 (수정됨) ---
+                # --- 페르소나 로딩 로직 (수정됨) ---
         # 이제 명시적으로 제공된 persona_path에서 시스템 메시지를 로드합니다.
         self.default_persona = ""
-        if persona_path and os.path.exists(persona_path):
+        if persona_path:
             try:
-                with open(persona_path, "r", encoding="utf-8") as pf:
-                    self.default_persona = pf.read()
-                print(f"'{persona_path}'에서 페르소나를 성공적으로 로드했습니다.")
-            except Exception as e:
-                print(f"경고: '{persona_path}'에서 페르소나를 로드하는 중 오류 발생: {e}")
-        else:
-            print("페르소나 경로가 제공되지 않았거나 파일이 존재하지 않습니다. 기본 시스템 메시지를 사용합니다.")
+                with open(persona_path, "r", encoding="utf-8") as f:
+                    self.default_persona = f.read().strip()
+                print(f"✅ 페르소나 파일 '{persona_path}'에서 페르소나를 성공적으로 로드했습니다.")
+            except FileNotFoundError:
+                print(f"⚠️  페르소나 파일 '{persona_path}'을(를) 찾을 수 없습니다. 기본 페르소나를 사용합니다.")
+
+        # Load max_tokens from settings
+        from ..config import settings
+        self.max_tokens = getattr(settings, 'GENERATOR_MAX_TOKENS', 1024)
 
 
     def _render_prompt(self, query: str, context_docs: List[str], template_path: str) -> str:
@@ -112,6 +114,7 @@ class OpenAIGenerator(BaseGenerator):
                 model=self.model_name,
                 messages=cast(Any, messages),
                 temperature=0.2,
+                max_tokens=self.max_tokens,
             )
 
             return response.choices[0].message.content or "모델이 답변을 생성하지 않았습니다."

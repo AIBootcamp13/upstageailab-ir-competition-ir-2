@@ -60,30 +60,38 @@ def run(cfg: DictConfig) -> None:
     import logging
     from rich.logging import RichHandler
 
-    # Create logger
-    logger = logging.getLogger(__name__)
+    # Get the root logger
+    root_logger = logging.getLogger()
+    # Clear any existing handlers to prevent duplicates
+    if root_logger.hasHandlers():
+        root_logger.handlers.clear()
 
-    # Clear existing handlers to avoid duplicates
-    logger.handlers.clear()
+    # Create a logger for this script
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)  # Set the lowest level for the logger
+
+    # Prevent messages from being passed to the root logger's handlers
+    logger.propagate = False
 
     # Create formatters
     detailed_formatter = logging.Formatter('[%(asctime)s] %(name)s %(levelname)s: %(message)s')
 
-    # File handler (overwrite mode)
+    # File handler (writes DEBUG level and above to a file)
     log_file = "outputs/logs/evaluation.log"
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
     file_handler.setFormatter(detailed_formatter)
     file_handler.setLevel(logging.DEBUG)
 
-    # Rich console handler
-    rich_handler = RichHandler(rich_tracebacks=True, markup=True)
+    # Rich console handler (writes INFO level and above to the console)
+    rich_handler = RichHandler(rich_tracebacks=True, markup=True, show_path=False)
     rich_handler.setLevel(logging.INFO)
 
-    # Add handlers to logger
+    # Add both handlers to our specific logger
     logger.addHandler(file_handler)
     logger.addHandler(rich_handler)
-    logger.setLevel(logging.DEBUG)
+
+
 
     # Log startup information
     logger.info("=== Starting Validation Run ===")
@@ -203,14 +211,22 @@ def run(cfg: DictConfig) -> None:
             max_workers = min(len(validation_data), 4)
         logger.info(f"🔄 Processing {len(validation_data)} queries using {max_workers} parallel workers...")
 
-        def process_single_query(item, idx=0):
+        # def process_single_query(item, idx=0):
+        #     """Process a single query for parallel execution."""
+        #     debug_limit = getattr(cfg, 'debug_limit', 3)  # Define in function scope
+        #     query = item.get("msg", [{}])[0].get("content")
+        #     ground_truth_id = item.get("ground_truth_doc_id")
+
+        # Pass the SINGLE pipeline instance to the worker function
+        def process_single_query(item_and_idx):
             """Process a single query for parallel execution."""
-            debug_limit = getattr(cfg, 'debug_limit', 3)  # Define in function scope
+            item, idx = item_and_idx
             query = item.get("msg", [{}])[0].get("content")
             ground_truth_id = item.get("ground_truth_doc_id")
 
             if not query or not ground_truth_id:
                 return None, None
+
 
             query_data = {"msg": [{"content": query}], "ground_truth_doc_id": ground_truth_id}
 
@@ -222,6 +238,9 @@ def run(cfg: DictConfig) -> None:
                     if not isinstance(retrieval_result, dict):
                         logger.warning(f"Expected dict, got {type(retrieval_result)} for query '{query}'")
                         retrieval_result = {"docs": []}
+                    elif not isinstance(retrieval_result.get("docs"), list):
+                        logger.warning(f"Expected docs to be list, got {type(retrieval_result.get('docs'))} for query '{query}'")
+                        retrieval_result["docs"] = []
                 else:
                     retrieval_result = {"docs": []}
 
@@ -237,7 +256,7 @@ def run(cfg: DictConfig) -> None:
 
                         # Log retrieved context
                         docs = retrieval_result.get("docs", [])
-                        if docs:
+                        if docs and isinstance(docs, list):
                             docs_text = Text(f"Retrieved {len(docs)} documents:", style="bold blue")
                             debug_content += f"\n{docs_text}"
                             for i, doc in enumerate(docs[:3]):  # Show first 3 docs
@@ -245,6 +264,9 @@ def run(cfg: DictConfig) -> None:
                                 score = doc.get("score", 0)
                                 doc_text = Text(f"  Doc {i+1} (score: {score:.3f}): {content_preview}...", style="dim white")
                                 debug_content += f"\n{doc_text}"
+                        elif docs and isinstance(docs, str):
+                            error_docs_text = Text(f"Retrieval error: {docs[:100]}{'...' if len(docs) > 100 else ''}", style="red")
+                            debug_content += f"\n{error_docs_text}"
                         else:
                             no_docs_text = Text("No documents retrieved", style="red")
                             debug_content += f"\n{no_docs_text}"
@@ -270,7 +292,7 @@ def run(cfg: DictConfig) -> None:
                 return query_data, {"docs": []}
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(process_single_query, item, idx) for idx, item in enumerate(validation_data)]
+            futures = [executor.submit(process_single_query, (item, idx)) for idx, item in enumerate(validation_data)]
 
             for future in tqdm(as_completed(futures), total=len(validation_data), desc="Validating Queries"):
                 query_data, retrieval_result = future.result()
@@ -292,9 +314,14 @@ def run(cfg: DictConfig) -> None:
 
             # Get retrieval results for this query
             retrieval_output = pipeline.run_retrieval_only(query)
-            retrieval_results_data.append(
-                retrieval_output[0] if retrieval_output else {"docs": []}
-            )
+            if retrieval_output and isinstance(retrieval_output, list) and len(retrieval_output) > 0:
+                retrieval_result = retrieval_output[0]
+                if isinstance(retrieval_result, dict) and isinstance(retrieval_result.get("docs"), list):
+                    retrieval_results_data.append(retrieval_result)
+                else:
+                    retrieval_results_data.append({"docs": []})
+            else:
+                retrieval_results_data.append({"docs": []})
 
     # Initialize the new analysis framework
     analyzer = RetrievalAnalyzer(cfg)

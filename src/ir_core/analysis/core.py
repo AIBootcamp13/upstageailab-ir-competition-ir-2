@@ -151,7 +151,7 @@ class RetrievalAnalyzer:
         # Extract retrieval results
         predicted_docs_list = []
         for result in retrieval_results:
-            if result and "docs" in result:
+            if result and "docs" in result and isinstance(result["docs"], list):
                 predicted_docs_list.append(result["docs"])
             else:
                 predicted_docs_list.append([])

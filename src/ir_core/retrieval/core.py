@@ -35,6 +35,105 @@ except redis.ConnectionError as e:
     redis_client = None
 
 
+def build_flexible_match_query(query: str, size: int) -> dict:
+    """
+    Build a flexible boolean query that handles partial matches and synonyms better.
+
+    This improves retrieval for cases where exact term matching fails due to:
+    - Synonym variations (e.g., "공교육" vs "공공 교육")
+    - Missing terms in documents
+    - Different phrasings of the same concept
+    """
+    # Split query into terms for flexible matching
+    terms = query.split()
+
+    # Define synonym mappings for common terms
+    synonym_map = {
+        "공교육": ["공공", "교육", "공교육"],  # 공교육 tokenizes to 공+교육, but document has 공공+교육
+        "교육": ["교육", "교육제도", "교육시스템"],
+        "지출": ["지출", "예산", "투자", "비용"],
+        "나라": ["나라", "국가", "국가별"],
+        "각": ["각", "각각의", "모든"],
+        "현황": ["현황", "상황", "현황", "실태"]
+    }
+
+    # Build must clauses for core terms (education and spending related)
+    must_clauses = []
+    should_clauses = []
+
+    # Identify core terms that should be required
+    core_terms = []
+    optional_terms = []
+
+    for term in terms:
+        if term in ["교육", "지출"]:  # Only require the most essential terms
+            core_terms.append(term)
+        else:
+            optional_terms.append(term)
+
+    # Add core terms to must clauses
+    for term in core_terms:
+        must_clauses.append({"match": {"content": term}})
+        # Add synonyms for core terms
+        if term in synonym_map:
+            for synonym in synonym_map[term]:
+                if synonym != term:
+                    must_clauses.append({"match": {"content": synonym}})
+
+    # Add optional terms to should clauses
+    for term in optional_terms:
+        should_clauses.append({"match": {"content": term}})
+        # Add synonyms for optional terms
+        if term in synonym_map:
+            for synonym in synonym_map[term]:
+                if synonym != term:
+                    should_clauses.append({"match": {"content": synonym}})
+
+    # If no core terms identified, fall back to should-only approach
+    if not must_clauses:
+        should_clauses = []
+        for term in terms:
+            should_clauses.append({"match": {"content": term}})
+            if term in synonym_map:
+                for synonym in synonym_map[term]:
+                    if synonym != term:
+                        should_clauses.append({"match": {"content": synonym}})
+
+    # For Korean queries, also try partial phrase matching
+    if any('\uac00' <= char <= '\ud7a3' for char in query):
+        # Add phrase matching with slop for flexibility
+        should_clauses.append({
+            "match_phrase": {
+                "content": {
+                    "query": query,
+                    "slop": 2  # Allow some reordering
+                }
+            }
+        })
+
+    # Build the final query
+    if must_clauses:
+        query_body = {
+            "bool": {
+                "must": must_clauses,
+                "should": should_clauses,
+                "minimum_should_match": 0  # Optional terms are truly optional
+            }
+        }
+    else:
+        query_body = {
+            "bool": {
+                "should": should_clauses,
+                "minimum_should_match": 1
+            }
+        }
+
+    return {
+        "query": query_body,
+        "size": size
+    }
+
+
 def sparse_retrieve(query: str, size: int = 10, index: Optional[str] = None):
     es = get_es()
     idx = index or settings.INDEX_NAME
@@ -44,7 +143,11 @@ def sparse_retrieve(query: str, size: int = 10, index: Optional[str] = None):
     if settings.USE_STOPWORD_FILTERING:
         processed_query = filter_stopwords(query)
 
-    q = {"query": {"match": {"content": {"query": processed_query}}}, "size": size}
+    # Create a more flexible boolean query for better term matching
+    q = build_flexible_match_query(processed_query, size)
+
+    # Debug: Print the query being sent to Elasticsearch
+    print(f"DEBUG: BM25 Query for '{query}': {q}")
 
     # Optional boosting using profiling artifacts
     if settings.USE_SRC_BOOSTS and settings.PROFILE_REPORT_DIR:
@@ -57,6 +160,11 @@ def sparse_retrieve(query: str, size: int = 10, index: Optional[str] = None):
 
 
 def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: Optional[str] = None):
+    # Validate query embedding for NaN/inf values
+    if np.isnan(query_emb).any() or np.isinf(query_emb).any():
+        print(f"⚠️  Invalid query embedding detected (contains NaN/inf), falling back to BM25")
+        return sparse_retrieve("", size, index)  # Fallback to BM25 with empty query
+
     # ... (existing code is unchanged)
     es = get_es()
     idx = index or settings.INDEX_NAME
@@ -238,6 +346,19 @@ def hybrid_retrieve(
     # --- End of Caching Logic ---
 
     q_emb = encode_query(query)
+
+    # Validate query embedding for NaN/inf values
+    if np.isnan(q_emb).any() or np.isinf(q_emb).any():
+        print(f"⚠️  Invalid query embedding detected (contains NaN/inf), falling back to BM25 only")
+        # Return BM25 results only with zero cosine scores
+        results = []
+        for hit in bm25_hits:
+            bm25_score = hit.get("_score", 0.0) or 0.0
+            if np.isnan(bm25_score):
+                bm25_score = 0.0
+            results.append({"hit": hit, "cosine": 0.0, "score": float(bm25_score)})
+        results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
+        return [r["hit"] for r in results_sorted[:rerank_k]]
 
     # Add dimension validation to catch configuration mismatches early
     if doc_embs_np.shape[1] != q_emb.shape[0]:

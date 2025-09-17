@@ -54,6 +54,7 @@ datasets = "^4.0.0"
 optimum = "^1.20.0"
 googletrans = "4.0.2"
 ruamel-yaml = "^0.18.15"
+sentence-transformers = "^5.1.0"
 
 [poetry.group.dev.dependencies]
 black = "^24.3"

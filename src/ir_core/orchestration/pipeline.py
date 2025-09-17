@@ -118,16 +118,41 @@ class RAGPipeline:
                     return [{"standalone_query": enhanced_query, "docs": hyde_results}]
 
             # Create structured output for query enhancement
-            original_text = Text(f"원본 쿼리: {query}", style="bold red")
-            enhanced_text = Text(f"개선된 쿼리: {enhanced_query}", style="bold green")
-            technique_text = Text(f"기법: {technique_used}", style="bold blue")
+            # original_text = Text(f"원본 쿼리: {query}", style="bold red")
+            # enhanced_text = Text(f"개선된 쿼리: {enhanced_query}", style="bold green")
+            # technique_text = Text(f"기법: {technique_used}", style="bold blue")
 
-            panel = Panel.fit(
-                f"{original_text}\n{enhanced_text}\n{technique_text}",
-                title="[bold magenta]쿼리 개선 결과[/bold magenta]",
-                border_style="magenta"
+            # panel = Panel.fit(
+            #     f"{original_text}\n{enhanced_text}\n{technique_text}",
+            #     title="[bold magenta]쿼리 개선 결과[/bold magenta]",
+            #     border_style="magenta"
+            # )
+            # rprint(panel)
+            # --- NEW: Create separate, color-coded panels for better readability ---
+            # Panel for the Original Query
+
+            original_panel = Panel.fit(
+                Text(query, style="white"),
+                title="[bold red]Original Query[/bold red]",
+                border_style="red"
             )
-            rprint(panel)
+
+            # Panel for the Enhanced Query and Technique Used
+            enhancement_content = Text()
+            enhancement_content.append("Enhanced Query: ", style="bold green")
+            enhancement_content.append(enhanced_query, style="white")
+            enhancement_content.append("\nTechnique Used: ", style="bold blue")
+            enhancement_content.append(technique_used, style="white")
+
+            enhanced_panel = Panel.fit(
+                enhancement_content,
+                title="[bold green]Enhancement Result[/bold green]",
+                border_style="green"
+            )
+
+            rprint(original_panel)
+            rprint(enhanced_panel)
+
 
         elif self.query_rewriter:
             # Fallback to old rewriter for backward compatibility
@@ -211,10 +236,19 @@ class RAGPipeline:
         docs = retrieved_output[0].get("docs", [])
         standalone_query = retrieved_output[0].get("standalone_query", query)
 
-        # FIX: Handle case where docs might be a string (error message)
+# src/ir_core/orchestration/pipeline.py
+
+        # IMPROVED: Handle case where docs might be a string (error message) or None
         if not isinstance(docs, list):
-            print(f"🐛 DEBUG Retrieval failed, returning error message: {docs}")
-            return f"An error occurred during retrieval: {docs}"
+            error_message = docs if isinstance(docs, str) else "an unknown error."
+            print(f"🐛 DEBUG Retrieval failed. Error: {error_message}")
+            # Generate a response indicating failure
+            final_answer = self.generator.generate(
+                query=standalone_query,
+                context_docs=[],
+                prompt_template_path="prompts/error_fallback_v1.jinja2" # Use a conversational template for error messages
+            )
+            return final_answer
 
         # Check if this is a conversational query that should bypass retrieval
         if self.enhancement_manager and not docs:

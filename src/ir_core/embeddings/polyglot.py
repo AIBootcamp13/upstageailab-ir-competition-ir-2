@@ -60,35 +60,39 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
 
                 # Configure model loading based on quantization
                 if self.quantization == '16bit' and torch.cuda.is_available():
-                    # 16-bit quantization for GPU
+                    # 16-bit quantization for GPU - avoid device_map to prevent meta device issues
                     try:
+                        device = self._get_device()
                         self._model = AutoModelForCausalLM.from_pretrained(
                             self.model_name,
                             dtype=torch.float16,
-                            device_map="auto" if torch.cuda.device_count() > 1 else device,
-                            max_memory={0: "8GB", "cpu": "4GB"} if torch.cuda.device_count() > 1 else None,
                             low_cpu_mem_usage=True
                         )
-                        print(f"✅ Loaded 16-bit quantized Polyglot-Ko model: {self.model_name}")
+                        # Move to device explicitly and safely
+                        self._model = self._model.to(device)
+                        print(f"✅ Loaded 16-bit quantized Polyglot-Ko model: {self.model_name} on {device}")
                     except Exception as e:
                         print(f"⚠️  16-bit loading failed, falling back to full precision: {e}")
                         self._load_full_precision_model()
 
                 elif self.quantization == '8bit' and torch.cuda.is_available():
-                    # 8-bit quantization
+                    # 8-bit quantization - avoid device_map to prevent meta device issues
                     try:
                         from transformers import BitsAndBytesConfig
                         quantization_config = BitsAndBytesConfig(
                             load_in_8bit=True,
                             llm_int8_enable_fp32_cpu_offload=True
                         )
+                        device = self._get_device()
                         self._model = AutoModelForCausalLM.from_pretrained(
                             self.model_name,
                             quantization_config=quantization_config,
-                            device_map="auto",
-                            dtype=torch.float16
+                            dtype=torch.float16,
+                            low_cpu_mem_usage=True
                         )
-                        print(f"✅ Loaded 8-bit quantized Polyglot-Ko model: {self.model_name}")
+                        # Move to device explicitly and safely
+                        self._model = self._model.to(device)
+                        print(f"✅ Loaded 8-bit quantized Polyglot-Ko model: {self.model_name} on {device}")
                     except Exception as e:
                         print(f"⚠️  8-bit quantization failed, falling back to 16-bit: {e}")
                         self.quantization = '16bit'
@@ -108,33 +112,55 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
         """Load full precision model with memory optimization."""
         try:
             device = self._get_device()
+            print(f"Loading model on device: {device}")
+
+            # Load model without device_map to avoid meta device issues
             self._model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 dtype=torch.float32,  # Use float32 for full precision
                 low_cpu_mem_usage=True
             )
-            # Handle meta device case - use to_empty() when moving from meta to regular device
-            if self._model.device.type == 'meta':
-                self._model = self._model.to_empty(device=device)
+
+            # Move model to target device properly
+            if device.type == 'cuda':
+                # Check if model has any meta device tensors
+                has_meta_tensors = any(
+                    param.device.type == 'meta'
+                    for param in self._model.parameters()
+                )
+
+                if has_meta_tensors:
+                    print("Moving model from meta device to CUDA using to_empty")
+                    # Use to_empty for meta device tensors
+                    self._model = self._model.to_empty(device=device)
+                    # Then move to actual device
+                    self._model = self._model.to(device)
+                else:
+                    # Regular device movement
+                    self._model = self._model.to(device)
             else:
+                # For CPU, always use regular to() method
                 self._model = self._model.to(device)
-            print(f"✅ Loaded full precision Polyglot-Ko model: {self.model_name}")
+
+            print(f"✅ Loaded full precision Polyglot-Ko model: {self.model_name} on {device}")
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 print(f"⚠️  GPU out of memory, falling back to CPU: {e}")
                 # Fallback to CPU
                 self._device = torch.device("cpu")
-                self._model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    dtype=torch.float32,  # Use float32 on CPU
-                    timeout=600  # 10 minute timeout
-                )
-                # Handle meta device case for CPU fallback too
-                if self._model.device.type == 'meta':
-                    self._model = self._model.to_empty(device=self._device)
-                else:
+                try:
+                    self._model = AutoModelForCausalLM.from_pretrained(
+                        self.model_name,
+                        dtype=torch.float32,  # Use float32 on CPU
+                        low_cpu_mem_usage=True,
+                        timeout=600  # 10 minute timeout
+                    )
+                    # For CPU fallback, always use regular to() method
                     self._model = self._model.to(self._device)
-                print(f"✅ Loaded full precision Polyglot-Ko model on CPU: {self.model_name}")
+                    print(f"✅ Loaded full precision Polyglot-Ko model on CPU: {self.model_name}")
+                except Exception as cpu_error:
+                    print(f"❌ CPU fallback also failed: {cpu_error}")
+                    raise cpu_error
             else:
                 raise
 

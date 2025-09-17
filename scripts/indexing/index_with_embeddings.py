@@ -4,6 +4,7 @@ import os
 sys.path.insert(0, 'src')
 
 import json
+import numpy as np
 from ir_core.embeddings.core import encode_texts
 from ir_core.infra import get_es
 from elasticsearch.helpers import bulk
@@ -27,8 +28,14 @@ def main():
         # Generate embedding for the document content
         content = doc.get('content', '')
         if content:
-            embedding = encode_texts([content])[0].tolist()
-            doc['embeddings'] = embedding
+            embedding = encode_texts([content])[0]
+
+            # Validate embedding for NaN/inf values
+            if np.isnan(embedding).any() or np.isinf(embedding).any():
+                print(f"⚠️  Invalid embedding detected for doc {doc.get('docid', doc.get('id'))}, skipping...")
+                continue
+
+            doc['embeddings'] = embedding.tolist()
             doc['embedding_dim'] = len(embedding)
             doc['embedding_model'] = 'EleutherAI/polyglot-ko-1.3b'
 

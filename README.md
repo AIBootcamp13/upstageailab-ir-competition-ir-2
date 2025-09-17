@@ -131,6 +131,10 @@ poetry run python cli_menu.py
 ├── 📄 poetry.lock
 ├── 📄 poetry.toml
 ├── 📄 pytest.ini
+├── 📂 .ai/                     # 🤖 AI assistant documentation & instructions
+│   ├── 📄 README.md
+│   ├── 📂 assistant-instructions/
+│   └── 📂 context/
 ├── 📂 conf/
 ├── 📂 data/
 ├── 📂 docs/

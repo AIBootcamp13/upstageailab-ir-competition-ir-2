@@ -284,4 +284,4 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 - `conf/`: Hydra configuration groups
 - `tests/`: Unit tests + integration tests (marked appropriately)
 - `data/`: JSONL datasets for indexing/evaluation</content>
-<parameter name="filePath">/home/wb2x/workspace/information_retrieval_rag/.github/copilot-instructions.md
+<parameter name="filePath">/home/wb2x/workspace/information_retrieval_rag/.ai/assistant-instructions/copilot-instructions.md
