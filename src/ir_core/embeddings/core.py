@@ -6,6 +6,7 @@ from ..config import settings
 from .base import BaseEmbeddingProvider
 from .huggingface import HuggingFaceEmbeddingProvider
 from .solar import SolarEmbeddingProvider
+from .polyglot import PolyglotKoEmbeddingProvider
 
 # Global provider instance
 _provider = None
@@ -33,6 +34,8 @@ def get_embedding_provider(provider_type: Optional[str] = None) -> BaseEmbedding
             _provider = HuggingFaceEmbeddingProvider()
         elif provider_type == 'solar':
             _provider = SolarEmbeddingProvider()
+        elif provider_type == 'polyglot':
+            _provider = PolyglotKoEmbeddingProvider()
         else:
             raise ValueError(f"Unknown embedding provider type: {provider_type}")
 

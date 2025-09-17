@@ -99,7 +99,7 @@ class RAGPipeline:
             enhancement_result = self.enhancement_manager.enhance_query(query)
 
             # Check if enhancement was bypassed (conversational queries)
-            if enhancement_result.get('technique_used') == 'bypass':
+            if enhancement_result.get('technique_used') == 'CONVERSATIONAL_SKIP':
                 print(f"쿼리 개선 우회: '{query}' (유형: {enhancement_result.get('reason', 'unknown')})")
                 return [{"standalone_query": query, "docs": []}]
 
@@ -200,7 +200,7 @@ class RAGPipeline:
         if self.enhancement_manager and not docs:
             # Check if the enhancement result indicates bypass
             enhancement_result = self.enhancement_manager.enhance_query(query)
-            if enhancement_result.get('technique_used') == 'bypass':
+            if enhancement_result.get('technique_used') == 'CONVERSATIONAL_SKIP':
                 # Generate a direct conversational response
                 conversational_prompt = f"""
                 사용자가 다음과 같은 질문을 했습니다: "{query}"

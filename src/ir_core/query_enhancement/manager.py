@@ -107,13 +107,14 @@ class QueryEnhancementManager:
         self.use_strategic_classifier = self.config.get('use_strategic_classifier', True)
         self.strategic_config = self.config.get('strategic_classifier', {})
 
-    def enhance_query(self, query: str, technique: Optional[str] = None) -> Dict[str, Any]:
+    def enhance_query(self, query: str, technique: Optional[str] = None, conversation_history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
         Enhance a query using the most appropriate technique(s) based on strategic classification.
 
         Args:
             query: Original query to enhance
             technique: Specific technique to use. If None, auto-select based on classification.
+            conversation_history: Previous conversation turns for context-aware classification
 
         Returns:
             Dictionary with enhancement results and metadata
@@ -127,14 +128,30 @@ class QueryEnhancementManager:
                 'reason': 'Query enhancement disabled in configuration'
             }
 
-        # First, classify the query strategically
+        # First, classify query intent using LLM for better accuracy
+        intent = self._classify_query_intent(query, conversation_history)
+
+        # SHORT-CIRCUIT: If conversational, bypass entire RAG pipeline
+        if intent in ["conversational", "conversational_follow_up"]:
+            import logging
+            logging.info(f"Intent classified as '{intent}'. Bypassing RAG pipeline.")
+            return {
+                'enhanced': False,
+                'original_query': query,
+                'enhanced_query': "CONVERSATIONAL_SKIP",  # Special flag for pipeline to detect
+                'technique_used': 'CONVERSATIONAL_SKIP',
+                'reason': f'Conversational query ({intent}) - bypassing entire RAG pipeline',
+                'intent': intent
+            }
+
+        # For non-conversational queries, use strategic classifier for technique selection
         if self.use_strategic_classifier:
             classification = self.strategic_classifier.classify_query(query)
         else:
             # Fallback to simple analysis
             classification = self._fallback_classification(query)
 
-        # Check if retrieval should be bypassed
+        # Check if retrieval should be bypassed (for simple, out-of-domain queries)
         if self.strategic_classifier.should_bypass_retrieval(classification):
             return {
                 'enhanced': False,
@@ -142,7 +159,8 @@ class QueryEnhancementManager:
                 'enhanced_query': query,
                 'technique_used': 'bypass',
                 'reason': f'Query classified as {classification["primary_type"]} - bypassing retrieval',
-                'classification': classification
+                'classification': classification,
+                'intent': intent
             }
 
         if technique:
@@ -638,27 +656,64 @@ class QueryEnhancementManager:
 
         try:
             # Use LLM client to classify
-            response = self.llm_client.generate(
-                prompt=formatted_prompt,
+            messages = [{"role": "user", "content": formatted_prompt}]
+            response = self.llm_client.chat_completion(
+                messages=messages,
+                model=self.model_name,
                 max_tokens=50,
                 temperature=0.1  # Low temperature for consistent classification
             )
 
-            # Extract classification from response
-            response_text = response.strip().lower()
+            if response['success']:
+                response_text = response['content'].strip().lower()
 
-            # Map response to valid categories
-            valid_categories = ['conversational', 'conversational_follow_up', 'simple_keyword', 'conceptual_vague']
+                # Map response to valid categories
+                valid_categories = ['conversational', 'conversational_follow_up', 'simple_keyword', 'conceptual_vague']
 
-            for category in valid_categories:
-                if category in response_text:
-                    return category
+                for category in valid_categories:
+                    if category in response_text:
+                        return category
 
-            # Fallback to conceptual_vague if no match
-            return 'conceptual_vague'
+                # Fallback to conceptual_vague if no match
+                return 'conceptual_vague'
+            else:
+                # Fallback on API error
+                import logging
+                logging.warning(f"LLM classification failed: {response.get('error', 'Unknown error')}, falling back to regex classification")
+                return self._fallback_llm_classification(query)
 
         except Exception as e:
             # Fallback to regex-based classification on error
             import logging
             logging.warning(f"LLM classification failed: {e}, falling back to regex classification")
             return self._fallback_llm_classification(query)
+
+    def _fallback_llm_classification(self, query: str) -> str:
+        """
+        Fallback classification when LLM fails, using regex patterns.
+
+        Args:
+            query: Query to classify
+
+        Returns:
+            Classification category
+        """
+        query_lower = query.lower()
+
+        # Check for conversational patterns
+        conversational_keywords = ['너', '너는', '너의', '안녕', '반가워', '고마워', '미안', '기분', '힘들', '좋아', '싫어']
+        if any(keyword in query_lower for keyword in conversational_keywords):
+            return 'conversational'
+
+        # Check for simple keyword patterns
+        scientific_terms = ['dna', 'rna', '세포', '유전자', '단백질', '효소', '원자', '분자', '화학', '물리', '생물']
+        if any(term in query_lower for term in scientific_terms):
+            return 'simple_keyword'
+
+        # Check for conceptual patterns
+        conceptual_keywords = ['왜', '어떻게', '무엇을', '영향', '차이', '역할', '기능', '원리', '이유']
+        if any(keyword in query_lower for keyword in conceptual_keywords):
+            return 'conceptual_vague'
+
+        # Default to conceptual_vague
+        return 'conceptual_vague'

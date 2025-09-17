@@ -250,6 +250,214 @@ def switch_to_solar():
     print("\n⚠️  Make sure UPSTAGE_API_KEY is set in your environment!")
     print("⚠️  Make sure the Solar index exists or create it with Solar embeddings!")
 
+def switch_to_polyglot():
+    """Switch configuration to Polyglot-Ko setup (5120D embeddings from language model)"""
+    print("🔄 Switching to Polyglot-Ko configuration...")
+
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_PROVIDER': "polyglot",
+        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-3.8b",
+        'EMBEDDING_DIMENSION': 3072,  # Polyglot-Ko-3.8B hidden size
+        'INDEX_NAME': "documents_polyglot_3b_with_embeddings_new",
+        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-3.8b",
+        'POLYGLOT_QUANTIZATION': "16bit",
+        'POLYGLOT_BATCH_SIZE': 4,
+        'POLYGLOT_MAX_THREADS': 4,
+        'model': {
+            'embedding_model': "EleutherAI/polyglot-ko-3.8b",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
+
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
+
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration to use Korean data (Polyglot-Ko is optimized for Korean)
+    update_data_config("ko")
+
+    print("✅ Switched to Polyglot-Ko configuration")
+    print("   - Embedding provider: polyglot")
+    print("   - Embedding model: EleutherAI/polyglot-ko-3.8b (3072d)")
+    print("   - Quantization: 16-bit")
+    print("   - Batch size: 4")
+    print("   - Max threads: 4")
+    print("   - Index: documents_polyglot_3b_with_embeddings_new")
+    print("   - Documents: data/documents_ko.jsonl")
+    print("   - Translation: disabled")
+    print("\n⚠️  Make sure the Polyglot-Ko index exists or create it with Polyglot-Ko embeddings!")
+    print("⚠️  First run may take time to download the model (4GB+)")
+    print("💡 For better performance with limited resources, consider using smaller models:")
+    print("   - EleutherAI/polyglot-ko-5.8b (6GB, 4096d)")
+    print("   - EleutherAI/polyglot-ko-3.8b (4GB, 3072d) - CURRENT")
+    print("   - EleutherAI/polyglot-ko-1.3b (1.4GB, 2048d)")
+
+def switch_to_polyglot_5b():
+    """Switch configuration to Polyglot-Ko-5.8B setup (4096D embeddings)"""
+    print("🔄 Switching to Polyglot-Ko-5.8B configuration...")
+
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_PROVIDER': "polyglot",
+        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-5.8b",
+        'EMBEDDING_DIMENSION': 4096,  # Polyglot-Ko-5.8B hidden size
+        'INDEX_NAME': "documents_polyglot_5b_with_embeddings_new",
+        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-5.8b",
+        'POLYGLOT_QUANTIZATION': "16bit",
+        'POLYGLOT_BATCH_SIZE': 2,
+        'POLYGLOT_MAX_THREADS': 2,
+        'model': {
+            'embedding_model': "EleutherAI/polyglot-ko-5.8b",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
+
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
+
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration to use Korean data
+    update_data_config("ko")
+
+    print("✅ Switched to Polyglot-Ko-5.8B configuration")
+    print("   - Embedding provider: polyglot")
+    print("   - Embedding model: EleutherAI/polyglot-ko-5.8b (4096d)")
+    print("   - Quantization: 16-bit (FP16)")
+    print("   - Batch size: 2")
+    print("   - Max threads: 2")
+    print("   - Index: documents_polyglot_5b_with_embeddings_new")
+    print("   - Documents: data/documents_ko.jsonl")
+    print("   - Translation: disabled")
+    print("\n⚠️  Make sure the Polyglot-Ko-5.8B index exists or create it with Polyglot-Ko embeddings!")
+    print("💡 This model is ~6GB and should work better with limited resources")
+
+def switch_to_polyglot_3b():
+    """Switch configuration to Polyglot-Ko-3.8B setup (3072D embeddings)"""
+    print("🔄 Switching to Polyglot-Ko-3.8B configuration...")
+
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_PROVIDER': "polyglot",
+        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-3.8b",
+        'EMBEDDING_DIMENSION': 3072,  # Polyglot-Ko-3.8B hidden size
+        'INDEX_NAME': "documents_polyglot_3b_with_embeddings_new",
+        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-3.8b",
+        'POLYGLOT_QUANTIZATION': "16bit",
+        'POLYGLOT_BATCH_SIZE': 4,
+        'POLYGLOT_MAX_THREADS': 4,
+        'model': {
+            'embedding_model': "EleutherAI/polyglot-ko-3.8b",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
+
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
+
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration to use Korean data
+    update_data_config("ko")
+
+    print("✅ Switched to Polyglot-Ko-3.8B configuration")
+    print("   - Embedding provider: polyglot")
+    print("   - Embedding model: EleutherAI/polyglot-ko-3.8b (3072d)")
+    print("   - Quantization: 16-bit (FP16)")
+    print("   - Batch size: 4")
+    print("   - Max threads: 4")
+    print("   - Index: documents_polyglot_3b_with_embeddings_new")
+    print("   - Documents: data/documents_ko.jsonl")
+    print("   - Translation: disabled")
+    print("\n⚠️  Make sure the Polyglot-Ko-3.8B index exists or create it with Polyglot-Ko embeddings!")
+    print("💡 This model is ~4GB and should work well with most systems")
+
+def switch_to_polyglot_1b():
+    """Switch configuration to Polyglot-Ko-1.3B setup (2048D embeddings)"""
+    print("🔄 Switching to Polyglot-Ko-1.3B configuration...")
+
+    # Load current settings with preserved format
+    current_data = load_settings_preserve_format()
+
+    # Update only the specific settings that need to change
+    updates = {
+        'EMBEDDING_PROVIDER': "polyglot",
+        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-1.3b",
+        'EMBEDDING_DIMENSION': 2048,  # Polyglot-Ko-1.3B hidden size
+        'INDEX_NAME': "documents_polyglot_1b_with_embeddings_new",
+        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-1.3b",
+        'POLYGLOT_QUANTIZATION': "16bit",
+        'POLYGLOT_BATCH_SIZE': 8,
+        'POLYGLOT_MAX_THREADS': 8,
+        'model': {
+            'embedding_model': "EleutherAI/polyglot-ko-1.3b",
+            'alpha': 0.4,
+            'bm25_k': 200,
+            'rerank_k': 10
+        },
+        'translation': {
+            'enabled': False
+        }
+    }
+
+    # Apply updates while preserving structure
+    _update_nested_dict(current_data, updates)
+
+    # Save with preserved formatting
+    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
+    with open(settings_file, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration to use Korean data
+    update_data_config("ko")
+
+    print("✅ Switched to Polyglot-Ko-1.3B configuration")
+    print("   - Embedding provider: polyglot")
+    print("   - Embedding model: EleutherAI/polyglot-ko-1.3b (2048d)")
+    print("   - Quantization: 16-bit (FP16)")
+    print("   - Batch size: 8")
+    print("   - Max threads: 8")
+    print("   - Index: documents_polyglot_1b_with_embeddings_new")
+    print("   - Documents: data/documents_ko.jsonl")
+    print("   - Translation: disabled")
+    print("\n⚠️  Make sure the Polyglot-Ko-1.3B index exists or create it with Polyglot-Ko embeddings!")
+    print("💡 This model is ~1.4GB and should work on almost any system")
+
 def update_data_config(language):
     """Update the data configuration in consolidated settings.yaml while preserving formatting"""
     # Define the mapping of language to data config name
@@ -315,15 +523,28 @@ def show_current_config():
     if settings.get('EMBEDDING_PROVIDER') == 'solar':
         api_key_set = bool(os.getenv('UPSTAGE_API_KEY'))
         print(f"   Solar API Key Set: {'✅ Yes' if api_key_set else '❌ No'}")
+    elif settings.get('EMBEDDING_PROVIDER') == 'polyglot':
+        polyglot_model = settings.get('POLYGLOT_MODEL', 'Not set')
+        polyglot_quant = settings.get('POLYGLOT_QUANTIZATION', 'Not set')
+        polyglot_batch = settings.get('POLYGLOT_BATCH_SIZE', 'Not set')
+        polyglot_threads = settings.get('POLYGLOT_MAX_THREADS', 'Not set')
+        print(f"   Polyglot Model: {polyglot_model}")
+        print(f"   Polyglot Quantization: {polyglot_quant}")
+        print(f"   Polyglot Batch Size: {polyglot_batch}")
+        print(f"   Polyglot Max Threads: {polyglot_threads}")
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python switch_config.py [korean|english|bilingual|solar|show]")
-        print("  korean   - Switch to Korean configuration")
-        print("  english  - Switch to English configuration")
-        print("  bilingual- Switch to Bilingual configuration")
-        print("  solar    - Switch to Solar API configuration (4096D embeddings)")
-        print("  show     - Show current configuration")
+        print("Usage: python switch_config.py [korean|english|bilingual|solar|polyglot|polyglot-5b|polyglot-3b|polyglot-1b|show]")
+        print("  korean      - Switch to Korean configuration")
+        print("  english     - Switch to English configuration")
+        print("  bilingual   - Switch to Bilingual configuration")
+        print("  solar       - Switch to Solar API configuration (4096D embeddings)")
+        print("  polyglot    - Switch to Polyglot-Ko-3.8B configuration (3072D embeddings)")
+        print("  polyglot-5b - Switch to Polyglot-Ko-5.8B configuration (4096D embeddings)")
+        print("  polyglot-3b - Switch to Polyglot-Ko-3.8B configuration (3072D embeddings)")
+        print("  polyglot-1b - Switch to Polyglot-Ko-1.3B configuration (2048D embeddings)")
+        print("  show        - Show current configuration")
         return
 
     command = sys.argv[1].lower()
@@ -336,6 +557,14 @@ def main():
         switch_to_bilingual()
     elif command == "solar":
         switch_to_solar()
+    elif command == "polyglot":
+        switch_to_polyglot()
+    elif command == "polyglot-5b":
+        switch_to_polyglot_5b()
+    elif command == "polyglot-3b":
+        switch_to_polyglot_3b()
+    elif command == "polyglot-1b":
+        switch_to_polyglot_1b()
     elif command == "show":
         show_current_config()
     else:
