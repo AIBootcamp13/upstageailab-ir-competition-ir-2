@@ -186,15 +186,13 @@ class RAGPipeline:
         """
         retrieved_output = self.run_retrieval_only(query)
 
-        # 검색 결과와 함께 재작성된 쿼리를 추출합니다.
         docs = retrieved_output[0].get("docs", [])
         standalone_query = retrieved_output[0].get("standalone_query", query)
 
-        # Handle case where docs might be a string (error message) instead of list
-        if isinstance(docs, str):
-            print(f"🐛 DEBUG Error in full pipeline: {docs}")
-            # Return error message as final answer
-            return f"Retrieval failed: {docs}"
+        # FIX: Handle case where docs might be a string (error message)
+        if not isinstance(docs, list):
+            print(f"🐛 DEBUG Retrieval failed, returning error message: {docs}")
+            return f"An error occurred during retrieval: {docs}"
 
         # Check if this is a conversational query that should bypass retrieval
         if self.enhancement_manager and not docs:

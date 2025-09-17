@@ -37,7 +37,7 @@ metrics:
 parallel:
   max_workers:
     analysis: 16
-    query_analysis: 32
+    query_analysis: 16
     domain_generation: 6
   batch_size_threshold: 10
   validation_set_threshold: 5

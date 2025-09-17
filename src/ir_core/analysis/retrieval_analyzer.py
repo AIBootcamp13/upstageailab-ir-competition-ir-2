@@ -201,7 +201,12 @@ class RetrievalQualityAnalyzer:
                 scores = []
                 for doc in result["docs"]:
                     if isinstance(doc, dict):
-                        scores.append(doc.get("score", 0.0))
+                        score = doc.get("score", 0.0)
+                        # Filter out NaN values and replace with 0.0
+                        if isinstance(score, (int, float)) and not np.isnan(score):
+                            scores.append(float(score))
+                        else:
+                            scores.append(0.0)
                     else:
                         scores.append(0.0)
                 predicted_scores_list.append(scores)
@@ -309,7 +314,9 @@ class RetrievalQualityAnalyzer:
         """Analyze score distributions across all queries."""
         all_scores = []
         for scores in predicted_scores_list:
-            all_scores.extend(scores)
+            # Filter out any remaining NaN values and ensure they're floats
+            valid_scores = [s for s in scores if isinstance(s, (int, float)) and not np.isnan(s)]
+            all_scores.extend(valid_scores)
 
         if not all_scores:
             return ScoreDistributionAnalysis(
@@ -320,6 +327,9 @@ class RetrievalQualityAnalyzer:
                 score_percentiles={},
                 score_histogram={}
             )
+
+        # Convert to numpy array for calculations
+        all_scores = np.array(all_scores, dtype=float)
 
         mean_score = float(np.mean(all_scores))
         median_score = float(np.median(all_scores))

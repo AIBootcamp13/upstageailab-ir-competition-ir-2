@@ -19,7 +19,8 @@ Modules:
 
 from .core import RetrievalAnalyzer, AnalysisResult
 from .metrics import RetrievalMetrics
-from .query_analyzer import QueryAnalyzer, QueryFeatures
+from .query_analyzer import QueryAnalyzer
+from .query_components import QueryFeatures
 from .visualizer import AnalysisVisualizer, plot_performance_distribution, plot_query_performance_correlation, plot_domain_comparison
 from .report_generator import AnalysisReportGenerator, generate_performance_report, generate_error_report, generate_trend_report
 from .components import (
@@ -29,6 +30,10 @@ from .components import (
     QueryProcessingResult,
     ErrorAnalyzer,
     ErrorAnalysisResult,
+    ErrorCategorizer,
+    PatternDetector,
+    RecommendationGenerator,
+    TemporalAnalyzer,
     ResultAggregator
 )
 
@@ -45,6 +50,10 @@ __all__ = [
     'QueryProcessingResult',
     'ErrorAnalyzer',
     'ErrorAnalysisResult',
+    'ErrorCategorizer',
+    'PatternDetector',
+    'RecommendationGenerator',
+    'TemporalAnalyzer',
     'ResultAggregator',
     # Phase 5: Visualizations
     'AnalysisVisualizer',

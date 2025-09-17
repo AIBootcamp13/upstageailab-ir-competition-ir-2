@@ -1,53 +1,125 @@
 # Scripts Directory
 
-This directory contains executable scripts for various tasks in the information retrieval RAG project. Scripts are organized into subfolders by category for better maintainability and discoverability.
+This directory contains all executable scripts for the RAG system, organized into logical submodules for better maintainability and discoverability.
 
-## Subfolders
+## Directory Structure
 
-### `execution/`
-Core runtime scripts for running the system.
-- `run_rag.py`: Runs the full RAG pipeline with Hydra configuration.
-- `run_query.py`: CLI tool for executing hybrid retrieval queries.
-- `run-local.sh`: Manages local Elasticsearch and Redis instances (start/stop/status).
+### Core Execution Scripts
+- **`execution/`** - Main pipeline execution and query processing
+  - `run_rag.py` - Full RAG pipeline with Hydra configuration
+  - `run_query.py` - CLI tool for hybrid retrieval queries
+  - `run-local.sh` - Local Elasticsearch/Redis management
 
-### `evaluation/`
-Scripts for testing, validating, and benchmarking the system.
-- `evaluate.py`: Runs evaluation on official datasets and logs to WandB.
-- `validate_retrieval.py`: Validates retrieval performance with configurable parameters.
-- `validate_domain_classification.py`: Checks domain classification accuracy.
-- `smoke_test.py`: Python-based smoke tests for the system.
-- `smoke-test.sh`: Shell wrapper for smoke testing with service management.
+### Evaluation & Validation
+- **`evaluation/`** - Model evaluation and validation scripts
+  - `evaluate.py` - Official dataset evaluation with WandB logging
+  - `validate_retrieval.py` - Retrieval performance validation
+  - `validate_domain_classification.py` - Domain classification accuracy
+  - `smoke_test.py` - System health verification
+  - `benchmark_enhancement.py` - Query enhancement benchmarking
 
-### `data/`
-Scripts for data analysis, processing, and transformation.
-- `analyze_data.py`: Analyzes document datasets for statistics (e.g., token counts).
-- `check_duplicates.py`: Detects duplicate entries in datasets.
-- `create_validation_set.py`: Generates validation datasets using LLM prompts.
-- `transform_submission.py`: Formats submission files.
-- `trim_submission.py`: Trims and cleans submission data.
+### Data Processing
+- **`data/`** - Dataset processing and analysis tools
+  - `analyze_data.py` - Dataset statistics and analysis
+  - `profile_documents.py` - Document profiling and metadata
+  - `create_validation_set.py` - Validation dataset generation
+  - `transform_submission.py` - Submission file formatting
+  - `extract_scientific_terms.py` - Scientific term extraction
 
-### `infra/`
-Infrastructure setup and management scripts.
-- `start-elasticsearch.sh`: Downloads and starts local Elasticsearch (Linux tarball).
-- `start-redis.sh`: Downloads, builds, and starts local Redis.
-- `cleanup-distros.sh`: Cleans up downloaded distributions.
+### System Maintenance
+- **`maintenance/`** - Index management and system maintenance
+  - `reindex.py` - Bulk reindexing to Elasticsearch
+  - `swap_alias.py` - Atomic alias swapping
+  - `index_orchestrator.py` - Complex indexing operations
+  - `recompute.py` - Cache and embedding recomputation
 
-### `maintenance/`
-Utilities for upkeep, demos, and miscellaneous tasks.
-- `reindex.py`: CLI for bulk reindexing JSONL files to Elasticsearch.
-- `swap_alias.py`: Atomically swaps Elasticsearch aliases between indices.
-- `parallel_example.py`: Example script for parallel processing.
-- `demo_ollama_integration.py`: Demo for Ollama model integration.
+### Infrastructure Management
+- **`infra/`** - Infrastructure setup and management
+  - `start-elasticsearch.sh` - Local Elasticsearch setup
+  - `start-redis.sh` - Local Redis setup
+  - `cleanup-distros.sh` - Distribution cleanup
 
-### `integration/`
-System and integration tests that require external dependencies or real models.
-- `test_huggingface_integration.py`: Tests HuggingFace model integration for retrieval and generation.
-- `test_qwen_integration.py`: Tests Qwen2 model integration with the RAG pipeline.
-- `test_report_generator.py`: Generates and validates test reports for system evaluation.
-- `test_visualizer.py`: Creates visualizations for test results and system performance.
+### Specialized Submodules
 
-## Usage Notes
-- Most Python scripts use Hydra for configuration (see `conf/` directory).
+#### Debugging & Troubleshooting
+- **`debugging/`** - Performance analysis and debugging tools
+  - `debug_performance.py` - RAG performance debugging
+
+#### Indexing & Configuration
+- **`indexing/`** - Document indexing and configuration management
+  - `index_with_embeddings.py` - Document indexing with embeddings
+  - `switch_config.py` - Korean/English configuration switching
+
+#### Testing & Validation
+- **`testing/`** - Component testing and validation
+  - `test_polyglot_optimized.py` - Polyglot-Ko embedding tests
+  - `test_techniques.py` - Retrieval/generation technique tests
+
+#### CLI Tools
+- **`cli/`** - Command-line interfaces
+  - `cli_menu.py` - Interactive CLI menu system
+
+#### Integration Testing
+- **`integration/`** - Cross-component integration tests
+  - `test_huggingface_integration.py` - HuggingFace model integration
+  - `test_qwen_integration.py` - Qwen2 model integration
+
+#### Translation & Localization
+- **`translation/`** - Language translation utilities
+  - `translate_validation.py` - Validation dataset translation
+
+#### Validation & Visualization
+- **`validation/`** - Result validation and visualization
+  - `visualize_submissions.py` - Submission result visualization
+
+## Usage
+
+### Running Scripts
+
+All scripts should be run from the project root directory using Poetry for proper dependency management:
+
+```bash
+# General pattern
+PYTHONPATH=src poetry run python scripts/<submodule>/<script>.py [args]
+
+# Examples
+PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py
+PYTHONPATH=src poetry run python scripts/indexing/switch_config.py korean
+PYTHONPATH=src poetry run python scripts/cli/cli_menu.py
+```
+
+### Script Discovery
+
+Use the script listing tool to see all available scripts with descriptions:
+
+```bash
+PYTHONPATH=src poetry run python scripts/list_scripts.py
+```
+
+## Development Guidelines
+
+### Adding New Scripts
+
+1. **Choose appropriate submodule** based on script purpose
+2. **Create descriptive filename** following existing patterns
+3. **Add comprehensive docstring** with usage examples
+4. **Update `list_scripts.py`** with script description
+5. **Test script execution** from project root
+
+### Script Organization Principles
+
+- **Single Responsibility**: Each script should have one clear purpose
+- **Consistent Naming**: Use descriptive, action-oriented names
+- **Proper Documentation**: Include usage examples and parameter descriptions
+- **Error Handling**: Implement robust error handling and user feedback
+- **Configuration**: Use Hydra/OmegaConf for complex configurations
+
+## Maintenance
+
+- Regularly review and update script descriptions in `list_scripts.py`
+- Remove deprecated scripts and update references
+- Keep documentation synchronized with code changes
+- Test scripts after dependency updates
 - Ensure `PYTHONPATH=src` or run via Poetry for proper imports.
 - Shell scripts are for Linux environments; check dependencies (e.g., `make` for Redis).
 - Run scripts from the project root for correct relative paths.

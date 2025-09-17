@@ -14,6 +14,10 @@ This package contains modular analysis components organized by functionality:
 from .calculators.metric_calculator import MetricCalculator, MetricCalculationResult
 from .processors.query_processor import QueryBatchProcessor, QueryProcessingResult
 from .analyzers.error_analyzer import ErrorAnalyzer, ErrorAnalysisResult
+from .analyzers.error_categorizer import ErrorCategorizer
+from .analyzers.pattern_detector import PatternDetector
+from .analyzers.recommendation_generator import RecommendationGenerator
+from .analyzers.temporal_analyzer import TemporalAnalyzer
 from .aggregators.result_aggregator import ResultAggregator
 
 __all__ = [
@@ -23,5 +27,9 @@ __all__ = [
     'QueryProcessingResult',
     'ErrorAnalyzer',
     'ErrorAnalysisResult',
+    'ErrorCategorizer',
+    'PatternDetector',
+    'RecommendationGenerator',
+    'TemporalAnalyzer',
     'ResultAggregator'
 ]

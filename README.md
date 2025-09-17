@@ -142,14 +142,20 @@ poetry run python cli_menu.py
 │       ├── 📄 README.md
 │       ├── 📄 screenshots.md
 │       └── 📄 development-plans.md
-├── 📂 scripts/
-        scripts/translation/
-        ├── integrate_translation.py     # Main integration script with Redis caching
-        ├── translate_validation.sh      # Simple validation data translation
-        ├── validate_with_translation.py # Validation with automatic translation
-        ├── translate_documents_ollama.py # Ollama-based translation
-        ├── translate_documents_google.py # Google Translate API
-        └── test_translation.py          # Translation testing utilities
+└── 📂 scripts/
+        ├── 📂 cli/                    # Command-line interfaces
+        ├── 📂 debugging/             # Performance analysis & debugging
+        ├── 📂 indexing/              # Document indexing & configuration
+        ├── 📂 testing/               # Component testing & validation
+        ├── 📂 evaluation/            # Model evaluation & validation
+        ├── 📂 execution/             # Core pipeline execution
+        ├── 📂 data/                  # Dataset processing & analysis
+        ├── 📂 maintenance/           # System maintenance & utilities
+        ├── 📂 infra/                 # Infrastructure management
+        ├── 📂 integration/           # Cross-component integration tests
+        ├── 📂 translation/           # Language translation utilities
+        └── 📂 validation/            # Result validation & visualization
+
 ├── 📂 src/
 ├── 📂 tests/
 └── ... (other standard dirs)

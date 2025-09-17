@@ -109,7 +109,11 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                 dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
                 low_cpu_mem_usage=True
             )
-            self._model = self._model.to(device)
+            # Handle meta device case - use to_empty() when moving from meta to regular device
+            if self._model.device.type == 'meta':
+                self._model = self._model.to_empty(device=device)
+            else:
+                self._model = self._model.to(device)
             print(f"✅ Loaded full precision Polyglot-Ko model: {self.model_name}")
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
@@ -120,7 +124,11 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                     self.model_name,
                     dtype=torch.float32  # Use float32 on CPU
                 )
-                self._model = self._model.to(self._device)
+                # Handle meta device case for CPU fallback too
+                if self._model.device.type == 'meta':
+                    self._model = self._model.to_empty(device=self._device)
+                else:
+                    self._model = self._model.to(self._device)
                 print(f"✅ Loaded full precision Polyglot-Ko model on CPU: {self.model_name}")
             else:
                 raise

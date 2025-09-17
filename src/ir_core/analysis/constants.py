@@ -267,3 +267,13 @@ VALIDATION_DOMAINS: Dict[str, str] = _config_loader.get('validation.domains', {}
 
 # Profiling artifacts reference paths (for runtime loading)
 PROFILING_ARTIFACTS: Dict[str, str] = _config_loader.get('profiling_artifacts', {}) if _config else {}
+
+# Parallel processing defaults for analysis operations
+PARALLEL_PROCESSING_DEFAULTS: Dict[str, Any] = {
+    "batch_size_threshold": 10,  # Minimum batch size to trigger parallel processing
+    "max_workers_analysis": 4,   # Default max workers for analysis operations
+    "max_workers": 8,            # General max workers
+}
+
+# Default K values for evaluation metrics
+DEFAULT_K_VALUES: List[int] = [1, 3, 5, 10, 20, 50, 100]
