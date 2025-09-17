@@ -108,9 +108,9 @@ class ErrorAnalyzer:
             error_type = self.error_categorizer.categorize_error(pred_docs, gt_id, query, query_domain)
 
             # Simple categorization for now
-            if "query" in error_type:
+            if error_type in query_understanding_failures:
                 query_understanding_failures[error_type] += 1
-            elif "false" in error_type or "ranking" in error_type:
+            elif error_type in retrieval_failures:
                 retrieval_failures[error_type] += 1
             else:
                 system_failures[error_type] += 1

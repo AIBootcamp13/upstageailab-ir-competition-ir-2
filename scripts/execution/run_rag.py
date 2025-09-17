@@ -2,16 +2,23 @@
 
 import os
 import sys
+import argparse
 
 # --- 새로운 임포트 (New Imports) ---
 import hydra
 from omegaconf import DictConfig
 
-from src.scripts_utils import add_src_to_path
+def _add_src_to_path() -> None:
+    """Add the src directory to the Python path."""
+    scripts_dir = os.path.dirname(__file__)
+    repo_dir = os.path.dirname(scripts_dir)
+    src_dir = os.path.join(repo_dir, "src")
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
 
 
 # --- 유틸리티 임포트 (Utility Imports) ---
-add_src_to_path()
+_add_src_to_path()
 # get_generator는 run_pipeline 함수 내부에서 임포트하여 순환 참조를 방지합니다.
 
 
@@ -31,7 +38,7 @@ def run_pipeline(cfg: DictConfig) -> None:
     query = cfg.get("query")
     if not query:
         print(
-            "오류: 쿼리가 제공되지 않았습니다. 커맨드라인에서 'query=\"질문 내용\"' 형식으로 전달하세요."
+            "오류: 쿼리가 제공되지 않았습니다. 커맨드라인에서 '+query=\"질문 내용\"' 형식으로 전달하세요."
         )
         return
 
@@ -92,4 +99,16 @@ if __name__ == "__main__":
     except ImportError:
         pass
 
-    run_pipeline()
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run RAG pipeline with a query")
+    parser.add_argument("--query", type=str, required=True, help="The query to run through the RAG pipeline")
+    args = parser.parse_args()
+
+    # Create a simple config dict and add the query
+    from omegaconf import OmegaConf
+    import os
+    conf_path = os.path.join(os.path.dirname(__file__), "../../conf/settings.yaml")
+    cfg = OmegaConf.load(conf_path)
+    cfg.query = args.query
+
+    run_pipeline(cfg)

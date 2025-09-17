@@ -128,6 +128,10 @@ class QueryEnhancementManager:
                 'reason': 'Query enhancement disabled in configuration'
             }
 
+        # If specific technique requested, apply it directly without intent classification
+        if technique:
+            return self._apply_specific_technique(query, technique)
+
         # First, classify query intent using LLM for better accuracy
         intent = self._classify_query_intent(query, conversation_history)
 
@@ -163,10 +167,7 @@ class QueryEnhancementManager:
                 'intent': intent
             }
 
-        if technique:
-            return self._apply_specific_technique(query, technique)
-        else:
-            return self._auto_select_and_apply_with_classification(query, classification)
+        return self._auto_select_and_apply_with_classification(query, classification)
 
     def _fallback_classification(self, query: str) -> Dict[str, Any]:
         """
@@ -285,16 +286,30 @@ class QueryEnhancementManager:
                 'reason': 'No techniques recommended by classifier'
             }
 
-        # Apply the highest priority technique
-        primary_technique = recommended_techniques[0]['technique']
+        # Apply the highest priority technique that is enabled
+        for technique_info in recommended_techniques:
+            technique = technique_info['technique']
+            if technique == 'bypass':
+                return {
+                    'enhanced': False,
+                    'original_query': query,
+                    'enhanced_query': query,
+                    'technique_used': 'bypass',
+                    'reason': 'Strategic classifier recommends bypassing enhancement'
+                }
 
-        if primary_technique == 'bypass':
+            # Check if technique is enabled
+            if self.techniques_config.get(technique, {}).get('enabled', False):
+                primary_technique = technique
+                break
+        else:
+            # No enabled techniques found, fall back to no enhancement
             return {
                 'enhanced': False,
                 'original_query': query,
                 'enhanced_query': query,
-                'technique_used': 'bypass',
-                'reason': 'Strategic classifier recommends bypassing enhancement'
+                'technique_used': 'none',
+                'reason': 'No enabled techniques available from classifier recommendations'
             }
 
         # Check if technique supports sequential application
