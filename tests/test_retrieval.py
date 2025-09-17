@@ -38,15 +38,16 @@ def test_hybrid_retrieve_reranking_logic(monkeypatch):
     def mock_sparse_retrieve(query, size, index=None):
         return MOCK_BM25_HITS
 
+    def mock_encode_query(text, **kwargs):
+        return MOCK_EMBEDDINGS["query"]
+
     def mock_encode_texts(texts, **kwargs):
-        # The first text is always the query in hybrid_retrieve's implementation
-        if len(texts) == 1:
-            return MOCK_EMBEDDINGS["query"].reshape(1, -1)
-        # Otherwise it's the batch of documents
+        # This is called for batches of documents
         return MOCK_EMBEDDINGS["docs"]
 
     # 3. Apply the mocks using pytest's monkeypatch fixture
     monkeypatch.setattr(retrieval.core, "sparse_retrieve", mock_sparse_retrieve)
+    monkeypatch.setattr(retrieval.core, "encode_query", mock_encode_query)
     monkeypatch.setattr(retrieval.core, "encode_texts", mock_encode_texts)
 
     # 4. Run tests with different alpha values
