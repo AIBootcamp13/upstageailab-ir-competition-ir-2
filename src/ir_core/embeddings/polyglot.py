@@ -24,7 +24,7 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
         """
         self.model_name = model_name or getattr(settings, 'POLYGLOT_MODEL', 'EleutherAI/polyglot-ko-1.3b')
         self.quantization = quantization or getattr(settings, 'POLYGLOT_QUANTIZATION', '16bit')
-        self.batch_size = getattr(settings, 'POLYGLOT_BATCH_SIZE', 8)
+        self.batch_size: int = getattr(settings, 'POLYGLOT_BATCH_SIZE', 8) or 8
         self.max_threads = getattr(settings, 'POLYGLOT_MAX_THREADS', 8)
         self._tokenizer = None
         self._model = None
@@ -47,8 +47,12 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
             if self._tokenizer is None or self._model is None:
                 print(f"🔄 Loading Polyglot-Ko model: {self.model_name} with {self.quantization} quantization")
 
-                # Load tokenizer
-                self._tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
+                # Load tokenizer with timeout
+                try:
+                    self._tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True, timeout=300)  # 5 minute timeout
+                except Exception as e:
+                    raise RuntimeError(f"Failed to load tokenizer for {self.model_name}: {e}")
+
                 if self._tokenizer.pad_token is None:
                     self._tokenizer.pad_token = self._tokenizer.eos_token
 
@@ -63,7 +67,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                             dtype=torch.float16,
                             device_map="auto" if torch.cuda.device_count() > 1 else device,
                             max_memory={0: "8GB", "cpu": "4GB"} if torch.cuda.device_count() > 1 else None,
-                            low_cpu_mem_usage=True
+                            low_cpu_mem_usage=True,
+                            timeout=600  # 10 minute timeout
                         )
                         print(f"✅ Loaded 16-bit quantized Polyglot-Ko model: {self.model_name}")
                     except Exception as e:
@@ -82,7 +87,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                             self.model_name,
                             quantization_config=quantization_config,
                             device_map="auto",
-                            dtype=torch.float16
+                            dtype=torch.float16,
+                            timeout=600  # 10 minute timeout
                         )
                         print(f"✅ Loaded 8-bit quantized Polyglot-Ko model: {self.model_name}")
                     except Exception as e:
@@ -107,7 +113,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
             self._model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                low_cpu_mem_usage=True
+                low_cpu_mem_usage=True,
+                timeout=600  # 10 minute timeout
             )
             # Handle meta device case - use to_empty() when moving from meta to regular device
             if self._model.device.type == 'meta':
@@ -122,7 +129,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                 self._device = torch.device("cpu")
                 self._model = AutoModelForCausalLM.from_pretrained(
                     self.model_name,
-                    dtype=torch.float32  # Use float32 on CPU
+                    dtype=torch.float32,  # Use float32 on CPU
+                    timeout=600  # 10 minute timeout
                 )
                 # Handle meta device case for CPU fallback too
                 if self._model.device.type == 'meta':
@@ -175,7 +183,7 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
             numpy array of embeddings
         """
         if batch_size is None:
-            batch_size = self.batch_size or 8  # Ensure we have a valid batch size
+            batch_size = self.batch_size
         if not texts:
             dtype = getattr(np, getattr(settings, 'EMBEDDING_DTYPE', 'float32'))
             return np.zeros((0, self.dimension), dtype=dtype)

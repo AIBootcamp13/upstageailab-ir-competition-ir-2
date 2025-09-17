@@ -30,9 +30,15 @@ class ExperimentsMenu(BaseMenuModule):
         return {
             "Experiments & Validation": [
                 {
+                    "name": "Check Current Configuration",
+                    "command": f"{self.get_command_path('switch_config.py')} show",
+                    "description": "Show current configuration before running experiments (IMPORTANT: Ensure correct embedding model and index)",
+                    "needs_params": False,
+                },
+                {
                     "name": "Validate Retrieval (OpenAI)",
                     "command": f"{self.get_command_path('scripts/evaluation/validate_retrieval.py')} --config-dir conf pipeline=default",
-                    "description": "Run retrieval validation using OpenAI models for query rewriting, tool calling, and answer generation",
+                    "description": "Run retrieval validation using OpenAI models. Uses current embedding model/index from configuration.",
                     "needs_params": True,
                     "params": ["model.alpha", "limit"],
                 },
@@ -70,13 +76,6 @@ class ExperimentsMenu(BaseMenuModule):
                     "description": "Run multiple experiments in parallel",
                     "needs_params": True,
                     "params": ["experiment", "limit"],
-                },
-                {
-                    "name": "Validate Retrieval (HuggingFace)",
-                    "command": f"{self.get_command_path('scripts/evaluation/validate_retrieval.py')} --config-dir conf pipeline=klue-roberta",
-                    "description": "Run retrieval validation using KLUE-RoBERTa for embeddings and generation",
-                    "needs_params": True,
-                    "params": ["model.alpha", "limit"],
                 },
             ]
         }

@@ -1,0 +1,126 @@
+# Embedding Configuration Profiles
+# This file contains all available embedding configurations for the RAG system.
+# Each profile defines the complete setup for a specific embedding model and data configuration.
+
+korean:
+  description: "Korean setup using KR-SBERT (768d)"
+  config:
+    EMBEDDING_PROVIDER: "huggingface"
+    EMBEDDING_MODEL: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    EMBEDDING_DIMENSION: 768
+    INDEX_NAME: "documents_ko_with_embeddings_fixed"
+    model:
+      embedding_model: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "ko"
+
+english:
+  description: "English setup using all-MiniLM-L6-v2 (384d)"
+  config:
+    EMBEDDING_PROVIDER: "huggingface"
+    EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: 384
+    INDEX_NAME: "documents_en_with_embeddings_new"
+    model:
+      embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: true
+  data_config: "en"
+
+bilingual:
+  description: "Bilingual setup using KR-SBERT (768d)"
+  config:
+    EMBEDDING_PROVIDER: "huggingface"
+    EMBEDDING_MODEL: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+    EMBEDDING_DIMENSION: 768
+    INDEX_NAME: "documents_bilingual_with_embeddings_new"
+    model:
+      embedding_model: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "bilingual"
+
+solar:
+  description: "Solar API setup (4096d)"
+  config:
+    EMBEDDING_PROVIDER: "solar"
+    EMBEDDING_DIMENSION: 4096
+    INDEX_NAME: "documents_solar_with_embeddings_new"
+    model:
+      embedding_model: "solar-embedding-1-large-passage"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "bilingual"
+
+polyglot:
+  description: "Polyglot-Ko-3.8B setup (3072d)"
+  config:
+    EMBEDDING_PROVIDER: "polyglot"
+    EMBEDDING_MODEL: "EleutherAI/polyglot-ko-3.8b"
+    EMBEDDING_DIMENSION: 3072
+    INDEX_NAME: "documents_polyglot_3b_with_embeddings_new"
+    POLYGLOT_MODEL: "EleutherAI/polyglot-ko-3.8b"
+    POLYGLOT_QUANTIZATION: "full"
+    POLYGLOT_BATCH_SIZE: 4
+    POLYGLOT_MAX_THREADS: 4
+    model:
+      embedding_model: "EleutherAI/polyglot-ko-3.8b"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "ko"
+
+polyglot-3b:
+  description: "Polyglot-Ko-3.8B setup (3072d)"
+  config:
+    EMBEDDING_PROVIDER: "polyglot"
+    EMBEDDING_MODEL: "EleutherAI/polyglot-ko-3.8b"
+    EMBEDDING_DIMENSION: 3072
+    INDEX_NAME: "documents_polyglot_3b_with_embeddings_new"
+    POLYGLOT_MODEL: "EleutherAI/polyglot-ko-3.8b"
+    POLYGLOT_QUANTIZATION: "full"
+    POLYGLOT_BATCH_SIZE: 4
+    POLYGLOT_MAX_THREADS: 4
+    model:
+      embedding_model: "EleutherAI/polyglot-ko-3.8b"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "ko"
+
+polyglot-1b:
+  description: "Polyglot-Ko-1.3B setup (2048d)"
+  config:
+    EMBEDDING_PROVIDER: "polyglot"
+    EMBEDDING_MODEL: "EleutherAI/polyglot-ko-1.3b"
+    EMBEDDING_DIMENSION: 2048
+    INDEX_NAME: "documents_polyglot_1b_with_embeddings_new"
+    POLYGLOT_MODEL: "EleutherAI/polyglot-ko-1.3b"
+    POLYGLOT_QUANTIZATION: "full"
+    POLYGLOT_BATCH_SIZE: 8
+    POLYGLOT_MAX_THREADS: 8
+    model:
+      embedding_model: "EleutherAI/polyglot-ko-1.3b"
+      alpha: 0.4
+      bm25_k: 200
+      rerank_k: 10
+    translation:
+      enabled: false
+  data_config: "ko"

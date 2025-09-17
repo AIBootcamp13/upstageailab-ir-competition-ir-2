@@ -2,7 +2,10 @@
 """
 Data Management Menu Module for RAG CLI
 
-This module provides         try:
+This module provi        # Check if data files exist
+        data_dir = self.project_root / "data"
+        documents_file = data_dir / Path(self.get_current_documents_path()).name
+        results["data_files_exist"] = documents_file.exists()        try:
             result = subprocess.run(
                 ["curl", "-s", "http://localhost:9200/_cluster/health"],
                 capture_output=True, timeout=5
@@ -15,6 +18,7 @@ It handles document indexing, data analysis, and duplicate detection.
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -27,6 +31,17 @@ class DataManagementMenu(BaseMenuModule):
     def __init__(self, project_root: Path):
         super().__init__(project_root)
 
+    def get_current_documents_path(self) -> str:
+        """Get the current documents path from the active data configuration"""
+        try:
+            # Import here to avoid circular imports
+            sys.path.insert(0, str(self.project_root))
+            from switch_config import get_current_documents_path
+            return get_current_documents_path()
+        except ImportError:
+            # Fallback if switch_config is not available
+            return "data/documents_ko.jsonl"
+
     def get_commands(self) -> Dict[str, List[Dict]]:
         """
         Get all data management-related commands.
@@ -38,7 +53,7 @@ class DataManagementMenu(BaseMenuModule):
             "Data Management": [
                 {
                     "name": "Reindex Documents",
-                    "command": f"{self.get_command_path('scripts/maintenance/reindex.py')} data/documents.jsonl",
+                    "command": lambda: f"{self.get_command_path('scripts/maintenance/reindex.py')} {self.get_current_documents_path()}",
                     "description": "Reindex documents to Elasticsearch",
                     "needs_params": False,
                 },
@@ -73,7 +88,7 @@ class DataManagementMenu(BaseMenuModule):
 
         # Check if data files exist
         data_dir = self.project_root / "data"
-        documents_file = data_dir / "documents.jsonl"
+        documents_file = data_dir / "documents_ko.jsonl"
         results["data_files_exist"] = documents_file.exists()
 
         # Check data processing scripts
@@ -117,8 +132,9 @@ class DataManagementMenu(BaseMenuModule):
         instructions = []
 
         if not validation["data_files_exist"]:
-            instructions.append("⚠️  Data files missing - ensure data/documents.jsonl exists")
-            instructions.append("   Check: ls -la data/documents.jsonl")
+            current_docs_path = self.get_current_documents_path()
+            instructions.append(f"⚠️  Data files missing - ensure {current_docs_path} exists")
+            instructions.append(f"   Check: ls -la {current_docs_path}")
 
         if not validation["data_scripts_exist"]:
             instructions.append("❌ Data processing scripts missing - check scripts/data/ directory")
@@ -144,7 +160,7 @@ class DataManagementMenu(BaseMenuModule):
         """
         return [
             "# Reindex documents to Elasticsearch",
-            "PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl",
+            f"PYTHONPATH=src poetry run python scripts/maintenance/reindex.py {self.get_current_documents_path()}",
             "",
             "# Analyze document datasets",
             "PYTHONPATH=src poetry run python scripts/data/analyze_data.py",

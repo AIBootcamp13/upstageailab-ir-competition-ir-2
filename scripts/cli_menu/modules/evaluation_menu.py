@@ -30,9 +30,15 @@ class EvaluationMenu(BaseMenuModule):
         return {
             "Evaluation & Submission": [
                 {
+                    "name": "Check Current Configuration",
+                    "command": f"{self.get_command_path('switch_config.py')} show",
+                    "description": "Show current configuration before generating submissions (IMPORTANT: Ensure correct embedding model and index)",
+                    "needs_params": False,
+                },
+                {
                     "name": "Generate Submission (OpenAI)",
                     "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf",
-                    "description": "Generate submission using OpenAI GPT models. Uses current embedding model and index from settings.yaml. Supports translation if enabled.",
+                    "description": "Generate submission using OpenAI GPT models. Uses current embedding model and index from configuration.",
                     "needs_params": True,
                     "params": ["model.alpha", "limit"],
                 },
@@ -54,13 +60,6 @@ class EvaluationMenu(BaseMenuModule):
                     "name": "Generate Submission (Ollama Hybrid)",
                     "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf pipeline=hybrid-qwen-llama",
                     "description": "Hybrid pipeline: Qwen2:7b for query processing, Llama3.1:8b for generation. Uses current embedding model.",
-                    "needs_params": True,
-                    "params": ["model.alpha", "limit"],
-                },
-                {
-                    "name": "Generate Submission (HuggingFace)",
-                    "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf pipeline=klue-roberta",
-                    "description": "Generate submission using KLUE-RoBERTa models. Automatically switches to Korean embedding model and settings.",
                     "needs_params": True,
                     "params": ["model.alpha", "limit"],
                 },

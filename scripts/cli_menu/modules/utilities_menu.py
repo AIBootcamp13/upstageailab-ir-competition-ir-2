@@ -84,12 +84,6 @@ class UtilitiesMenu(BaseMenuModule):
                     "needs_params": False,
                 },
                 {
-                    "name": "Switch to Polyglot-Ko-5.8B Configuration",
-                    "command": "PYTHONPATH=src poetry run python scripts/indexing/switch_config.py polyglot-5b",
-                    "description": "Switch to Polyglot-Ko-5.8B configuration (4096D embeddings, local model)",
-                    "needs_params": False,
-                },
-                {
                     "name": "Switch to Polyglot-Ko-1.3B Configuration",
                     "command": "PYTHONPATH=src poetry run python scripts/indexing/switch_config.py polyglot-1b",
                     "description": "Switch to Polyglot-Ko-1.3B configuration (2048D embeddings, local model)",

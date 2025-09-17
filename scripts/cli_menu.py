@@ -26,6 +26,7 @@ from cli_menu.modules.experiments_menu import get_experiments_menu
 from cli_menu.modules.evaluation_menu import get_evaluation_menu
 from cli_menu.modules.utilities_menu import get_utilities_menu
 from cli_menu.modules.translation_menu import integrate_translation_menu
+from cli_menu.modules.configuration_menu import get_configuration_menu
 
 console = Console()
 
@@ -48,6 +49,7 @@ class ModularCLIMenu:
         builder.add_module(get_experiments_menu)
         builder.add_module(get_evaluation_menu)
         builder.add_module(get_utilities_menu)
+        builder.add_module(get_configuration_menu)
 
         # Build base commands
         commands = builder.build()

@@ -2,8 +2,8 @@
 """
 Configuration Switcher for Korean/English RAG Setup
 
-This script helps switch between Korean and English configurations
-by updating the embedding model and index settings.
+This script reads profiles from conf/embedding_profiles.yaml and applies them.
+Usage: python switch_config.py [profile_name|show|list]
 """
 
 import os
@@ -18,6 +18,10 @@ from ruamel.yaml import YAML
 yaml_handler = YAML()
 yaml_handler.preserve_quotes = True
 yaml_handler.indent(mapping=2, sequence=4, offset=2)
+
+# Profile configuration file path
+PROFILES_PATH = Path(__file__).parent / "conf" / "embedding_profiles.yaml"
+SETTINGS_PATH = Path(__file__).parent / "conf" / "settings.yaml"
 
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""
@@ -67,6 +71,110 @@ def save_settings(settings: Dict[str, Any]) -> None:
     with open(settings_file, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
+def load_data_config() -> Dict[str, Any]:
+    """Load current data configuration based on defaults in settings.yaml"""
+    settings = load_settings_preserve_format()
+
+    # Find the data config from defaults
+    data_config_name = None
+    if 'defaults' in settings:
+        for default_entry in settings['defaults']:
+            if isinstance(default_entry, str) and default_entry.startswith('data:'):
+                data_config_name = default_entry.split(':', 1)[1].strip()
+                break
+            elif isinstance(default_entry, dict) and 'data' in default_entry:
+                data_config_name = default_entry['data']
+                break
+
+    if not data_config_name:
+        # Fallback to science_qa_ko if not found
+        data_config_name = 'science_qa_ko'
+
+    # Load the data config file
+    data_config_file = Path(__file__).parent / "conf" / "data" / f"{data_config_name}.yaml"
+    if data_config_file.exists():
+        with open(data_config_file, 'r', encoding='utf-8') as f:
+            return yaml_handler.load(f)
+    else:
+        # Fallback configuration
+        return {
+            'documents_path': 'data/documents_ko.jsonl',
+            'validation_path': 'data/validation_balanced.jsonl',
+            'evaluation_path': 'data/eval.jsonl',
+            'output_path': 'outputs/submission_ko.csv'
+        }
+
+def get_current_documents_path() -> str:
+    """Get the current documents path from the active data configuration"""
+    data_config = load_data_config()
+    return data_config.get('documents_path', 'data/documents_ko.jsonl')
+
+def load_profiles() -> Dict[str, Any]:
+    """Load all embedding profiles from the configuration file."""
+    if not PROFILES_PATH.exists():
+        print(f"❌ Error: Profiles file not found at {PROFILES_PATH}")
+        return {}
+
+    with open(PROFILES_PATH, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+def switch_to_profile(profile_name: str) -> None:
+    """Switch configuration to a named profile."""
+    profiles = load_profiles()
+    if profile_name not in profiles:
+        print(f"❌ Error: Profile '{profile_name}' not found in {PROFILES_PATH}")
+        print("Available profiles:", ", ".join(profiles.keys()))
+        return
+
+    profile = profiles[profile_name]
+    updates = profile.get("config", {})
+    data_config = profile.get("data_config")
+
+    print(f"🔄 Switching to '{profile_name}' configuration...")
+
+    # Load settings.yaml while preserving structure
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+        current_data = yaml_handler.load(f)
+
+    # Apply updates from the profile
+    _update_nested_dict(current_data, updates)
+
+    # Save updated settings.yaml
+    with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
+        yaml_handler.dump(current_data, f)
+
+    # Update data configuration if specified
+    if data_config:
+        update_data_config(data_config)
+
+    print(f"✅ Switched to '{profile_name}' configuration.")
+    print(f"   Description: {profile.get('description', 'N/A')}")
+
+    # Special warnings for specific providers
+    if profile_name == "solar":
+        api_key_set = bool(os.getenv('UPSTAGE_API_KEY'))
+        if not api_key_set:
+            print("\n⚠️  Warning: UPSTAGE_API_KEY environment variable not set!")
+            print("   Please set it in your .env file or environment before using Solar embeddings.")
+
+    # Show key configuration details
+    config = profile.get("config", {})
+    print(f"   - Provider: {config.get('EMBEDDING_PROVIDER', 'N/A')}")
+    print(f"   - Model: {config.get('EMBEDDING_MODEL', 'N/A')}")
+    print(f"   - Dimension: {config.get('EMBEDDING_DIMENSION', 'N/A')}")
+    print(f"   - Index: {config.get('INDEX_NAME', 'N/A')}")
+
+def list_profiles() -> None:
+    """List all available profiles."""
+    profiles = load_profiles()
+    if not profiles:
+        print("❌ No profiles found or profiles file is missing.")
+        return
+
+    print("📋 Available Configuration Profiles:")
+    for name, data in profiles.items():
+        print(f"  - {name}: {data.get('description', 'No description')}")
+
 def _update_nested_dict(base_dict, updates):
     """Recursively update nested dictionary with new values"""
     for key, value in updates.items():
@@ -74,389 +182,6 @@ def _update_nested_dict(base_dict, updates):
             _update_nested_dict(base_dict[key], value)
         else:
             base_dict[key] = value
-
-def switch_to_korean():
-    """Switch configuration to Korean setup"""
-    print("🔄 Switching to Korean configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "huggingface",
-        'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-        'EMBEDDING_DIMENSION': 768,
-        'INDEX_NAME': "documents_ko_with_embeddings_fixed",
-        'model': {
-            'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use Korean data
-    update_data_config("ko")
-
-    print("✅ Switched to Korean configuration")
-    print("   - Embedding provider: huggingface")
-    print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
-    print("   - Index: documents_ko_with_embeddings_fixed")
-    print("   - Documents: data/documents_ko.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure the Korean index exists or create it with the Korean embedding model!")
-
-def switch_to_english():
-    """Switch configuration to English setup"""
-    print("🔄 Switching to English configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "huggingface",
-        # FIX: Use a proper English model
-        'EMBEDDING_MODEL': "sentence-transformers/all-MiniLM-L6-v2",
-        # FIX: Set the correct dimension for the English model
-        'EMBEDDING_DIMENSION': 384,
-        'INDEX_NAME': "documents_en_with_embeddings_new",
-        'model': {
-            'embedding_model': "sentence-transformers/all-MiniLM-L6-v2",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': True
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use English data
-    update_data_config("en")
-
-    print("✅ Switched to English configuration")
-    print("   - Embedding model: sentence-transformers/all-MiniLM-L6-v2 (384d)")
-    print("   - Index: documents_en_with_embeddings_new")
-    print("   - Translation: enabled")
-
-def switch_to_bilingual():
-    """Switch configuration to Bilingual setup"""
-    print("🔄 Switching to Bilingual configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "huggingface",
-        'EMBEDDING_MODEL': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-        'EMBEDDING_DIMENSION': 768,
-        'INDEX_NAME': "documents_bilingual_with_embeddings_new",
-        'model': {
-            'embedding_model': "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use bilingual data
-    update_data_config("bilingual")
-
-    print("✅ Switched to Bilingual configuration")
-    print("   - Embedding provider: huggingface")
-    print("   - Embedding model: snunlp/KR-SBERT-V40K-klueNLI-augSTS (768d)")
-    print("   - Index: documents_bilingual_with_embeddings_new")
-    print("   - Documents: data/documents_bilingual.jsonl")
-    print("   - Translation: disabled")
-
-def switch_to_solar():
-    """Switch configuration to Solar API setup (4096D embeddings)"""
-    print("🔄 Switching to Solar API configuration...")
-
-    # Check if UPSTAGE_API_KEY is set
-    if not os.getenv('UPSTAGE_API_KEY'):
-        print("⚠️  Warning: UPSTAGE_API_KEY environment variable not set!")
-        print("   Please set it in your .env file or environment before using Solar embeddings.")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "solar",
-        'EMBEDDING_DIMENSION': 4096,
-        'INDEX_NAME': "documents_solar_with_embeddings_new",
-        'model': {
-            'embedding_model': "solar-embedding-1-large-passage",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use bilingual data (Solar can handle both languages)
-    update_data_config("bilingual")
-
-    print("✅ Switched to Solar API configuration")
-    print("   - Embedding provider: solar")
-    print("   - Embedding model: solar-embedding-1-large-passage (4096d)")
-    print("   - Index: documents_solar_with_embeddings_new")
-    print("   - Documents: data/documents_bilingual.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure UPSTAGE_API_KEY is set in your environment!")
-    print("⚠️  Make sure the Solar index exists or create it with Solar embeddings!")
-
-def switch_to_polyglot():
-    """Switch configuration to Polyglot-Ko setup (5120D embeddings from language model)"""
-    print("🔄 Switching to Polyglot-Ko configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "polyglot",
-        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-3.8b",
-        'EMBEDDING_DIMENSION': 3072,  # Polyglot-Ko-3.8B hidden size
-        'INDEX_NAME': "documents_polyglot_3b_with_embeddings_new",
-        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-3.8b",
-        'POLYGLOT_QUANTIZATION': "16bit",
-        'POLYGLOT_BATCH_SIZE': 4,
-        'POLYGLOT_MAX_THREADS': 4,
-        'model': {
-            'embedding_model': "EleutherAI/polyglot-ko-3.8b",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use Korean data (Polyglot-Ko is optimized for Korean)
-    update_data_config("ko")
-
-    print("✅ Switched to Polyglot-Ko configuration")
-    print("   - Embedding provider: polyglot")
-    print("   - Embedding model: EleutherAI/polyglot-ko-3.8b (3072d)")
-    print("   - Quantization: 16-bit")
-    print("   - Batch size: 4")
-    print("   - Max threads: 4")
-    print("   - Index: documents_polyglot_3b_with_embeddings_new")
-    print("   - Documents: data/documents_ko.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure the Polyglot-Ko index exists or create it with Polyglot-Ko embeddings!")
-    print("⚠️  First run may take time to download the model (4GB+)")
-    print("💡 For better performance with limited resources, consider using smaller models:")
-    print("   - EleutherAI/polyglot-ko-5.8b (6GB, 4096d)")
-    print("   - EleutherAI/polyglot-ko-3.8b (4GB, 3072d) - CURRENT")
-    print("   - EleutherAI/polyglot-ko-1.3b (1.4GB, 2048d)")
-
-def switch_to_polyglot_5b():
-    """Switch configuration to Polyglot-Ko-5.8B setup (4096D embeddings)"""
-    print("🔄 Switching to Polyglot-Ko-5.8B configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "polyglot",
-        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-5.8b",
-        'EMBEDDING_DIMENSION': 4096,  # Polyglot-Ko-5.8B hidden size
-        'INDEX_NAME': "documents_polyglot_5b_with_embeddings_new",
-        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-5.8b",
-        'POLYGLOT_QUANTIZATION': "16bit",
-        'POLYGLOT_BATCH_SIZE': 2,
-        'POLYGLOT_MAX_THREADS': 2,
-        'model': {
-            'embedding_model': "EleutherAI/polyglot-ko-5.8b",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use Korean data
-    update_data_config("ko")
-
-    print("✅ Switched to Polyglot-Ko-5.8B configuration")
-    print("   - Embedding provider: polyglot")
-    print("   - Embedding model: EleutherAI/polyglot-ko-5.8b (4096d)")
-    print("   - Quantization: 16-bit (FP16)")
-    print("   - Batch size: 2")
-    print("   - Max threads: 2")
-    print("   - Index: documents_polyglot_5b_with_embeddings_new")
-    print("   - Documents: data/documents_ko.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure the Polyglot-Ko-5.8B index exists or create it with Polyglot-Ko embeddings!")
-    print("💡 This model is ~6GB and should work better with limited resources")
-
-def switch_to_polyglot_3b():
-    """Switch configuration to Polyglot-Ko-3.8B setup (3072D embeddings)"""
-    print("🔄 Switching to Polyglot-Ko-3.8B configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "polyglot",
-        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-3.8b",
-        'EMBEDDING_DIMENSION': 3072,  # Polyglot-Ko-3.8B hidden size
-        'INDEX_NAME': "documents_polyglot_3b_with_embeddings_new",
-        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-3.8b",
-        'POLYGLOT_QUANTIZATION': "16bit",
-        'POLYGLOT_BATCH_SIZE': 4,
-        'POLYGLOT_MAX_THREADS': 4,
-        'model': {
-            'embedding_model': "EleutherAI/polyglot-ko-3.8b",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use Korean data
-    update_data_config("ko")
-
-    print("✅ Switched to Polyglot-Ko-3.8B configuration")
-    print("   - Embedding provider: polyglot")
-    print("   - Embedding model: EleutherAI/polyglot-ko-3.8b (3072d)")
-    print("   - Quantization: 16-bit (FP16)")
-    print("   - Batch size: 4")
-    print("   - Max threads: 4")
-    print("   - Index: documents_polyglot_3b_with_embeddings_new")
-    print("   - Documents: data/documents_ko.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure the Polyglot-Ko-3.8B index exists or create it with Polyglot-Ko embeddings!")
-    print("💡 This model is ~4GB and should work well with most systems")
-
-def switch_to_polyglot_1b():
-    """Switch configuration to Polyglot-Ko-1.3B setup (2048D embeddings)"""
-    print("🔄 Switching to Polyglot-Ko-1.3B configuration...")
-
-    # Load current settings with preserved format
-    current_data = load_settings_preserve_format()
-
-    # Update only the specific settings that need to change
-    updates = {
-        'EMBEDDING_PROVIDER': "polyglot",
-        'EMBEDDING_MODEL': "EleutherAI/polyglot-ko-1.3b",
-        'EMBEDDING_DIMENSION': 2048,  # Polyglot-Ko-1.3B hidden size
-        'INDEX_NAME': "documents_polyglot_1b_with_embeddings_new",
-        'POLYGLOT_MODEL': "EleutherAI/polyglot-ko-1.3b",
-        'POLYGLOT_QUANTIZATION': "16bit",
-        'POLYGLOT_BATCH_SIZE': 8,
-        'POLYGLOT_MAX_THREADS': 8,
-        'model': {
-            'embedding_model': "EleutherAI/polyglot-ko-1.3b",
-            'alpha': 0.4,
-            'bm25_k': 200,
-            'rerank_k': 10
-        },
-        'translation': {
-            'enabled': False
-        }
-    }
-
-    # Apply updates while preserving structure
-    _update_nested_dict(current_data, updates)
-
-    # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
-        yaml_handler.dump(current_data, f)
-
-    # Update data configuration to use Korean data
-    update_data_config("ko")
-
-    print("✅ Switched to Polyglot-Ko-1.3B configuration")
-    print("   - Embedding provider: polyglot")
-    print("   - Embedding model: EleutherAI/polyglot-ko-1.3b (2048d)")
-    print("   - Quantization: 16-bit (FP16)")
-    print("   - Batch size: 8")
-    print("   - Max threads: 8")
-    print("   - Index: documents_polyglot_1b_with_embeddings_new")
-    print("   - Documents: data/documents_ko.jsonl")
-    print("   - Translation: disabled")
-    print("\n⚠️  Make sure the Polyglot-Ko-1.3B index exists or create it with Polyglot-Ko embeddings!")
-    print("💡 This model is ~1.4GB and should work on almost any system")
 
 def update_data_config(language):
     """Update the data configuration in consolidated settings.yaml while preserving formatting"""
@@ -535,40 +260,21 @@ def show_current_config():
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python scripts/indexing/switch_config.py [korean|english|bilingual|solar|polyglot|polyglot-5b|polyglot-3b|polyglot-1b|show]")
-        print("  korean      - Switch to Korean configuration")
-        print("  english     - Switch to English configuration")
-        print("  bilingual   - Switch to Bilingual configuration")
-        print("  solar       - Switch to Solar API configuration (4096D embeddings)")
-        print("  polyglot    - Switch to Polyglot-Ko-3.8B configuration (3072D embeddings)")
-        print("  polyglot-5b - Switch to Polyglot-Ko-5.8B configuration (4096D embeddings)")
-        print("  polyglot-3b - Switch to Polyglot-Ko-3.8B configuration (3072D embeddings)")
-        print("  polyglot-1b - Switch to Polyglot-Ko-1.3B configuration (2048D embeddings)")
-        print("  show        - Show current configuration")
+        print("Usage: python switch_config.py [profile_name|show|list]")
+        print("  profile_name - Switch to a specific profile (e.g., korean, english, bilingual)")
+        print("  show         - Show current configuration")
+        print("  list         - List all available profiles")
         return
 
     command = sys.argv[1].lower()
 
-    if command == "korean":
-        switch_to_korean()
-    elif command == "english":
-        switch_to_english()
-    elif command == "bilingual":
-        switch_to_bilingual()
-    elif command == "solar":
-        switch_to_solar()
-    elif command == "polyglot":
-        switch_to_polyglot()
-    elif command == "polyglot-5b":
-        switch_to_polyglot_5b()
-    elif command == "polyglot-3b":
-        switch_to_polyglot_3b()
-    elif command == "polyglot-1b":
-        switch_to_polyglot_1b()
-    elif command == "show":
+    if command == "show":
         show_current_config()
+    elif command == "list":
+        list_profiles()
     else:
-        print(f"Unknown command: {command}")
+        # Assume it's a profile name
+        switch_to_profile(command)
 
 if __name__ == "__main__":
     main()

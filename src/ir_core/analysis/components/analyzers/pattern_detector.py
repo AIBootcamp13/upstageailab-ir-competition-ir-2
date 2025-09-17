@@ -225,7 +225,7 @@ class PatternDetector:
                         "scientific_ratio": sum(f["is_scientific"] for f in group) / len(group)
                     })
 
-        return patterns
+        return clusters
 
     def calculate_domain_error_rates(
         self,

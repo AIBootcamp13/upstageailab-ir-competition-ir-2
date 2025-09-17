@@ -242,6 +242,21 @@ class CommandExecutor:
                 ).ask()
                 if value is None:
                     value = "llama3.1:8b"
+            elif param == "data_file":
+                value = questionary.select(
+                    "Select data file:",
+                    choices=["data/documents_ko.jsonl", "data/documents_bilingual.jsonl", "data/documents_ko_with_metadata.jsonl"],
+                    default="data/documents_ko.jsonl"
+                ).ask()
+                if value is None:
+                    value = "data/documents_ko.jsonl"
+            elif param == "index_name":
+                value = questionary.text(
+                    "Enter index name (check current config for appropriate name):",
+                    default="documents_ko_with_embeddings_new"
+                ).ask()
+                if value is None:
+                    value = "documents_ko_with_embeddings_new"
             else:
                 value = questionary.text(f"Enter value for {param}:").ask()
                 if value is None:

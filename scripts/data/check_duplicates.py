@@ -4,10 +4,23 @@ Optionally prints the first few duplicate docids and their counts.
 """
 
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
-DATA_PATH = Path("data/documents.jsonl")
+# Add src to path for imports
+scripts_dir = Path(__file__).parent
+repo_dir = scripts_dir.parent
+src_dir = repo_dir / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+try:
+    from switch_config import get_current_documents_path
+    DATA_PATH = Path(get_current_documents_path())
+except ImportError:
+    # Fallback if switch_config is not available
+    DATA_PATH = Path("data/documents_ko.jsonl")
 
 if not DATA_PATH.exists():
     print(f"Data file not found: {DATA_PATH}")
