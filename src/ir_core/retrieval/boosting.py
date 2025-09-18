@@ -28,37 +28,30 @@ def load_keywords_per_src(report_dir: str | None = None) -> Dict[str, List[str]]
 
 
 def build_boosted_query(query: str, size: int, keywords_by_src: Dict[str, List[str]]) -> Dict[str, Any]:
-    """Construct a boosted ES query.
+    """Construct a boosted ES query that preserves flexible boolean structure.
 
     Boost strategy:
-    - Must match the main query against content (BM25 defaults)
-    - Should also match any per-src keywords as a dis_max clause to give small boosts
+    - Preserve the existing must/should structure from build_flexible_match_query
+    - Add per-src keywords as additional should clauses with small boosts
     - Each src keyword is OR'd; weights are uniform (we keep it simple and robust)
     """
     should_clauses: List[Dict[str, Any]] = []
     for src, terms in keywords_by_src.items():
         if not terms:
             continue
-        # Use a match on content with OR'd terms (simple_query_string) and a small boost
+        # Use a match on content with OR'd terms and a small boost
         should_clauses.append(
             {
                 "simple_query_string": {
                     "query": " | ".join(sorted(set(terms))[:30]),
-                    "fields": ["content^1.0"],
+                    "fields": ["content^0.1"],  # Small boost for source keywords
                     "default_operator": "or"
                 }
             }
         )
 
-    bool_query: Dict[str, Any] = {
-        "must": [{"match": {"content": {"query": query}}}],
-        "should": should_clauses,
-    }
-
-    return {
-        "size": size,
-        "query": {"bool": bool_query},
-    }
+    # Return the boosting clauses to be integrated into the main query
+    return {"boosting_clauses": should_clauses}
 
 
 __all__ = ["load_keywords_per_src", "build_boosted_query"]

@@ -65,20 +65,46 @@ def build_flexible_match_query(query: str, size: int) -> dict:
     core_terms = []
     optional_terms = []
 
+    # Define what constitutes core terms for different query types
+    education_related = ["교육", "공교육", "교육제도", "교육시스템"]
+    spending_related = ["지출", "예산", "투자", "비용", "예산안"]
+
     for term in terms:
-        if term in ["교육", "지출"]:  # Only require the most essential terms
+        # Check if term is education-related
+        if any(edu_term in term for edu_term in education_related):
+            core_terms.append(term)
+        # Check if term is spending-related
+        elif any(spend_term in term for spend_term in spending_related):
             core_terms.append(term)
         else:
             optional_terms.append(term)
 
-    # Add core terms to must clauses
+    # Add core terms to must clauses (only the essential parts)
     for term in core_terms:
-        must_clauses.append({"match": {"content": term}})
-        # Add synonyms for core terms
+        if any(edu_term in term for edu_term in education_related):
+            # For education terms, require just "교육" not the compound
+            must_clauses.append({"match": {"content": "교육"}})
+        elif any(spend_term in term for spend_term in spending_related):
+            # For spending terms, require the base spending term
+            if "예산" in term:
+                must_clauses.append({"match": {"content": "예산"}})
+            elif "지출" in term:
+                must_clauses.append({"match": {"content": "지출"}})
+            elif "투자" in term:
+                must_clauses.append({"match": {"content": "투자"}})
+            elif "비용" in term:
+                must_clauses.append({"match": {"content": "비용"}})
+            else:
+                must_clauses.append({"match": {"content": term}})
+        else:
+            must_clauses.append({"match": {"content": term}})
+
+    # Add synonyms for core terms to should clauses (not must)
+    for term in core_terms:
         if term in synonym_map:
             for synonym in synonym_map[term]:
                 if synonym != term:
-                    must_clauses.append({"match": {"content": synonym}})
+                    should_clauses.append({"match": {"content": synonym}})
 
     # Add optional terms to should clauses
     for term in optional_terms:
@@ -153,7 +179,14 @@ def sparse_retrieve(query: str, size: int = 10, index: Optional[str] = None):
     if settings.USE_SRC_BOOSTS and settings.PROFILE_REPORT_DIR:
         kw = load_keywords_per_src(settings.PROFILE_REPORT_DIR)
         if kw:
-            q = build_boosted_query(processed_query, size, kw)
+            boosting_result = build_boosted_query(processed_query, size, kw)
+            boosting_clauses = boosting_result.get("boosting_clauses", [])
+
+            # Integrate boosting clauses into the existing flexible query
+            if boosting_clauses and "query" in q and "bool" in q["query"]:
+                if "should" not in q["query"]["bool"]:
+                    q["query"]["bool"]["should"] = []
+                q["query"]["bool"]["should"].extend(boosting_clauses)
 
     res = es.search(index=idx, body=q)
     return res.get("hits", {}).get("hits", [])
