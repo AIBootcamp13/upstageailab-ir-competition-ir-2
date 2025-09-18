@@ -178,30 +178,32 @@ class CuratedKeywordsIntegrator:
         domain_hint = detected_domain if detected_domain in self.keywords_data.get("domains", {}) else None
 
         # Get relevant curated keywords
-        if use_semantic_matching and self.embedding_model:
-            curated_keywords = self.find_relevant_keywords(query, top_k=max_additional, domain_hint=domain_hint)
+        if use_semantic_matching:
+            if self.embedding_model is not None:
+                # Only add curated keywords when we can score semantic relevance
+                curated_keywords = self.find_relevant_keywords(query, top_k=max_additional, domain_hint=domain_hint)
+            else:
+                # Safety: do NOT inject generic keywords without semantic filter
+                # Returning an empty list here prevents irrelevant terms (e.g., "Joule", "Nmap", "Q 인자")
+                # from polluting BM25 queries when embeddings aren't initialized.
+                curated_keywords = []
         else:
-            # Fallback: use general science keywords
-            curated_keywords = self.get_domain_keywords("general_science", max_additional)
+            # Explicit non-semantic mode: allow domain-specific curated keywords if domain is known
+            curated_keywords = self.get_domain_keywords(domain_hint or "", max_additional) if domain_hint else []
 
         # Filter out keywords that are too similar to existing LLM keywords
-        filtered_curated = []
+        filtered_curated: List[str] = []
         for curated_kw in curated_keywords:
             # Simple check: don't add if too similar to existing keywords
-            too_similar = False
             curated_lower = curated_kw.lower()
-
-            for llm_kw in llm_keywords:
-                llm_lower = llm_kw.lower()
-                # Check for substring match or high overlap
-                if curated_lower in llm_lower or llm_lower in curated_lower:
-                    too_similar = True
-                    break
-
+            too_similar = any(
+                (curated_lower in llm_kw.lower()) or (llm_kw.lower() in curated_lower)
+                for llm_kw in llm_keywords
+            )
             if not too_similar:
                 filtered_curated.append(curated_kw)
 
-        # Combine keywords
+        # Combine keywords (always keep LLM-extracted keywords; curated are optional)
         all_keywords = llm_keywords + filtered_curated
 
         # Create enhanced query

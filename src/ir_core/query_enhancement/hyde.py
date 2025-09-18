@@ -3,6 +3,8 @@
 from typing import List, Dict, Any, Optional
 import openai
 import numpy as np
+import jinja2
+import os
 from ..config import settings
 from ..embeddings.core import encode_query
 from ..retrieval.core import dense_retrieve
@@ -57,9 +59,34 @@ class HyDE:
         self.max_tokens = max_tokens or getattr(settings, 'query_enhancement', {}).get('max_tokens', 500)
         self.temperature = temperature or getattr(settings, 'query_enhancement', {}).get('temperature', 0.3)
 
+        # Load HyDE-specific configuration
+        hyde_config = getattr(settings, 'query_enhancement', {}).get('hyde', {})
+        self.min_content_length = hyde_config.get('min_content_length', 120)
+        self.trivial_content_threshold = hyde_config.get('trivial_content_threshold', 100)
+        self.char_bigram_overlap_threshold = hyde_config.get('char_bigram_overlap_threshold', 0.15)
+        self.short_query_word_threshold = hyde_config.get('short_query_word_threshold', 5)
+        self.general_hyde_word_threshold = hyde_config.get('general_hyde_word_threshold', 8)
+
+        # Initialize Jinja2 environment for template loading
+        self.jinja_env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(os.getcwd()),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+
+        # Load HyDE templates from configuration
+        korean_template_path = hyde_config.get('korean_template', 'prompts/hyde/hyde_korean_v1.jinja2')
+        english_template_path = hyde_config.get('english_template', 'prompts/hyde/hyde_english_v1.jinja2')
+
+        try:
+            self.korean_template = self.jinja_env.get_template(korean_template_path)
+            self.english_template = self.jinja_env.get_template(english_template_path)
+        except jinja2.TemplateNotFound as e:
+            raise FileNotFoundError(f"HyDE template not found: {e}")
+
     def generate_hypothetical_answer(self, query: str) -> str:
         """
-        Generate a detailed hypothetical answer to the query.
+        Generate a detailed hypothetical answer to the query using external templates.
 
         Args:
             query: The original user query
@@ -70,38 +97,11 @@ class HyDE:
         # Detect if the query is in Korean
         is_korean = any('\uac00' <= char <= '\ud7a3' for char in query)
 
-        if is_korean:
-            prompt = f"""
-            이 질문에 대한 가상의 참고 문서를 작성하세요. 반드시 원래 질문의 주제와 직접적으로 관련된 내용을 작성해야 합니다.
+        # Select appropriate template
+        template = self.korean_template if is_korean else self.english_template
 
-            원래 질문: {query}
-
-            다음 요구사항을 엄격히 지켜주세요:
-            1. 질문의 핵심 주제({query})에 대한 구체적인 답변 작성
-            2. 관련된 과학적 사실, 개념, 예시 포함
-            3. 전문 용어 적절히 사용하되 설명
-            4. 2-3개의 문단으로 구성
-            5. 검색에 유용한 구체적인 세부사항 포함
-            6. 질문과 관련 없는 다른 주제로 벗어나지 말 것
-
-            가상의 참고 문서 내용 (질문과 직접 관련된 내용만):
-            """
-        else:
-            prompt = f"""
-            Write a hypothetical document passage that directly answers this question. Stay strictly on topic.
-
-            Original question: {query}
-
-            Follow these requirements strictly:
-            1. Write a specific answer to the core topic of the question
-            2. Include relevant scientific facts, concepts, and examples
-            3. Use appropriate technical terms with explanations
-            4. Structure in 2-3 paragraphs
-            5. Include specific details useful for search
-            6. Do NOT deviate to unrelated topics
-
-            Hypothetical reference document content (stay on topic):
-            """
+        # Render template with query
+        prompt = template.render(query=query)
 
         try:
             result = self.llm_client.chat_completion(
@@ -121,24 +121,35 @@ class HyDE:
                 return query  # Fallback to original query
 
             # Validate content quality - must be substantially longer than original query
-            if len(content) < len(query) * 2:
+            if len(content) < max(self.min_content_length, len(query) * 2):
                 print(f"HyDE generated insufficient content: {len(content)} chars (original: {len(query)} chars)")
                 return query  # Fallback to original query
 
             # Check if content is just repeating the query
-            if content.lower() == query.lower() or query.lower() in content.lower() and len(content) < 100:
+            if content.lower() == query.lower() or query.lower() in content.lower() and len(content) < self.trivial_content_threshold:
                 print(f"HyDE generated trivial content: '{content}'")
                 return query  # Fallback to original query
 
-            # Validate relevance - check if key terms from query appear in content
-            query_words = set(query.lower().split())
-            content_words = set(content.lower().split())
-            overlap = len(query_words.intersection(content_words))
-            overlap_ratio = overlap / len(query_words) if query_words else 0
+            # Validate relevance - Korean-aware overlap and literal token anchoring
+            def char_bigrams(s: str):
+                s = ''.join(s.lower().split())
+                return {s[i:i+2] for i in range(len(s)-1)} if len(s) > 1 else set()
 
-            if overlap_ratio < 0.3:  # Less than 30% overlap
-                print(f"HyDE generated irrelevant content (overlap ratio: {overlap_ratio:.2f}): '{content[:100]}...'")
-                return query  # Fallback to original query
+            query_tokens = [t for t in query.lower().split() if len(t) > 1]
+            content_lower = content.lower()
+
+            # Require at least one literal query token to appear in content (when tokens exist)
+            if query_tokens and not any(t in content_lower for t in query_tokens):
+                print("HyDE content lacks literal query tokens; falling back to original query")
+                return query
+
+            # Character bigram overlap (robust for Korean without proper tokenization)
+            qb = char_bigrams(query)
+            cb = char_bigrams(content)
+            overlap_ratio = (len(qb & cb) / len(qb)) if qb else 0.0
+            if overlap_ratio < self.char_bigram_overlap_threshold:  # stricter cutoff for irrelevance
+                print(f"HyDE generated irrelevant content (char-bigram overlap: {overlap_ratio:.2f})")
+                return query
 
             return content
 
@@ -279,7 +290,7 @@ class HyDE:
         word_count = len(query.split())
 
         # HyDE works well for short queries
-        if word_count <= 5:
+        if word_count <= self.short_query_word_threshold:
             return True
 
         # HyDE works well for queries that are more like questions than keyword searches
@@ -292,7 +303,7 @@ class HyDE:
         korean_question_words = ['무엇', '어떻게', '왜', '언제', '어디', '누구', '어느', '누구의']
         has_korean_question = any(word in query for word in korean_question_words)
 
-        return has_question_word or has_korean_question or word_count <= 8
+        return has_question_word or has_korean_question or word_count <= self.general_hyde_word_threshold
 
     def enhance_with_hyde(self, query: str, top_k: int = 5) -> Dict[str, Any]:
         """

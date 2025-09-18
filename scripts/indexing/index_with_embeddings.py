@@ -37,7 +37,7 @@ def main():
 
             doc['embeddings'] = embedding.tolist()
             doc['embedding_dim'] = len(embedding)
-            doc['embedding_model'] = 'EleutherAI/polyglot-ko-1.3b'
+            doc['embedding_model'] = 'jhgan/ko-sbert-sts'
 
         # Prepare for bulk indexing
         doc_id = doc.get('docid') or doc.get('id')

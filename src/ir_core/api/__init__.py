@@ -30,12 +30,124 @@ __all__ = [
 
 
 def index_documents_from_jsonl(jsonl_path, index_name=None, batch_size: int = 500, *, dry_run: bool = False, verbose: bool = False, dedupe: bool = False):
-    """Index documents from a JSONL file using the bulk API with progress."""
-    # Resolve ES client at runtime so tests can patch `ir_core.infra.get_es`
-    # before this module is imported.
+    """Index documents from a JSONL file using the bulk API with progress.
+
+    Auto-creates the target index with:
+      - Nori analyzer for Korean text fields (content, summary, keywords, hypothetical_questions, title)
+      - Proper dense_vector mapping for 'embeddings' when present or when EMBEDDING_DIMENSION is configured
+
+    This prevents Elasticsearch from dynamically inferring 'embeddings' as 'float' which breaks dense retrieval.
+    """
+    # Resolve ES client at runtime so tests can patch `ir_core.infra.get_es` before import
     from .. import infra
     es = infra.get_es()
     idx = index_name or settings.INDEX_NAME
+
+    # --- Ensure index exists with correct mapping (Nori + dense_vector) ---
+    import json as _json
+
+    def _peek_first_doc(path: str):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        return _json.loads(line)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        return None
+
+    first_doc = _peek_first_doc(jsonl_path)
+
+    def _desired_dims(first: dict | None) -> int | None:
+        # Prefer explicit settings
+        dim = getattr(settings, 'EMBEDDING_DIMENSION', None)
+        if isinstance(dim, int) and dim > 0:
+            return dim
+        # Infer from first doc if available
+        if isinstance(first, dict) and 'embeddings' in first:
+            emb = first['embeddings']
+            if isinstance(emb, list) and emb and isinstance(emb[0], (int, float)):
+                return len(emb)
+        return None
+
+    def _create_index_with_mapping(index: str, first: dict | None):
+        body: dict = {"settings": {}, "mappings": {"properties": {}}}
+        # Enhanced Nori analyzer for Korean with compound decomposition and POS filtering
+        body["settings"]["analysis"] = {
+            "tokenizer": {
+                "korean_tokenizer": {
+                    "type": "nori_tokenizer",
+                    "decompound_mode": "mixed",
+                }
+            },
+            "filter": {
+                "korean_pos_filter": {
+                    "type": "nori_part_of_speech",
+                    "stoptags": [
+                        "E","IC","J","MAG","MAJ","MM","SP","SSC","SSO","SC","SE","XPN","XSN","XSV","XSA"
+                    ]
+                },
+                "korean_readingform": {"type": "nori_readingform"},
+                "lowercase": {"type": "lowercase"}
+            },
+            "analyzer": {
+                "korean": {
+                    "type": "custom",
+                    "tokenizer": "korean_tokenizer",
+                    "filter": ["lowercase", "korean_pos_filter", "korean_readingform"],
+                }
+            }
+        }
+        # Text fields
+        for tf in ("content", "summary", "keywords", "hypothetical_questions", "title"):
+            body["mappings"]["properties"][tf] = {"type": "text", "analyzer": "korean"}
+        # Keyword ids
+        for kf in ("docid", "id", "src"):
+            body["mappings"]["properties"][kf] = {"type": "keyword"}
+
+        dims = _desired_dims(first)
+        if dims:
+            body["mappings"]["properties"]["embeddings"] = {"type": "dense_vector", "dims": int(dims)}
+
+        es.indices.create(index=index, body=body)
+
+    def _ensure_mapping(index: str, first: dict | None):
+        # If the ES client is a lightweight test double without indices API, skip mapping checks
+        if not hasattr(es, "indices"):
+            return
+        exists = False
+        try:
+            exists = es.indices.exists(index=index)
+        except Exception:
+            exists = False
+        if not exists:
+            _create_index_with_mapping(index, first)
+            return
+
+        # If exists, ensure embeddings mapping is correct when embeddings are expected
+        dims = _desired_dims(first)
+        if dims:
+            mapping = es.indices.get_mapping(index=index)
+            props = mapping.get(index, {}).get('mappings', {}).get('properties', {})
+            emb_map = props.get('embeddings')
+            if not emb_map:
+                # Try to add the field mapping
+                es.indices.put_mapping(index=index, body={
+                    "properties": {"embeddings": {"type": "dense_vector", "dims": int(dims)}}
+                })
+            else:
+                if emb_map.get('type') != 'dense_vector':
+                    raise RuntimeError(f"Index '{index}' has invalid 'embeddings' type: {emb_map.get('type')} (expected dense_vector)")
+                if int(emb_map.get('dims', -1)) != int(dims):
+                    raise RuntimeError(f"Index '{index}' embeddings dims={emb_map.get('dims')} mismatch expected dims={dims}")
+
+    # Prepare index mapping before bulk
+    _ensure_mapping(idx, first_doc)
 
     try:
         with open(jsonl_path, "r", encoding="utf-8") as f:

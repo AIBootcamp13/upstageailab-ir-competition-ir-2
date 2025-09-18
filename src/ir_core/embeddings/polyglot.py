@@ -11,19 +11,17 @@ from ..config import settings
 class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
     """
     Polyglot-Ko embedding provider using causal language model for embedding extraction.
-    Supports both full precision and quantized models.
+    Only supports full precision (PolyGlot doesn't support quantization).
     """
 
-    def __init__(self, model_name: Optional[str] = None, quantization: Optional[str] = None):
+    def __init__(self, model_name: Optional[str] = None):
         """
         Initialize Polyglot-Ko embedding provider.
 
         Args:
             model_name: HuggingFace model name. If None, uses settings.POLYGLOT_MODEL.
-            quantization: Quantization type ('8bit', '4bit', '16bit', or 'full' for full precision)
         """
         self.model_name = model_name or getattr(settings, 'POLYGLOT_MODEL', 'EleutherAI/polyglot-ko-1.3b')
-        self.quantization = quantization or getattr(settings, 'POLYGLOT_QUANTIZATION', '16bit')
         self.batch_size: int = getattr(settings, 'POLYGLOT_BATCH_SIZE', 8) or 8
         self.max_threads = getattr(settings, 'POLYGLOT_MAX_THREADS', 8)
         self._tokenizer = None
@@ -42,10 +40,10 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
         return self._device
 
     def _load_model(self):
-        """Load tokenizer and model with quantization support."""
+        """Load tokenizer and model in full precision (PolyGlot doesn't support quantization)."""
         with self._lock:
             if self._tokenizer is None or self._model is None:
-                print(f"🔄 Loading Polyglot-Ko model: {self.model_name} with {self.quantization} quantization")
+                print(f"🔄 Loading Polyglot-Ko model: {self.model_name} in full precision")
 
                 # Load tokenizer with timeout
                 try:
@@ -58,111 +56,23 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
 
                 device = self._get_device()
 
-                # Configure model loading based on quantization
-                if self.quantization == '16bit' and torch.cuda.is_available():
-                    # 16-bit quantization for GPU - avoid device_map to prevent meta device issues
-                    try:
-                        device = self._get_device()
-                        self._model = AutoModelForCausalLM.from_pretrained(
-                            self.model_name,
-                            dtype=torch.float16,
-                            low_cpu_mem_usage=True
-                        )
-                        # Move to device explicitly and safely
-                        self._model = self._model.to(device)
-                        print(f"✅ Loaded 16-bit quantized Polyglot-Ko model: {self.model_name} on {device}")
-                    except Exception as e:
-                        print(f"⚠️  16-bit loading failed, falling back to full precision: {e}")
-                        self._load_full_precision_model()
-
-                elif self.quantization == '8bit' and torch.cuda.is_available():
-                    # 8-bit quantization - avoid device_map to prevent meta device issues
-                    try:
-                        from transformers import BitsAndBytesConfig
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_8bit=True,
-                            llm_int8_enable_fp32_cpu_offload=True
-                        )
-                        device = self._get_device()
-                        self._model = AutoModelForCausalLM.from_pretrained(
-                            self.model_name,
-                            quantization_config=quantization_config,
-                            dtype=torch.float16,
-                            low_cpu_mem_usage=True
-                        )
-                        # Move to device explicitly and safely
-                        self._model = self._model.to(device)
-                        print(f"✅ Loaded 8-bit quantized Polyglot-Ko model: {self.model_name} on {device}")
-                    except Exception as e:
-                        print(f"⚠️  8-bit quantization failed, falling back to 16-bit: {e}")
-                        self.quantization = '16bit'
-                        self._load_model()
-                        return
-
-                else:
-                    # Full precision or CPU fallback
-                    self._load_full_precision_model()
+                # Load model in full precision (PolyGlot doesn't support quantization)
+                try:
+                    self._model = AutoModelForCausalLM.from_pretrained(
+                        self.model_name,
+                        dtype=torch.float32,  # Use full precision
+                        low_cpu_mem_usage=True
+                    )
+                    # Move to device explicitly
+                    self._model = self._model.to(device)
+                    print(f"✅ Loaded Polyglot-Ko model: {self.model_name} in full precision on {device}")
+                except Exception as e:
+                    raise RuntimeError(f"Failed to load model {self.model_name}: {e}")
 
                 # Assertions to help type checker
                 assert self._tokenizer is not None
                 assert self._model is not None
                 self._model.eval()
-
-    def _load_full_precision_model(self):
-        """Load full precision model with memory optimization."""
-        try:
-            device = self._get_device()
-            print(f"Loading model on device: {device}")
-
-            # Load model without device_map to avoid meta device issues
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                dtype=torch.float32,  # Use float32 for full precision
-                low_cpu_mem_usage=True
-            )
-
-            # Move model to target device properly
-            if device.type == 'cuda':
-                # Check if model has any meta device tensors
-                has_meta_tensors = any(
-                    param.device.type == 'meta'
-                    for param in self._model.parameters()
-                )
-
-                if has_meta_tensors:
-                    print("Moving model from meta device to CUDA using to_empty")
-                    # Use to_empty for meta device tensors
-                    self._model = self._model.to_empty(device=device)
-                    # Then move to actual device
-                    self._model = self._model.to(device)
-                else:
-                    # Regular device movement
-                    self._model = self._model.to(device)
-            else:
-                # For CPU, always use regular to() method
-                self._model = self._model.to(device)
-
-            print(f"✅ Loaded full precision Polyglot-Ko model: {self.model_name} on {device}")
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                print(f"⚠️  GPU out of memory, falling back to CPU: {e}")
-                # Fallback to CPU
-                self._device = torch.device("cpu")
-                try:
-                    self._model = AutoModelForCausalLM.from_pretrained(
-                        self.model_name,
-                        dtype=torch.float32,  # Use float32 on CPU
-                        low_cpu_mem_usage=True,
-                        timeout=600  # 10 minute timeout
-                    )
-                    # For CPU fallback, always use regular to() method
-                    self._model = self._model.to(self._device)
-                    print(f"✅ Loaded full precision Polyglot-Ko model on CPU: {self.model_name}")
-                except Exception as cpu_error:
-                    print(f"❌ CPU fallback also failed: {cpu_error}")
-                    raise cpu_error
-            else:
-                raise
 
     def _mean_pool(self, last_hidden, attention_mask):
         """Mean pool the hidden states."""
@@ -237,8 +147,8 @@ class PolyglotKoEmbeddingProvider(BaseEmbeddingProvider):
                 with self._lock:
                     # Get hidden states from the model
                     outputs = self._model(**encoded, output_hidden_states=True)
-                    # Use the last layer's hidden states
-                    last_hidden = outputs.hidden_states[-1]
+                    # Use the second last layer's hidden states for better embeddings
+                    last_hidden = outputs.hidden_states[-2]
 
                 # Mean pool across sequence dimension
                 emb = self._mean_pool(last_hidden, encoded["attention_mask"])

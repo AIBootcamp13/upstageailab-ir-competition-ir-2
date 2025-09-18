@@ -6,6 +6,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 from pathlib import Path
+import sys
+sys.path.append('/home/wb2x/workspace/information_retrieval_rag/src')
+
+# Import retrieval functions for debug page
+try:
+    from ir_core.retrieval.core import sparse_retrieve, dense_retrieve, hybrid_retrieve
+    from ir_core.embeddings.core import encode_texts
+    from ir_core.query_enhancement.confidence_logger import ConfidenceLogger
+    RETRIEVAL_AVAILABLE = True
+except ImportError as e:
+    st.error(f"Retrieval modules not available: {e}")
+    RETRIEVAL_AVAILABLE = False
 
 # Function to load JSONL data
 def load_jsonl(file_path):
@@ -18,7 +30,7 @@ def load_jsonl(file_path):
 # Function to get submission files
 def get_submission_files():
     outputs_dir = Path("/home/wb2x/workspace/information_retrieval_rag/outputs")
-    files = list(outputs_dir.glob("submission*.jsonl")) + list(outputs_dir.glob("submission*.csv")) + list(outputs_dir.glob("sample_submission*.jsonl")) + list(outputs_dir.glob("sample_submission*.csv"))
+    files = list(outputs_dir.glob("submission*.jsonl")) + list(outputs_dir.glob("sample_submission*.jsonl"))
     return [str(f) for f in files]
 
 # Function to get document files
@@ -32,8 +44,19 @@ def get_filename(path):
 
 # Main app
 def main():
-    st.set_page_config(layout="wide")
-    st.markdown("<h1 style='font-size: 32px;'>RAG Submission Visualizer</h1>", unsafe_allow_html=True)
+    st.set_page_config(layout="wide", page_title="RAG Analysis & Debug Tool")
+
+    # Page selector
+    st.sidebar.title("🔧 RAG Analysis Tool")
+    page = st.sidebar.radio("Select Page", ["📊 Submission Visualizer", "🔍 Retrieval Debug"])
+
+    if page == "📊 Submission Visualizer":
+        show_submission_visualizer()
+    elif page == "🔍 Retrieval Debug":
+        show_retrieval_debug()
+
+def show_submission_visualizer():
+    st.markdown("<h1 style='font-size: 32px;'>📊 RAG Submission Visualizer</h1>", unsafe_allow_html=True)
     st.markdown("<p style='font-size: 18px;'>Visualize and compare generation results from submission files.</p>", unsafe_allow_html=True)
 
     # Sidebar
@@ -294,8 +317,382 @@ def main():
                     st.dataframe(filtered)
                 else:
                     st.dataframe(df_docs)
-            else:
                 st.info("Check 'Load Documents' in the sidebar to view the documents.")
+
+def show_retrieval_debug():
+    st.markdown("<h1 style='font-size: 32px;'>🔍 Retrieval Debug Tool</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 18px;'>Test and debug sparse/dense retrieval with detailed output and confidence logging.</p>", unsafe_allow_html=True)
+
+    if not RETRIEVAL_AVAILABLE:
+        st.error("❌ Retrieval modules are not available. Please check the installation.")
+        return
+
+    # Sidebar controls
+    st.sidebar.header("🔧 Debug Settings")
+
+    # Query input
+    default_query = "통학 버스의 가치"
+    query = st.sidebar.text_input("Query", value=default_query, help="Enter your search query in Korean")
+
+    # Retrieval parameters
+    st.sidebar.subheader("Retrieval Parameters")
+    retrieval_type = st.sidebar.selectbox(
+        "Retrieval Type",
+        ["Sparse (BM25)", "Dense (Embedding)", "Hybrid (Combined)"],
+        help="Choose the retrieval method to test"
+    )
+
+    size = st.sidebar.slider("Number of Results", min_value=1, max_value=20, value=5,
+                           help="Number of documents to retrieve")
+
+    # Hybrid-specific parameters
+    alpha = 0.4
+    bm25_k = 200
+    rerank_k = 10
+    if retrieval_type == "Hybrid (Combined)":
+        alpha = st.sidebar.slider("Alpha (Dense Weight)", min_value=0.0, max_value=1.0, value=0.4, step=0.1,
+                                help="Weight for dense retrieval (0.0 = pure sparse, 1.0 = pure dense)")
+        bm25_k = st.sidebar.slider("BM25 K", min_value=10, max_value=500, value=200, step=10,
+                                 help="Number of documents to retrieve with BM25 for hybrid")
+        rerank_k = st.sidebar.slider("Rerank K", min_value=5, max_value=50, value=10,
+                                   help="Number of documents to rerank with dense retrieval")
+
+    # Debug options
+    st.sidebar.subheader("Debug Options")
+    enable_debug = st.sidebar.checkbox("Enable Debug Logging", value=True,
+                                     help="Show detailed retrieval scores and confidence information")
+    show_full_content = st.sidebar.checkbox("Show Full Content", value=False,
+                                          help="Display complete document content instead of preview")
+
+    # Test button
+    test_button = st.sidebar.button("🚀 Run Retrieval Test", type="primary", use_container_width=True)
+
+    # Main content area
+    if test_button and query.strip():
+        st.header("🔍 Retrieval Results")
+
+        with st.spinner("Running retrieval test..."):
+            try:
+                if retrieval_type == "Sparse (BM25)":
+                    run_sparse_retrieval(query, size, enable_debug, show_full_content)
+                elif retrieval_type == "Dense (Embedding)":
+                    run_dense_retrieval(query, size, enable_debug, show_full_content)
+                elif retrieval_type == "Hybrid (Combined)":
+                    run_hybrid_retrieval(query, bm25_k, rerank_k, alpha, enable_debug, show_full_content)
+
+            except Exception as e:
+                st.error(f"❌ Error during retrieval: {str(e)}")
+                st.code(str(e))
+
+    elif test_button and not query.strip():
+        st.warning("⚠️ Please enter a query to test retrieval.")
+
+    # Instructions
+    if not test_button:
+        st.info("💡 **How to use this debug tool:**")
+        st.markdown("""
+        1. **Enter a query** in Korean in the sidebar
+        2. **Choose retrieval type** (Sparse, Dense, or Hybrid)
+        3. **Adjust parameters** as needed
+        4. **Enable debug logging** for detailed output
+        5. **Click "Run Retrieval Test"** to see results
+
+        **Retrieval Types:**
+        - **Sparse (BM25)**: Traditional text matching using TF-IDF and BM25 scoring
+        - **Dense (Embedding)**: Semantic search using vector embeddings and cosine similarity
+        - **Hybrid**: Combines both sparse and dense retrieval for better results
+        """)
+
+        # Example queries
+        st.subheader("📝 Example Queries")
+        example_queries = [
+            "통학 버스의 가치",
+            "인공지능의 발전",
+            "환경 보호 방법",
+            "학교 교육의 중요성"
+        ]
+
+        cols = st.columns(2)
+        for i, ex_query in enumerate(example_queries):
+            if cols[i % 2].button(f"Try: {ex_query}", key=f"example_{i}"):
+                st.session_state.query = ex_query
+                st.rerun()
+
+def run_sparse_retrieval(query, size, enable_debug, show_full_content):
+    """Run sparse retrieval test with detailed output."""
+    if not RETRIEVAL_AVAILABLE:
+        st.error("Retrieval modules not available")
+        return
+
+    st.subheader("🔍 Sparse Retrieval Results (BM25)")
+
+    # Show query info
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown(f"**Query:** {query}")
+    with col2:
+        st.markdown(f"**Results:** {size}")
+
+    # Perform retrieval
+    results = sparse_retrieve(query, size=size)
+
+    if not results:
+        st.warning("No results found.")
+        return
+
+    st.success(f"✅ Retrieved {len(results)} documents")
+
+    # Display results
+    for i, hit in enumerate(results):
+        with st.expander(f"📄 Document {i+1}", expanded=(i < 3)):
+            source = hit.get('_source', {})
+            doc_id = hit.get('_id', 'N/A')
+            bm25_score = hit.get('_score', 0.0)
+
+            # Header with key metrics
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.markdown(f"**Document ID:** {doc_id}")
+            with col2:
+                st.markdown(f"**BM25 Score:** {bm25_score:.4f}")
+            with col3:
+                st.markdown(f"**Rank:** {i+1}")
+
+            # Content
+            content = source.get('content', '')
+            if content:
+                if show_full_content:
+                    st.text_area("Full Content", content, height=200, key=f"sparse_content_{i}")
+                else:
+                    preview_length = 300
+                    preview = content[:preview_length] + "..." if len(content) > preview_length else content
+                    st.markdown("**Content Preview:**")
+                    st.write(preview)
+
+                    if len(content) > preview_length:
+                        if st.button(f"Show Full Content ({len(content)} chars)", key=f"sparse_full_{i}"):
+                            st.text_area("Full Content", content, height=300, key=f"sparse_full_content_{i}")
+            else:
+                st.warning("No content available")
+
+    # Debug logging if enabled
+    if enable_debug:
+        st.subheader("🔧 Debug Information")
+        with st.expander("Detailed Scores & Analysis", expanded=False):
+            logger = ConfidenceLogger(debug_mode=True)
+
+            for i, hit in enumerate(results):
+                source = hit.get('_source', {})
+                doc_id = hit.get('_id', 'N/A')
+                bm25_score = hit.get('_score', 0.0)
+
+                retrieval_scores = {
+                    'bm25_score': bm25_score,
+                    'rank': i + 1,
+                    'total_results': len(results)
+                }
+
+                logger.log_confidence_score(
+                    technique='sparse_retrieval',
+                    confidence=min(bm25_score / 100.0, 1.0),
+                    query=query,
+                    reasoning=f"BM25 retrieval result #{i+1}",
+                    retrieval_scores=retrieval_scores,
+                    context={
+                        'doc_id': doc_id,
+                        'has_content': bool(source.get('content')),
+                        'content_length': len(source.get('content', ''))
+                    }
+                )
+
+def run_dense_retrieval(query, size, enable_debug, show_full_content):
+    """Run dense retrieval test with detailed output."""
+    st.subheader("🔍 Dense Retrieval Results (Embeddings)")
+
+    # Show query info
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown(f"**Query:** {query}")
+    with col2:
+        st.markdown(f"**Results:** {size}")
+
+    # Get query embedding
+    with st.spinner("Encoding query..."):
+        q_emb = encode_texts([query])[0]
+        st.info(f"✅ Query encoded - Embedding shape: {q_emb.shape}")
+
+    # Perform retrieval
+    results = dense_retrieve(q_emb, size=size)
+
+    if not results:
+        st.warning("No results found.")
+        return
+
+    st.success(f"✅ Retrieved {len(results)} documents")
+
+    # Display results
+    for i, hit in enumerate(results):
+        with st.expander(f"📄 Document {i+1}", expanded=(i < 3)):
+            source = hit.get('_source', {})
+            doc_id = hit.get('_id', 'N/A')
+            cosine_score = hit.get('_score', 0.0)
+
+            # Header with key metrics
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.markdown(f"**Document ID:** {doc_id}")
+            with col2:
+                st.markdown(f"**Cosine Score:** {cosine_score:.4f}")
+            with col3:
+                st.markdown(f"**Rank:** {i+1}")
+
+            # Content
+            content = source.get('content', '')
+            if content:
+                if show_full_content:
+                    st.text_area("Full Content", content, height=200, key=f"dense_content_{i}")
+                else:
+                    preview_length = 300
+                    preview = content[:preview_length] + "..." if len(content) > preview_length else content
+                    st.markdown("**Content Preview:**")
+                    st.write(preview)
+
+                    if len(content) > preview_length:
+                        if st.button(f"Show Full Content ({len(content)} chars)", key=f"dense_full_{i}"):
+                            st.text_area("Full Content", content, height=300, key=f"dense_full_content_{i}")
+            else:
+                st.warning("No content available")
+
+    # Debug logging if enabled
+    if enable_debug:
+        st.subheader("🔧 Debug Information")
+        with st.expander("Detailed Scores & Analysis", expanded=False):
+            logger = ConfidenceLogger(debug_mode=True)
+
+            for i, hit in enumerate(results):
+                source = hit.get('_source', {})
+                doc_id = hit.get('_id', 'N/A')
+                cosine_score = hit.get('_score', 0.0)
+
+                retrieval_scores = {
+                    'cosine_score': cosine_score,
+                    'rank': i + 1,
+                    'total_results': len(results),
+                    'embedding_norm': np.linalg.norm(q_emb)
+                }
+
+                logger.log_confidence_score(
+                    technique='dense_retrieval',
+                    confidence=min(abs(cosine_score), 1.0),
+                    query=query,
+                    reasoning=f"Dense retrieval result #{i+1}",
+                    retrieval_scores=retrieval_scores,
+                    context={
+                        'doc_id': doc_id,
+                        'has_content': bool(source.get('content')),
+                        'content_length': len(source.get('content', ''))
+                    }
+                )
+
+def run_hybrid_retrieval(query, bm25_k, rerank_k, alpha, enable_debug, show_full_content):
+    """Run hybrid retrieval test with detailed output."""
+    st.subheader("🔍 Hybrid Retrieval Results")
+
+    # Show query info
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+    with col1:
+        st.markdown(f"**Query:** {query}")
+    with col2:
+        st.markdown(f"**BM25 K:** {bm25_k}")
+    with col3:
+        st.markdown(f"**Rerank K:** {rerank_k}")
+    with col4:
+        st.markdown(f"**Alpha:** {alpha}")
+
+    # Perform retrieval
+    results = hybrid_retrieve(query, bm25_k=bm25_k, rerank_k=rerank_k, alpha=alpha)
+
+    if not results:
+        st.warning("No results found.")
+        return
+
+    st.success(f"✅ Retrieved {len(results)} documents")
+
+    # Display results
+    for i, result in enumerate(results):
+        with st.expander(f"📄 Document {i+1}", expanded=(i < 3)):
+            hit = result.get('hit', {})
+            source = hit.get('_source', {})
+            doc_id = hit.get('_id', 'N/A')
+            final_score = result.get('score', 0.0)
+            bm25_score = hit.get('_score', 0.0)
+            cosine_score = result.get('cosine', 0.0)
+
+            # Header with key metrics
+            col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+            with col1:
+                st.markdown(f"**Document ID:** {doc_id}")
+            with col2:
+                st.markdown(f"**Final Score:** {final_score:.4f}")
+            with col3:
+                st.markdown(f"**BM25:** {bm25_score:.4f}")
+            with col4:
+                st.markdown(f"**Cosine:** {cosine_score:.4f}")
+            with col5:
+                st.markdown(f"**Rank:** {i+1}")
+
+            # Content
+            content = source.get('content', '')
+            if content:
+                if show_full_content:
+                    st.text_area("Full Content", content, height=200, key=f"hybrid_content_{i}")
+                else:
+                    preview_length = 300
+                    preview = content[:preview_length] + "..." if len(content) > preview_length else content
+                    st.markdown("**Content Preview:**")
+                    st.write(preview)
+
+                    if len(content) > preview_length:
+                        if st.button(f"Show Full Content ({len(content)} chars)", key=f"hybrid_full_{i}"):
+                            st.text_area("Full Content", content, height=300, key=f"hybrid_full_content_{i}")
+            else:
+                st.warning("No content available")
+
+    # Debug logging if enabled
+    if enable_debug:
+        st.subheader("🔧 Debug Information")
+        with st.expander("Detailed Scores & Analysis", expanded=False):
+            logger = ConfidenceLogger(debug_mode=True)
+
+            for i, result in enumerate(results):
+                hit = result.get('hit', {})
+                source = hit.get('_source', {})
+                doc_id = hit.get('_id', 'N/A')
+                final_score = result.get('score', 0.0)
+                bm25_score = hit.get('_score', 0.0)
+                cosine_score = result.get('cosine', 0.0)
+
+                retrieval_scores = {
+                    'final_score': final_score,
+                    'bm25_score': bm25_score,
+                    'cosine_score': cosine_score,
+                    'rank': i + 1,
+                    'total_results': len(results),
+                    'alpha': alpha
+                }
+
+                logger.log_confidence_score(
+                    technique='hybrid_retrieval',
+                    confidence=min(final_score, 1.0),
+                    query=query,
+                    reasoning=f"Hybrid retrieval result #{i+1} (BM25 + Dense)",
+                    retrieval_scores=retrieval_scores,
+                    context={
+                        'doc_id': doc_id,
+                        'has_content': bool(source.get('content')),
+                        'content_length': len(source.get('content', ''))
+                    }
+                )
 
 if __name__ == "__main__":
     main()

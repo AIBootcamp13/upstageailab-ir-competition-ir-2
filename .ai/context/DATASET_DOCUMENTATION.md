@@ -166,8 +166,9 @@ The dataset covers diverse scientific domains:
 
 ### Current Configuration
 - **Embedding Model**: EleutherAI/polyglot-ko-1.3b (2048 dimensions)
-- **Index**: docs-ko-polyglot-1b-d2048-20250917
-- **Retrieval**: Hybrid BM25 + Dense retrieval (alpha=0.4)
+- **Index**: docs-ko-polyglot-1b-d2048-20250918
+- **Text Analyzer**: Nori (custom "korean" analyzer)
+- **Retrieval**: Hybrid BM25 + Dense retrieval (alpha=0.8)
 - **Reranking**: Top-10 reranking
 
 ### Performance Context
@@ -187,7 +188,13 @@ The dataset covers diverse scientific domains:
 - **Documents**: `/home/wb2x/workspace/information_retrieval_rag/data/documents_ko_with_metadata.jsonl`
 - **Validation**: `/home/wb2x/workspace/information_retrieval_rag/data/validation_balanced.jsonl`
 - **Configuration**: `/home/wb2x/workspace/information_retrieval_rag/conf/data/science_qa_ko_metadata.yaml`
-- **Index**: `docs-ko-polyglot-1b-d2048-20250917` (Elasticsearch)
+- **Index**: `docs-ko-polyglot-1b-d2048-20250918` (Elasticsearch)
+
+## Validator
+Run the pre-flight validator before evaluation or reindexing:
+```
+PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+```
 
 This dataset provides a rich foundation for scientific question answering in Korean, with comprehensive metadata and balanced domain coverage.</content>
-<parameter name="filePath">/home/wb2x/workspace/information_retrieval_rag/DATASET_DOCUMENTATION.md
+<parameter name="filePath">/home/wb2x/workspace/information_retrieval_rag/DATASET_DOCUMENTATION.md</parameter>

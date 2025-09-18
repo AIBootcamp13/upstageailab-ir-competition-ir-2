@@ -74,7 +74,7 @@ KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
 # ------------------------------
 GENERATOR_TYPE: openai         # Generator backend: 'openai', 'ollama', or 'huggingface'
 GENERATOR_MODEL_NAME: gpt-3.5-turbo  # Model name/identifier
-GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt  # System prompt file
+GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona/persona_qa.txt  # System prompt file
 GENERATOR_SYSTEM_MESSAGE: ''   # Override system message (empty = use file)
 
 # Tool Calling Configuration
@@ -267,7 +267,7 @@ model:
 prompts:
   conversational: prompts/conversational_v1.jinja2
   generation_qa: prompts/scientific_qa_v1.jinja2
-  persona: prompts/persona_qa.txt
+  persona: prompts/persona/persona_qa.txt
   question_generation: prompts/question_generation_v1.jinja2
   rephrase_query: prompts/rewrite_query3.jinja2
   tool_description: prompts/tool_desc_recall_v1.txt
@@ -281,6 +281,7 @@ prompts:
 # ------------------
 debug: true                # Enable debug mode
 debug_limit: 3              # Limit for debug operations
+debug_confidence_logging: false  # Enable detailed confidence logging with retrieval scores
 
 # Analysis Configuration
 # ---------------------

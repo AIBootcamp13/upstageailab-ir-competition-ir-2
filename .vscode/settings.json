@@ -34,10 +34,15 @@
     "**/confg/**",
     "**/.local_kibana/**"
   ],
+  "python.analysis.extraPaths": [".", "src", "scripts"],
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.defaultInterpreterPath": "${env:HOME}/.cache/pypoetry/virtualenvs/information-retrieval-rag-Sdp3gFZr-py3.10/bin/python",
   "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.terminal.launchArgs": ["-m", "poetry", "run", "python"],
+  "python.createEnvironment.contentButton": "hide",
+  "poetry.terminal.activateEnvironment": true,
   "editor.fontSize": 16,
   "workbench.colorTheme": "Default Dark Modern",
   "editor.defaultFormatter": "GitHub.copilot-chat"

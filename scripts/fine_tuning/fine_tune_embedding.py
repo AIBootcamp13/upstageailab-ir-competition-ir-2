@@ -84,10 +84,14 @@ def fine_tune_model(
     train_dataset: StreamingJsonlDataset,
     output_dir: str,
     epochs: int = 3,
-    batch_size: int = 4,
+    batch_size: int = 1,  # Reduced batch size
     val_split: float = 0.1 # This parameter is currently unused with streaming
 ):
     """Fine-tune the embedding model using Multiple Negatives Ranking Loss."""
+
+    # Force CPU to avoid OOM
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     print(f"Loading base model components: {base_model_name}")
 
@@ -151,7 +155,7 @@ def fine_tune_model(
                     output_path=None,  # Don't save intermediate models
                     save_best_model=False,
                     show_progress_bar=True,
-                    use_amp=True
+                    use_amp=False  # Disable AMP to save memory
                 )
 
                 # Clear the chunk to free memory
@@ -171,7 +175,7 @@ def fine_tune_model(
                 output_path=None,
                 save_best_model=False,
                 show_progress_bar=True,
-                use_amp=True
+                use_amp=False  # Disable AMP
             )
 
     # Save the final model after all epochs are complete
@@ -183,9 +187,9 @@ def fine_tune_model(
 
 def main():
     """Main fine-tuning pipeline."""
-    config_path = Path(__file__).parent.parent / "conf" / "settings.yaml"
+    config_path = Path(__file__).parent.parent.parent / "conf" / "settings.yaml"
     cfg = OmegaConf.load(config_path)
-    data_config_path = Path(__file__).parent.parent / "conf" / "data" / "science_qa_ko_metadata.yaml"
+    data_config_path = Path(__file__).parent.parent.parent / "conf" / "data" / "science_qa_ko_metadata.yaml"
     data_cfg = OmegaConf.load(data_config_path)
 
     fine_tune_config = getattr(cfg, 'fine_tune', {})

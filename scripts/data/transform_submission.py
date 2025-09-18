@@ -116,7 +116,7 @@ def main():
             "Usage: python transform_submission.py <eval_file> <submission_file> <output_file>"
         )
         print(
-            "Example: python transform_submission.py data/eval.jsonl outputs/submission.csv outputs/evaluation_logs.jsonl"
+            "Example: python transform_submission.py data/eval.jsonl outputs/submission.jsonl outputs/evaluation_logs.jsonl"
         )
         sys.exit(1)
 

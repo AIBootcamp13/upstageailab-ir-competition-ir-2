@@ -63,9 +63,10 @@ class QueryProcessor:
         dynamic_keywords = self._extract_keywords_from_query(enhanced_query)
 
         # Enhance with curated scientific keywords
-        enhanced_query, all_keywords = self._apply_curated_keywords(
-            enhanced_query, dynamic_keywords
-        )
+        # enhanced_query, all_keywords = self._apply_curated_keywords(
+        #     enhanced_query, dynamic_keywords
+        # )
+        all_keywords = dynamic_keywords
 
         return {
             "original_query": query,

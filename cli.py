@@ -23,17 +23,38 @@ Usage Examples:
 For full documentation, see: docs/CLI_TOOL_README.md
 """
 
-import typer
+import os
+import sys
 from pathlib import Path
 from typing import Optional
 
-# Import functions from switch_config
-from switch_config import (
-    switch_to_profile,
-    show_current_config,
-    list_profiles,
-    load_profiles
-)
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+import typer
+
+# Import functions from switch_config (keeping for compatibility)
+try:
+    from switch_config import (  # type: ignore
+        switch_to_profile,
+        show_current_config,
+        list_profiles,
+        load_profiles
+    )
+except ImportError:
+    # Fallback if switch_config is not available
+    def switch_to_profile(profile_name: str) -> None:
+        print(f"❌ switch_config not available. Cannot switch to profile: {profile_name}")
+
+    def show_current_config() -> None:
+        print("❌ switch_config not available. Cannot show current config.")
+
+    def list_profiles() -> None:
+        print("❌ switch_config not available. Cannot list profiles.")
+
+    def load_profiles() -> dict:
+        print("❌ switch_config not available. Returning empty profiles.")
+        return {}
 
 # Create a Typer app
 app = typer.Typer(
@@ -94,8 +115,12 @@ def config_validate():
             raise typer.Exit(1)
 
         # Basic validation - check if current settings match a known profile
-        from switch_config import load_settings
-        current_settings = load_settings()
+        try:
+            from switch_config import load_settings  # type: ignore
+            current_settings = load_settings()
+        except ImportError:
+            typer.echo("❌ switch_config module not available for validation", err=True)
+            raise typer.Exit(1)
 
         embedding_provider = current_settings.get('EMBEDDING_PROVIDER', 'huggingface')
         embedding_model = current_settings.get('EMBEDDING_MODEL')
@@ -142,8 +167,12 @@ def status():
     # Show current config
     typer.echo("\n⚙️  Current Configuration:")
     try:
-        from switch_config import load_settings
-        settings = load_settings()
+        try:
+            from switch_config import load_settings  # type: ignore
+            settings = load_settings()
+        except ImportError:
+            typer.echo("   ❌ switch_config module not available")
+            settings = {}
         typer.echo(f"   Provider: {settings.get('EMBEDDING_PROVIDER', 'Not set')}")
         typer.echo(f"   Model: {settings.get('EMBEDDING_MODEL', 'Not set')}")
         typer.echo(f"   Index: {settings.get('INDEX_NAME', 'Not set')}")

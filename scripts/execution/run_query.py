@@ -40,15 +40,25 @@ def run(query: str, index_name: str = "test", rerank_k: int = 5):
         print(f"\nTop {len(results)} results:")
         print("-" * 20)
         for i, res in enumerate(results):
-            hit = res.get("hit", {})
-            source = hit.get("_source", {})
+            # Results may be returned as raw ES hits or wrapped in {"hit": ..., "score": ...}
+            if isinstance(res, dict) and "hit" in res:
+                hit = res["hit"]
+                score = res.get("score", hit.get("_score", 0.0))
+            else:
+                hit = res
+                score = hit.get("score", hit.get("_score", 0.0))
+
+            source = hit.get("_source", {}) if isinstance(hit, dict) else {}
             content = source.get("content", "N/A")
             # Truncate content for cleaner display
             display_content = (content[:150] + "...") if len(content) > 150 else content
 
             print(f"Rank {i+1}:")
             print(f"  ID: {hit.get('_id')}")
-            print(f"  Score: {res.get('score'):.4f}")
+            try:
+                print(f"  Score: {float(score):.4f}")
+            except Exception:
+                print(f"  Score: {score}")
             print(f"  Content: {display_content.strip()}")
             print("-" * 20)
 

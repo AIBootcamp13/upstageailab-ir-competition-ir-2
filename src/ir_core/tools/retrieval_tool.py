@@ -57,6 +57,10 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
         sparse_score = hit.get("sparse_score", 0.0)
         dense_score = hit.get("dense_score", 0.0)
         es_score = hit.get("_score", 0.0)
+        # Additional interpretability fields (if present)
+        sparse_rank = hit.get("sparse_rank")
+        dense_rank = hit.get("dense_rank")
+        rrf_pct = hit.get("rrf_pct")
 
         # Handle NaN values by converting them to 0.0
         if score is not None and not math.isnan(score):
@@ -65,15 +69,25 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
             score = 0.0
 
         if doc_id:
-            formatted_results.append({
+            item = {
                 "id": doc_id,
                 "content": content,
                 "score": score,
                 "rrf_score": rrf_score,
                 "sparse_score": sparse_score,
                 "dense_score": dense_score,
-                "es_score": es_score
-            })
+                "es_score": es_score,
+            }
+            if sparse_rank is not None:
+                item["sparse_rank"] = sparse_rank
+            if dense_rank is not None:
+                item["dense_rank"] = dense_rank
+            if rrf_pct is not None:
+                try:
+                    item["rrf_pct"] = float(rrf_pct)
+                except Exception:
+                    pass
+            formatted_results.append(item)
 
     # ID를 기준으로 중복을 제거하면서 순서를 보존합니다.
     seen = {}

@@ -47,7 +47,7 @@ class EvaluationMenu(BaseMenuModule):
                     "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf pipeline=qwen-full",
                     "description": "Generate submission using Qwen2:7b for all pipeline stages. Uses current embedding model from settings.yaml.",
                     "needs_params": True,
-                    "params": ["model.alpha", "limit"],
+                    "params": ["model.alpha", "limit", "qwen_submission_output_file"],
                 },
                 {
                     "name": "Generate Submission (Llama3.1:8b Full)",
@@ -60,6 +60,27 @@ class EvaluationMenu(BaseMenuModule):
                     "name": "Generate Submission (Ollama Hybrid)",
                     "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf pipeline=hybrid-qwen-llama",
                     "description": "Hybrid pipeline: Qwen2:7b for query processing, Llama3.1:8b for generation. Uses current embedding model.",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
+                },
+                {
+                    "name": "Generate Submission (Custom Output)",
+                    "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf",
+                    "description": "Generate submission with custom output file name. Specify evaluate.custom_output_file parameter.",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit", "evaluate.custom_output_file"],
+                },
+                {
+                    "name": "Quick Generate (JSONL)",
+                    "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf evaluate.custom_output_file=outputs/quick_submission.jsonl",
+                    "description": "Quick generation with JSONL output format. Uses default settings.",
+                    "needs_params": True,
+                    "params": ["model.alpha", "limit"],
+                },
+                {
+                    "name": "Quick Generate (JSONL - Alternative)",
+                    "command": f"{self.get_command_path('scripts/evaluation/evaluate.py')} --config-dir conf evaluate.custom_output_file=outputs/quick_submission_alt.jsonl",
+                    "description": "Alternative quick generation with JSONL output format. Uses default settings.",
                     "needs_params": True,
                     "params": ["model.alpha", "limit"],
                 },
@@ -196,11 +217,11 @@ class EvaluationMenu(BaseMenuModule):
             "",
             "# Trim submission file",
             "PYTHONPATH=src poetry run python scripts/data/trim_submission.py \\",
-            "  inputs/submission.csv outputs/submission_trimmed.csv 500",
+            "  inputs/submission.jsonl outputs/submission_trimmed.jsonl 500",
             "",
             "# Transform submission to evaluation logs",
             "PYTHONPATH=src poetry run python scripts/data/transform_submission.py \\",
-            "  data/eval.jsonl outputs/submission.csv outputs/evaluation_logs.jsonl",
+            "  data/eval.jsonl outputs/submission.jsonl outputs/evaluation_logs.jsonl",
         ]
 
 

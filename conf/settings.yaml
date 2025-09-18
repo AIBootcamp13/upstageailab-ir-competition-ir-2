@@ -24,7 +24,7 @@
 
 # Retrieval Configuration
 # ----------------------
-ALPHA: 0.5                    # Revert to balanced retrieval
+ALPHA: 0.8                    # Increase weight for dense retrieval
 BM25_K: 400                   # Number of documents to retrieve with BM25
 RERANK_K: 10                  # Number of documents to rerank with dense retrieval
 
@@ -32,7 +32,7 @@ RERANK_K: 10                  # Number of documents to rerank with dense retriev
 # ----------------------
 EMBEDDING_MODEL: EleutherAI/polyglot-ko-1.3b            # Polyglot-Ko model for Korean embeddings
 EMBEDDING_DIMENSION: 2048     # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
-EMBEDDING_PROVIDER: polyglot           # Provider type: 'huggingface' or 'solar'
+EMBEDDING_PROVIDER: polyglot           # Provider type: 'huggingface' or 'solar' or 'polyglot'
 EMBEDDING_BATCH_SIZE: 32        # Batch size for encoding texts
 EMBEDDING_MAX_LENGTH: 512       # Maximum sequence length for tokenizer
 EMBEDDING_DEVICE: auto           # Device for model: 'auto', 'cuda', 'cpu'
@@ -60,7 +60,7 @@ REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------
-INDEX_NAME: docs-ko-polyglot-1b-d2048-20250917   # Professional naming convention with model, dimensions, and date
+INDEX_NAME: docs-ko-polyglot-1b-d2048-20250918-nori   # Updated to the index with enhanced Nori analyzer and correct dense_vector mapping
 INDEX_ALIAS: documents         # Index alias for seamless switching
 INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
 KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
@@ -74,7 +74,7 @@ KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion
 # ------------------------------
 GENERATOR_TYPE: openai         # Generator backend: 'openai', 'ollama', or 'huggingface'
 GENERATOR_MODEL_NAME: gpt-3.5-turbo  # Model name/identifier
-GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona_qa.txt  # System prompt file
+GENERATOR_SYSTEM_MESSAGE_FILE: prompts/persona/persona_qa.txt  # System prompt file
 GENERATOR_SYSTEM_MESSAGE: ''   # Override system message (empty = use file)
 
 # Tool Calling Configuration
@@ -104,7 +104,7 @@ GENERATOR_MAX_TOKENS: 1024     # Max tokens for OpenAI generation (increased for
 
 # Retrieval Pipeline
 # -----------------
-DEFAULT_TOP_K: 5              # Default number of documents to return
+DEFAULT_TOP_K: 3              # Default number of documents to return
 
 # Generator Pipeline Configuration
 # -------------------------------
@@ -147,9 +147,9 @@ pipeline:
 # ----------------------------
 use_prompt_pipeline: true                    # Enable prompt pipeline system
 prompt_pipeline_config:
-  scientific: "prompts/scientific_qa_v1.jinja2"    # For scientific/technical queries
-  conversational: "prompts/conversational_v1.jinja2"  # For conversational queries
-  default: "prompts/scientific_qa_v1.jinja2"        # Default fallback
+  scientific: "prompts/scientific_qa/scientific_qa_v1.jinja2"    # For scientific/technical queries
+  conversational: "prompts/conversational/conversational_v1.jinja2"  # For conversational queries
+  default: "prompts/scientific_qa/scientific_qa_v1.jinja2"        # Default fallback
 
 # Query Enhancement System
 # -----------------------
@@ -157,7 +157,7 @@ query_enhancement:
   enabled: true               # Re-enable query enhancement
   use_strategic_classifier: true  # Use strategic classification for technique selection
   default_technique: rewriting # Changed from hyde to match sample behavior
-  max_tokens: 150            # Max tokens for enhancement (limited for HyDE)
+  max_tokens: 250            # Max tokens for enhancement (limited for HyDE)
   temperature: 0.3           # Temperature for enhancement models
   openai_model: gpt-3.5-turbo # Model for enhancement
 
@@ -166,27 +166,32 @@ query_enhancement:
   strategic_classifier:
     enabled: true             # Enable strategic query classification
     confidence_threshold: 0.6 # Minimum confidence for classification
-    bypass_conversational: true  # Skip retrieval for conversational queries
+    bypass_conversational: true  # CHANGED: Allow retrieval for conversational queries to support RRF
     enable_sequential: true   # Allow sequential technique application
 
-  # Available enhancement techniques (ordered by priority when not using strategic classifier)
-  techniques:
-    rewriting:                # Query rewriting for clarity
-      enabled: true
-      priority: 1
-    step_back:               # Step back prompting
-      enabled: true
-      priority: 2
-    decomposition:           # Query decomposition
-      enabled: true
-      priority: 3
-    hyde:                    # Hypothetical document embedding
-      enabled: true           # Re-enable HyDE for other query types
-      priority: 4
-      disable_for_evaluation: true  # Disable HyDE in evaluation to prevent irrelevant results
-    translation:             # Cross-language translation
-      enabled: true
-      priority: 5
+  # Rewriter Configuration
+  # ----------------------
+  rewriter:
+    enabled: true             # Enable query rewriting
+    korean_char_range_start: '\uac00'  # Start of Korean character range
+    korean_char_range_end: '\ud7a3'    # End of Korean character range
+    default_expansion_factor: 2       # Default expansion level (1-3)
+    min_rewrite_length_ratio: 0.5     # Minimum length ratio for valid rewrite
+
+    # Expansion factor descriptions
+    expansion_levels:
+      1: "Add 2-3 closely related terms"
+      2: "Add 4-6 related terms and synonyms"
+      3: "Add comprehensive related terms, synonyms, and technical variations"
+
+    # Korean rewrite prompt template
+    korean_template: "prompts/rewriter/rewriter_korean_v1.jinja2"
+
+    # English rewrite prompt template
+    english_template: "prompts/rewriter/rewriter_english_v1.jinja2"
+
+    # Query expansion prompt template
+    expansion_template: "prompts/rewriter/rewriter_expansion_v1.jinja2"
 
 # Translation System
 # -----------------
@@ -208,7 +213,7 @@ translation:
 # Profiling and Optimization
 # -------------------------
 profiling_insights:
-  enabled: true             # Enable profiling insights
+  enabled: false             # Enable profiling insights
   cache_ttl_seconds: 300     # Cache TTL for profiling data
   memory_batch_fallback: 16  # Memory optimization batch size
   query_expansion_terms: 3   # Number of expansion terms
@@ -266,12 +271,12 @@ model:
 # Prompt Template Paths
 # --------------------
 prompts:
-  conversational: prompts/conversational_v1.jinja2
-  generation_qa: prompts/scientific_qa_v1.jinja2
-  persona: prompts/persona_qa.txt
-  question_generation: prompts/question_generation_v1.jinja2
-  rephrase_query: prompts/rewrite_query3.jinja2
-  tool_description: prompts/tool_desc_recall_v1.txt
+  conversational: prompts/conversational/conversational_v1.jinja2
+  generation_qa: prompts/scientific_qa/scientific_qa_v1.jinja2
+  persona: prompts/persona/persona_qa.txt
+  question_generation: prompts/question_generation/question_generation_v1.jinja2
+  rephrase_query: prompts/rewrite/rewrite_query3.jinja2
+  tool_description: prompts/tool_desc/tool_desc_recall_v1.txt
 
 # =================================================================
 # 8. DEVELOPMENT SETTINGS
@@ -281,7 +286,8 @@ prompts:
 # Debug Configuration
 # ------------------
 debug: true                # Enable debug mode
-debug_limit: 3              # Limit for debug operations
+debug_limit: 10              # Limit for debug operations
+debug_confidence_logging: true  # Enable detailed confidence logging with retrieval scores
 
 # Analysis Configuration
 # ---------------------
@@ -294,6 +300,10 @@ analysis:
 evaluate:
   max_workers: 4            # Workers for evaluation
   topk: 3                   # Top-K for evaluation metrics
+  output_format: jsonl      # Output format: jsonl or csv
+  include_references: true # Whether to include references array in output (default false for parity with peer)
+  include_reference_scores: true # When including references, include score fields
+  custom_output_file: null  # Custom output file name (null = use data config default)
 
 # Validation Set Creation
 # ----------------------

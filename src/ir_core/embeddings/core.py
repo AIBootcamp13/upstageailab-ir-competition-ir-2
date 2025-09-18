@@ -7,6 +7,7 @@ from .base import BaseEmbeddingProvider
 from .huggingface import HuggingFaceEmbeddingProvider
 from .solar import SolarEmbeddingProvider
 from .polyglot import PolyglotKoEmbeddingProvider
+from .sentence_transformers import SentenceTransformerEmbeddingProvider
 
 # Global provider instance
 _provider = None
@@ -36,6 +37,8 @@ def get_embedding_provider(provider_type: Optional[str] = None) -> BaseEmbedding
             _provider = SolarEmbeddingProvider()
         elif provider_type == 'polyglot':
             _provider = PolyglotKoEmbeddingProvider()
+        elif provider_type == 'sentence_transformers':
+            _provider = SentenceTransformerEmbeddingProvider()
         else:
             raise ValueError(f"Unknown embedding provider type: {provider_type}")
 

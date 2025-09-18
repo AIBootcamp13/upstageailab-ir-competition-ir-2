@@ -232,6 +232,25 @@ def reciprocal_rank_fusion(
         result = doc_info["result"]
         # Add RRF score
         result["rrf_score"] = rrf_score
+        # Add component contributions for interpretability
+        sparse_contrib = (1.0 / (k + doc_info["sparse_rank"])) if doc_info["sparse_rank"] is not None else 0.0
+        dense_contrib = (1.0 / (k + doc_info["dense_rank"])) if doc_info["dense_rank"] is not None else 0.0
+        result["rrf_components"] = {
+            "sparse": sparse_contrib,
+            "dense": dense_contrib,
+        }
+        # Include ranks for reference
+        result["sparse_rank"] = doc_info["sparse_rank"]
+        result["dense_rank"] = doc_info["dense_rank"]
+        # Normalized readability variants
+        # Absolute theoretical max (both systems rank 1): 2 / (k + 1)
+        max_rrf_abs = 2.0 / (k + 1)
+        result["rrf_norm"] = float(rrf_score / max_rrf_abs) if max_rrf_abs > 0 else 0.0
+        result["rrf_pct"] = float(result["rrf_norm"] * 100.0)
+        # Present-systems max (if only present in one list, max is 1/(k+1))
+        present_systems = (1 if doc_info["sparse_rank"] is not None else 0) + (1 if doc_info["dense_rank"] is not None else 0)
+        max_rrf_present = (present_systems * 1.0) / (k + 1) if present_systems > 0 else 0.0
+        result["rrf_norm_present"] = float(rrf_score / max_rrf_present) if max_rrf_present > 0 else 0.0
         # Preserve original scores
         if doc_info["sparse_score"] is not None:
             result["sparse_score"] = doc_info["sparse_score"]
@@ -341,8 +360,8 @@ def _extract_keywords_from_query(query: str) -> List[str]:
 
 # --- NEW: Initialize curated keywords integration ---
 try:
-    from .keywords_integration import initialize_keywords_integration
-    initialize_keywords_integration()
-    print("Curated keywords integration initialized successfully")
+    # from .keywords_integration import initialize_keywords_integration
+    # initialize_keywords_integration()
+    print("Curated keywords integration disabled")
 except Exception as e:
     print(f"Warning: Could not initialize curated keywords integration: {e}")

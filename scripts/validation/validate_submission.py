@@ -170,10 +170,10 @@ def main():
                 print(f"   ... and {len(errors) - 10} more errors")
 
         # Compare with sample if available
-        sample_path = "outputs/sample_submission.csv"
+        sample_path = "outputs/sample_submission.jsonl"
         if Path(sample_path).exists():
             sample_data = load_csv(sample_path)
-            compare_submissions(data, sample_data, Path(file_path).name, "sample_submission.csv")
+            compare_submissions(data, sample_data, Path(file_path).name, "sample_submission.jsonl")
 
     except Exception as e:
         print(f"❌ Error processing file: {e}")

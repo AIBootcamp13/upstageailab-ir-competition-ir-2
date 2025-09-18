@@ -17,6 +17,11 @@ from typing import Dict, List, Optional
 import questionary
 from rich.console import Console
 
+# Import settings for centralized configuration
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+from ir_core.config import settings
+
 console = Console()
 
 
@@ -186,19 +191,21 @@ class CommandExecutor:
                 if value is None:
                     value = "prompt_tuning"
             elif param == "input_file":
+                # Use centralized output path as default
+                default_input = getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')
                 value = questionary.text(
                     "Enter input file path:",
-                    default="outputs/submission.csv"
+                    default=default_input
                 ).ask()
                 if value is None:
-                    value = "outputs/submission.csv"
+                    value = default_input
             elif param == "output_file":
                 value = questionary.text(
                     "Enter output file path:",
-                    default="outputs/submission_processed.csv"
+                    default="outputs/submission_processed.jsonl"
                 ).ask()
                 if value is None:
-                    value = "outputs/submission_processed.csv"
+                    value = "outputs/submission_processed.jsonl"
             elif param == "max_length":
                 value = questionary.text(
                     "Enter max length (default: 500):",
@@ -207,19 +214,23 @@ class CommandExecutor:
                 if value is None:
                     value = "500"
             elif param == "eval_file":
+                # Use centralized evaluation path as default
+                default_eval = getattr(settings, 'data', {}).get('evaluation_path', 'data/eval.jsonl')
                 value = questionary.text(
                     "Enter eval file path:",
-                    default="data/eval.jsonl"
+                    default=default_eval
                 ).ask()
                 if value is None:
-                    value = "data/eval.jsonl"
+                    value = default_eval
             elif param == "submission_file":
+                # Use centralized output path as default
+                default_submission = getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')
                 value = questionary.text(
                     "Enter submission file path:",
-                    default="outputs/submission.csv"
+                    default=default_submission
                 ).ask()
                 if value is None:
-                    value = "outputs/submission.csv"
+                    value = default_submission
             elif param == "create_validation_set.sample_size":
                 value = questionary.text(
                     "Enter sample size (default: 100):",
@@ -250,13 +261,33 @@ class CommandExecutor:
                 ).ask()
                 if value is None:
                     value = "data/documents_ko.jsonl"
-            elif param == "index_name":
+            elif param == "evaluate.custom_output_file":
+                # Generate timestamp-based default filename
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                default_output = f"outputs/submission_qwen2_7b_{timestamp}.jsonl"
                 value = questionary.text(
-                    "Enter index name (check current config for appropriate name):",
-                    default="documents_ko_with_embeddings_new"
+                    f"Enter output file path (default: {default_output}):",
+                    default=default_output
                 ).ask()
-                if value is None:
-                    value = "documents_ko_with_embeddings_new"
+                if value is None or value.strip() == "":
+                    value = default_output
+            elif param == "qwen_submission_output_file":
+                # Generate timestamp-based default filename for Qwen2:7b submissions
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                default_output = f"outputs/submission_qwen2_7b_full_{timestamp}.jsonl"
+                console.print(f"\n[bold cyan]📝 Generate Submission (Qwen2:7b Full)[/bold cyan]")
+                console.print(f"[dim]This will generate a submission file using Qwen2:7b for all pipeline stages.[/dim]")
+                value = questionary.text(
+                    f"Enter submission file name (press Enter for default: {default_output}):",
+                    default=default_output
+                ).ask()
+                if value is None or value.strip() == "":
+                    value = default_output
+                    console.print(f"[green]✓ Using default filename: {value}[/green]")
+                else:
+                    console.print(f"[green]✓ Using custom filename: {value}[/green]")
             else:
                 value = questionary.text(f"Enter value for {param}:").ask()
                 if value is None:
@@ -288,6 +319,9 @@ class CommandExecutor:
                 command_parts.append(f"{param}={value}")
             elif param == "pipeline":
                 command_parts.append(f"{param}={value}")
+            elif param == "qwen_submission_output_file":
+                # Convert to the expected parameter name for the evaluation script
+                command_parts.append(f"evaluate.custom_output_file={value}")
             elif param in ["input_file", "output_file", "eval_file", "submission_file"]:
                 # These are positional arguments, not Hydra parameters
                 continue
@@ -296,14 +330,14 @@ class CommandExecutor:
 
         # Handle positional arguments for specific commands
         if "trim_submission.py" in base_command:
-            input_file = params.get("input_file", "outputs/submission.csv")
-            output_file = params.get("output_file", "outputs/submission_trimmed.csv")
-            max_length = params.get("max_length", "500")
+            input_file = params.get("input_file", getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')) or getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')
+            output_file = params.get("output_file", "outputs/submission_trimmed.jsonl") or "outputs/submission_trimmed.jsonl"
+            max_length = params.get("max_length", "500") or "500"
             command_parts.extend([input_file, output_file, max_length])
         elif "transform_submission.py" in base_command:
-            eval_file = params.get("eval_file", "data/eval.jsonl")
-            submission_file = params.get("submission_file", "outputs/submission.csv")
-            output_file = params.get("output_file", "outputs/evaluation_logs.jsonl")
+            eval_file = params.get("eval_file", getattr(settings, 'data', {}).get('evaluation_path', 'data/eval.jsonl')) or getattr(settings, 'data', {}).get('evaluation_path', 'data/eval.jsonl')
+            submission_file = params.get("submission_file", getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')) or getattr(settings, 'data', {}).get('output_path', 'outputs/submission.jsonl')
+            output_file = params.get("output_file", "outputs/evaluation_logs.jsonl") or "outputs/evaluation_logs.jsonl"
             command_parts.extend([eval_file, submission_file, output_file])
 
         return " ".join(command_parts)

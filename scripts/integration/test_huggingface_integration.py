@@ -70,7 +70,7 @@ def test_generation():
                 }
             },
             'prompts': {
-                'generation_qa': 'prompts/scientific_qa_v1.jinja2'
+                'generation_qa': 'prompts/scientific_qa/scientific_qa_v1.jinja2'
             }
         }
         cfg = OmegaConf.create(config_dict)

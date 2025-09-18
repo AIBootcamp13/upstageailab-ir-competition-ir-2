@@ -5,6 +5,7 @@ from typing import List, Optional, Any, cast, Dict
 import openai
 import jinja2
 from .base import BaseGenerator
+from ..analysis.query_analyzer import QueryAnalyzer
 
 class OpenAIGenerator(BaseGenerator):
     """
@@ -37,6 +38,14 @@ class OpenAIGenerator(BaseGenerator):
         self.prompt_template_path = prompt_template_path
         self.use_prompt_pipeline = use_prompt_pipeline
         self.prompt_pipeline_config = prompt_pipeline_config or {}
+
+        # Load centralized settings for prompt pipeline if not provided
+        if not self.prompt_pipeline_config and self.use_prompt_pipeline:
+            from ..config import settings
+            self.prompt_pipeline_config = getattr(settings, 'prompt_pipeline_config', {})
+
+        # Initialize QueryAnalyzer for centralized query classification
+        self.query_analyzer = QueryAnalyzer()
 
         # Jinja2 환경을 설정하여 프로젝트 루트에서 템플릿을 로드합니다.
         self.jinja_env = jinja2.Environment(
@@ -129,12 +138,8 @@ class OpenAIGenerator(BaseGenerator):
         template_path: str,
     ) -> str:
         """프롬프트 파이프라인을 사용하여 답변 생성"""
-        # 기본적으로 conversational 템플릿 사용
-        pipeline_template = "prompts/conversational_v1.jinja2"
-
-        # 컨텍스트 문서가 있는 경우 scientific_qa 템플릿 사용
-        if context_docs:
-            pipeline_template = "prompts/scientific_qa_v1.jinja2"
+        # 기본적으로 default 템플릿 사용
+        pipeline_template = self.prompt_pipeline_config.get("default", "prompts/scientific_qa/scientific_qa_v1.jinja2")
 
         # 파이프라인 설정에 따라 템플릿 선택
         if self.prompt_pipeline_config:
@@ -146,18 +151,25 @@ class OpenAIGenerator(BaseGenerator):
         return self._generate_single_prompt(query, context_docs, pipeline_template)
 
     def _classify_query_type(self, query: str) -> str:
-        """쿼리 유형을 분류하여 적절한 프롬프트 선택"""
-        query_lower = query.lower()
+        """쿼리 유형을 분류하여 적절한 프롬프트 선택 (중앙화된 분석 모듈 사용)"""
+        try:
+            # Use centralized QueryAnalyzer for classification
+            features = self.query_analyzer.analyze_query(query)
 
-        # 과학/기술 관련 키워드
-        scientific_keywords = ['과학', '물리', '화학', '생물', '수학', '컴퓨터', '프로그래밍', '알고리즘']
-        if any(keyword in query_lower for keyword in scientific_keywords):
+            # Map query types to prompt pipeline categories
+            query_type_mapping = {
+                "what": "scientific",
+                "how": "scientific",
+                "why": "conversational",
+                "when": "scientific",
+                "where": "scientific",
+                "calculate": "scientific",
+                "general": "scientific"
+            }
+
+            # Get the mapped type, defaulting to scientific for unknown types
+            return query_type_mapping.get(features.query_type, "scientific")
+
+        except Exception as e:
+            print(f"⚠️ Query classification failed, using default: {e}")
             return "scientific"
-
-        # 대화형/일반 질문
-        conversational_keywords = ['어떻게', '왜', '무엇을', '설명해', '이야기해']
-        if any(keyword in query_lower for keyword in conversational_keywords):
-            return "conversational"
-
-        # 기본값
-        return "scientific"

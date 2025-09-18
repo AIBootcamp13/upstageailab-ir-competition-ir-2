@@ -7,6 +7,9 @@ from abc import ABC, abstractmethod
 import openai
 import jinja2
 
+# Import centralized scientific terms
+from ..analysis.constants import SCIENTIFIC_TERMS
+
 class BaseQueryRewriter(ABC):
     """
     Base class for query rewriters.
@@ -29,19 +32,9 @@ class BaseQueryRewriter(ABC):
         재작성된 쿼리가 원본과 너무 다른지 확인합니다.
         과학 용어의 보존을 우선으로 합니다.
         """
-        # 과학 관련 키워드가 유지되는지 확인
-        scientific_keywords = [
-            '알파', '베타', '감마', 'RNA', 'DNA', '단백질', '원자', '분자', '세포', '유전자',
-            '태양계', '은하계', '블랙홀', '중력', '전자', '양성자', '중성자', '원소', '화합물',
-            '반응', '합성', '분해', '산화', '환원', '결합', '분자량', '밀도', '압력', '온도',
-            '난백', '가금류', '알', '세포', '조직', '기관', '계통', '생물', '생명', '진화',
-            '유전', '변이', '선택', '적응', '생태계', '환경', '에너지', '물질', '힘', '운동',
-            '물리', '화학', '생물학', '지구과학', '천문학', '물', '공기', '불', '흙', '금속',
-            '비금속', '산', '염기', '염', '용액', '용매', '용질', '침전', '증발', '응축'
-        ]
-
-        original_keywords = [kw for kw in scientific_keywords if kw in original]
-        rewritten_keywords = [kw for kw in scientific_keywords if kw in rewritten]
+        # 중앙화된 과학 용어 목록을 사용하여 과학 관련 키워드가 유지되는지 확인
+        original_keywords = [kw for kw in SCIENTIFIC_TERMS if kw in original]
+        rewritten_keywords = [kw for kw in SCIENTIFIC_TERMS if kw in rewritten]
 
         # 원본에 있던 과학 키워드의 50% 이상이 유지되어야 함
         if original_keywords and len(set(rewritten_keywords) & set(original_keywords)) / len(original_keywords) < 0.5:

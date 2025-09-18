@@ -3,6 +3,12 @@
 ## Project Overview
 This is a modular RAG (Retrieval-Augmented Generation) system for scientific question answering. The codebase implements a clean architecture with separate concerns for retrieval, generation, orchestration, and tooling.
 
+CRITICAL rules for assistants
+- ALWAYS run scripts via Poetry: use `poetry run python ...` (never bare python)
+- Elasticsearch index MUST predefine `embeddings` as `dense_vector` with correct `dims` (no dynamic mapping)
+- Use Nori analyzer for Korean text fields; index creation helpers already configure this
+- Before running evaluations or reindex: run the pre-flight validator (see below)
+
 ## Architecture Patterns
 
 ### Modular Structure
@@ -46,9 +52,9 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 
 **Critical**: Never use bare `python` commands - always prefix with `poetry run` to ensure proper virtual environment activation and dependency resolution.
 
-### Configuration Switching for Embeddings
+### Configuration Switching and Pre-flight Validation
 
-**IMPORTANT**: This project supports multiple embedding models with different dimensions. Always use the configuration switcher to avoid wasted time and resources from incompatible configurations.
+This project supports multiple embedding providers with different dimensions. Always validate the current provider dimension matches the target index mapping before heavy runs.
 
 #### When to Switch Configurations
 - **Korean submissions**: Use Korean model (768d) with Korean index
@@ -56,24 +62,19 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
 - **Bilingual submissions**: Use Korean model (768d) with bilingual index
 - **Before running evaluations**: Always verify current configuration matches your target
 
-#### Available Configurations
+#### Pre-flight Validator (must-run)
 ```bash
-# Switch to Korean configuration (768d embeddings)
-PYTHONPATH=src poetry run python switch_config.py korean
+# Validate provider dimension vs index mapping (fails fast on mismatch)
+PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index "$INDEX" \
+    --provider "${EMBEDDING_PROVIDER:-auto}"
 
-# Switch to English configuration (384d embeddings)
-PYTHONPATH=src poetry run python switch_config.py english
-
-# Switch to Bilingual configuration (768d embeddings)
-PYTHONPATH=src poetry run python switch_config.py bilingual
+# Example (current default: Polyglot-Ko 2048d)
+PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918
 ```
 
-#### Configuration Details
-| Configuration | Embedding Model | Dimensions | Index Name | Data File |
-|---------------|----------------|------------|------------|-----------|
-| Korean | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_ko_with_embeddings_new` | `data/documents_ko.jsonl` |
-| English | `sentence-transformers/all-MiniLM-L6-v2` | 384d | `documents_en_with_embeddings_new` | `data/documents_bilingual.jsonl` |
-| Bilingual | `snunlp/KR-SBERT-V40K-klueNLI-augSTS` | 768d | `documents_bilingual_with_embeddings_new` | `data/documents_bilingual.jsonl` |
+#### Current default
+- Provider: Polyglot-Ko (`EleutherAI/polyglot-ko-1.3b`), dims=2048
+- Index: `docs-ko-polyglot-1b-d2048-20250918`
 
 #### Critical Warnings
 - **❌ NEVER mix dimensions**: 384d English model cannot search 768d Korean index
@@ -102,11 +103,11 @@ PYTHONPATH=src poetry run python switch_config.py bilingual
    PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings_new
    ```
 
-3. **Verify configuration** after switching:
-   ```bash
-   PYTHONPATH=src poetry run python switch_config.py korean  # Switch
-   PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py debug=true debug_limit=2  # Test
-   ```
+3. **Verify provider/index BEFORE evaluation**:
+    ```bash
+    # Quick dims + analyzer check
+    PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+    ```
 
 4. **Use debug mode** for quick validation before full runs:
    ```bash
@@ -128,6 +129,7 @@ python scripts/cli_menu.py
 - `execution/`: Core pipeline execution scripts
 - `infra/`: Infrastructure management (ES, Redis)
 - `maintenance/`: Indexing, alias management, demos
+ - `indexing/`: Index creation, mapping validation, and embedding reindex utilities
 
 **Test Scripts Available:**
 - `scripts/evaluation/smoke_test.py`: System health verification
@@ -269,6 +271,7 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 - Changes to `conf/settings.yaml` require restart
 - Environment variables override YAML defaults
 - Use `hydra.core.hydra_config.HydraConfig` for runtime config inspection
+- Do NOT rely on dynamic mapping for `embeddings` — use the provided index creation script or the API that auto-creates mappings with Nori and dense_vector
 
 ### Performance
 - Embedding models loaded once and cached with threading locks

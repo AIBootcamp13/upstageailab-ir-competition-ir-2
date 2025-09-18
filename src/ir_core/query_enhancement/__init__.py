@@ -19,6 +19,10 @@ from .step_back import StepBackPrompting
 from .decomposer import QueryDecomposer
 from .hyde import HyDE
 from .translator import QueryTranslator
+from . import constants
+from . import utils
+from . import prompts
+from . import confidence_logger
 
 __all__ = [
     "QueryEnhancementManager",
@@ -27,4 +31,8 @@ __all__ = [
     "QueryDecomposer",
     "HyDE",
     "QueryTranslator",
+    "constants",
+    "utils",
+    "prompts",
+    "confidence_logger",
 ]

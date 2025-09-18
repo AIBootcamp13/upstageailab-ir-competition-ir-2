@@ -31,6 +31,17 @@ PYTHONPATH=src poetry run python scripts/indexing/switch_config.py english
 PYTHONPATH=src poetry run python scripts/indexing/switch_config.py status
 ```
 
+### `validate_index_dimensions.py`
+Pre-flight check to ensure your embedding provider dimension matches the Elasticsearch index `dense_vector` mapping. Can also verify Nori analyzer wiring.
+
+Usage:
+```bash
+PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index <INDEX_NAME> [--provider auto] [--expect-dims <int>] [--check-analyzer]
+
+# Example for current default (Polyglot-Ko 2048d):
+PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+```
+
 ## Features
 
 - Automated index creation with embeddings
@@ -38,3 +49,4 @@ PYTHONPATH=src poetry run python scripts/indexing/switch_config.py status
 - Batch processing for large document sets
 - Index alias management
 - Configuration validation
+ - Dimension and analyzer validation (pre-flight)

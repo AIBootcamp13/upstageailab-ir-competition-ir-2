@@ -180,7 +180,33 @@ def run(cfg: DictConfig) -> None:
         tool_calling_model=cfg.pipeline.tool_calling_model,
     )
 
-    output_path = cfg.data.output_path
+    # Determine output path - use custom file if specified, otherwise use data config default
+    if hasattr(cfg.evaluate, 'custom_output_file') and cfg.evaluate.custom_output_file:
+        custom_file = cfg.evaluate.custom_output_file
+        # If custom file doesn't have directory, put it in outputs/
+        if '/' not in custom_file and '\\' not in custom_file:
+            custom_file = f"outputs/{custom_file}"
+        output_path = custom_file
+        print(f"Using custom output file: {output_path}")
+    else:
+        output_path = cfg.data.output_path
+        print(f"Using default output file: {output_path}")
+
+    # Ask for confirmation
+    import questionary
+    confirmed = questionary.confirm(
+        f"Generate output file: {output_path}?",
+        default=True
+    ).ask()
+
+    if not confirmed:
+        new_path = questionary.text(
+            "Enter new output file path:",
+            default=output_path
+        ).ask()
+        if new_path:
+            output_path = new_path
+
     output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -211,11 +237,13 @@ def run(cfg: DictConfig) -> None:
             retrieval_out = pipeline.run_retrieval_only(query)
             standalone_query = query
             docs = []
+            technique_used = 'none'
             if retrieval_out and isinstance(retrieval_out, list) and len(retrieval_out) > 0:
                 retrieval_result = retrieval_out[0]
                 if isinstance(retrieval_result, dict):
                     standalone_query = retrieval_result.get("standalone_query", query)
                     docs = retrieval_result.get("docs", [])
+                    technique_used = retrieval_result.get("technique_used", 'none')
 
             # Ensure docs is a list of dictionaries
             if not isinstance(docs, list) or not all(isinstance(d, dict) for d in docs):
@@ -233,10 +261,22 @@ def run(cfg: DictConfig) -> None:
                 else:
                     score = 0.0
 
-                references.append({
+                ref_item = {
                     "score": score,
                     "content": d.get("content", "")
-                })
+                }
+                # Optional interpretability fields
+                if "rrf_pct" in d:
+                    try:
+                        ref_item["rrf_pct"] = float(d.get("rrf_pct"))
+                    except Exception:
+                        pass
+                if "sparse_rank" in d and d.get("sparse_rank") is not None:
+                    ref_item["sparse_rank"] = d.get("sparse_rank")
+                if "dense_rank" in d and d.get("dense_rank") is not None:
+                    ref_item["dense_rank"] = d.get("dense_rank")
+
+                references.append(ref_item)
 
             # Check again before generation
             if shutdown_requested:
@@ -249,6 +289,7 @@ def run(cfg: DictConfig) -> None:
             record = {
                 "eval_id": eval_id,
                 "standalone_query": standalone_query,
+                "technique_used": technique_used,
                 "topk": topk_ids,
                 "answer": answer_text,
                 "references": references,
@@ -307,20 +348,62 @@ def run(cfg: DictConfig) -> None:
         if record and '_original_index' in record:
             del record['_original_index']
 
-    # Write results in CSV format
+    # Write results: JSONL (preferred) or CSV based on extension or config
     if results:
-        fieldnames = ['eval_id', 'standalone_query', 'topk', 'answer', 'references']
-        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
+        # Prefer JSONL if the path ends with .jsonl
+        write_jsonl = output_path.lower().endswith('.jsonl')
+        # Optional config override: cfg.evaluate.output_format
+        try:
+            fmt = getattr(cfg.evaluate, 'output_format', None)
+            if fmt:
+                write_jsonl = (str(fmt).lower() == 'jsonl')
+        except Exception:
+            pass
 
-            for record in results:
-                if record:
-                    # Convert complex fields to strings for CSV
-                    csv_record = record.copy()
-                    csv_record['topk'] = ','.join(record['topk']) if record.get('topk') else ''
-                    csv_record['references'] = json.dumps(record['references'], ensure_ascii=False) if record.get('references') else ''
-                    writer.writerow(csv_record)
+        if write_jsonl:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for record in results:
+                    if not record:
+                        continue
+                    # Build output object; omit technique_used in output
+                    include_refs = False
+                    include_ref_scores = False
+                    try:
+                        include_refs = bool(getattr(cfg.evaluate, 'include_references', False))
+                        include_ref_scores = bool(getattr(cfg.evaluate, 'include_reference_scores', False))
+                    except Exception:
+                        pass
+
+                    out_refs = []
+                    if include_refs:
+                        # Optionally include references; optionally drop scores
+                        for r in (record.get('references', []) or []):
+                            if include_ref_scores:
+                                out_refs.append(r)
+                            else:
+                                out_refs.append({'content': r.get('content', '')})
+
+                    out_obj = {
+                        'eval_id': record.get('eval_id'),
+                        'standalone_query': record.get('standalone_query', ''),
+                        'topk': record.get('topk', []) or [],
+                        'answer': record.get('answer', ''),
+                        'references': out_refs
+                    }
+                    f.write(json.dumps(out_obj, ensure_ascii=False) + "\n")
+        else:
+            fieldnames = ['eval_id', 'standalone_query', 'technique_used', 'topk', 'answer', 'references']
+            with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for record in results:
+                    if record:
+                        # Convert complex fields to strings for CSV
+                        csv_record = record.copy()
+                        csv_record['topk'] = ','.join(record['topk']) if record.get('topk') else ''
+                        csv_record['references'] = json.dumps(record['references'], ensure_ascii=False) if record.get('references') else ''
+                        writer.writerow(csv_record)
 
     print(f"\n평가 완료. {len(results)}개의 쿼리가 처리되었습니다. 제출 기록이 다음 파일에 저장되었습니다: {output_path}")
 

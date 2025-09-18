@@ -13,8 +13,8 @@ class OllamaGenerator(BaseGenerator):
     """
     def __init__(
         self,
-        model_name: str = "llama3",
-        prompt_template_path: str = "prompts/scientific_qa_v1.jinja2",
+        model_name: str = "qwen2:7b",
+        prompt_template_path: str = "prompts/scientific_qa/scientific_qa_v1.jinja2",
         ollama_base_url: str = "http://localhost:11434",
     ):
         """

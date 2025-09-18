@@ -90,14 +90,14 @@ class BM25Retriever(CandidateGenerator):
         # Build multi-field query with appropriate boosts
         bool_query = {
             "should": [
-                # Highest boost for keywords field
-                {"match": {"keywords": {"query": ' '.join(combined_keywords), "boost": 4.0}}},
+                # High boost for keywords field
+                {"match": {"keywords": {"query": ' '.join(combined_keywords), "boost": 2.0}}},
                 # High boost for hypothetical questions
-                {"match": {"hypothetical_questions": {"query": enhanced_query, "boost": 3.0}}},
+                {"match": {"hypothetical_questions": {"query": enhanced_query, "boost": 2.0}}},
                 # Medium boost for summary
                 {"match": {"summary": {"query": enhanced_query, "boost": 2.0}}},
-                # Default boost for full content
-                {"match": {"content": {"query": enhanced_query, "boost": 1.0}}}
+                # Highest boost for full content
+                {"match": {"content": {"query": enhanced_query, "boost": 3.0}}}
             ],
             "minimum_should_match": 1
         }

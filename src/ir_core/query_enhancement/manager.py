@@ -12,6 +12,11 @@ from .decomposer import QueryDecomposer
 from .hyde import HyDE
 from .translator import QueryTranslator
 from .strategic_classifier import StrategicQueryClassifier, QueryType
+from ..analysis.query_analyzer import QueryAnalyzer
+from .constants import QUERY_TYPE_MAPPING, DEFAULT_CONFIDENCE_SCORES, TECHNIQUE_PRIORITY_ORDER
+from .utils import has_question_words, has_conversational_indicators
+from .prompts import format_query_intent_prompt
+from .confidence_logger import log_confidence_score, log_error_confidence, log_fallback_triggered
 
 
 class QueryEnhancementManager:
@@ -102,6 +107,9 @@ class QueryEnhancementManager:
         # Initialize strategic classifier
         self.strategic_classifier = StrategicQueryClassifier()
 
+        # Initialize centralized query analyzer for fallback classification
+        self.query_analyzer = QueryAnalyzer()
+
         # Get technique priorities and enabled status
         self.techniques_config = self.config.get('techniques', {})
 
@@ -122,11 +130,23 @@ class QueryEnhancementManager:
             Dictionary with enhancement results and metadata
         """
         if not self.config.get('enabled', True):
+            confidence = DEFAULT_CONFIDENCE_SCORES.get('none', 0.5)
+
+            # Log confidence score
+            log_confidence_score(
+                technique='none',
+                confidence=confidence,
+                query=query,
+                reasoning="Query enhancement disabled in configuration",
+                context={}
+            )
+
             return {
                 'enhanced': False,
                 'original_query': query,
                 'enhanced_query': query,
                 'technique_used': 'none',
+                'confidence': confidence,
                 'reason': 'Query enhancement disabled in configuration'
             }
 
@@ -143,11 +163,23 @@ class QueryEnhancementManager:
         # If specific technique requested, apply it directly
         if technique:
             if technique in disabled_techniques:
-                 return {
+                confidence = DEFAULT_CONFIDENCE_SCORES.get('none', 0.5)
+
+                # Log confidence score
+                log_confidence_score(
+                    technique='none',
+                    confidence=confidence,
+                    query=query,
+                    reasoning=f"Technique '{technique}' is disabled in the current mode",
+                    context={'disabled_technique': technique}
+                )
+
+                return {
                     'enhanced': False,
                     'original_query': query,
                     'enhanced_query': query,
                     'technique_used': 'none',
+                    'confidence': confidence,
                     'reason': f"Technique '{technique}' is disabled in the current mode."
                 }
             return self._apply_specific_technique(query, technique)
@@ -186,12 +218,24 @@ class QueryEnhancementManager:
 
         # Check if retrieval should be bypassed
         if self.strategic_classifier.should_bypass_retrieval(classification):
+            confidence = DEFAULT_CONFIDENCE_SCORES.get('bypass', 0.9)
+
+            # Log confidence score
+            log_confidence_score(
+                technique='bypass',
+                confidence=confidence,
+                query=query,
+                reasoning="Strategic classifier recommends bypassing enhancement",
+                context={'classification': classification}
+            )
+
             return {
                 'enhanced': False,
                 'original_query': query,
                 'enhanced_query': query,
                 'technique_used': 'bypass',
-                'reason': f'Query classified as {classification["primary_type"]} - bypassing retrieval',
+                'confidence': confidence,
+                'reason': 'Strategic classifier recommends bypassing enhancement',
                 'classification': classification,
                 'intent': intent
             }
@@ -256,8 +300,57 @@ class QueryEnhancementManager:
             }
 
         try:
-            return technique_map[technique](query)
+            # Apply primary technique
+            result = technique_map[technique](query)
+
+            # If HyDE produced no effective enhancement, fall back to rewriting
+            if technique == 'hyde':
+                try:
+                    enhanced_query = result.get('enhanced_query', query)
+                    retrieval_results = result.get('retrieval_results', [])
+                    original_confidence = result.get('confidence', 0.0)
+
+                    # Consider HyDE ineffective if it returned the original query or no results
+                    ineffective = (enhanced_query.strip() == query.strip()) or (not retrieval_results)
+                    if ineffective:
+                        # Log fallback triggered
+                        log_fallback_triggered(
+                            original_technique='hyde',
+                            fallback_technique='rewriting',
+                            original_confidence=original_confidence,
+                            query=query,
+                            reason="HyDE ineffective - no retrieval results or unchanged query"
+                        )
+
+                        fallback = self._apply_rewriting(query)
+                        # Mark fallback metadata
+                        fallback['technique_used'] = 'rewriting'
+                        fallback['fallback_from'] = 'hyde'
+                        return fallback
+                except Exception:
+                    # On any issue, degrade gracefully to rewriting
+                    log_fallback_triggered(
+                        original_technique='hyde',
+                        fallback_technique='rewriting',
+                        original_confidence=result.get('confidence', 0.0),
+                        query=query,
+                        reason="HyDE application failed with exception"
+                    )
+
+                    fallback = self._apply_rewriting(query)
+                    fallback['technique_used'] = 'rewriting'
+                    fallback['fallback_from'] = 'hyde'
+                    return fallback
+
+            return result
         except Exception as e:
+            # Log error confidence
+            log_error_confidence(
+                technique=technique,
+                error=str(e),
+                query=query
+            )
+
             return {
                 'enhanced': False,
                 'original_query': query,
@@ -307,23 +400,47 @@ class QueryEnhancementManager:
         recommended_techniques = classification['recommended_techniques']
 
         if not recommended_techniques:
+            confidence = DEFAULT_CONFIDENCE_SCORES.get('none', 0.5)
+
+            # Log confidence score
+            log_confidence_score(
+                technique='none',
+                confidence=confidence,
+                query=query,
+                reasoning="No suitable technique found",
+                context={}
+            )
+
             return {
                 'enhanced': False,
                 'original_query': query,
                 'enhanced_query': query,
                 'technique_used': 'none',
-                'reason': 'No techniques recommended by classifier'
+                'confidence': confidence,
+                'reason': 'No suitable technique found'
             }
 
         # Apply the highest priority technique that is enabled
         for technique_info in recommended_techniques:
             technique = technique_info['technique']
             if technique == 'bypass':
+                confidence = DEFAULT_CONFIDENCE_SCORES.get('bypass', 0.9)
+
+                # Log confidence score
+                log_confidence_score(
+                    technique='bypass',
+                    confidence=confidence,
+                    query=query,
+                    reasoning="Strategic classifier recommends bypassing enhancement",
+                    context={'classification': classification}
+                )
+
                 return {
                     'enhanced': False,
                     'original_query': query,
                     'enhanced_query': query,
                     'technique_used': 'bypass',
+                    'confidence': confidence,
                     'reason': 'Strategic classifier recommends bypassing enhancement'
                 }
 
@@ -334,11 +451,23 @@ class QueryEnhancementManager:
                 break
         else:
             # No enabled techniques found, fall back to no enhancement
+            confidence = DEFAULT_CONFIDENCE_SCORES.get('none', 0.5)
+
+            # Log confidence score
+            log_confidence_score(
+                technique='none',
+                confidence=confidence,
+                query=query,
+                reasoning="No enabled techniques available from classifier recommendations",
+                context={'recommended_techniques': recommended_techniques}
+            )
+
             return {
                 'enhanced': False,
                 'original_query': query,
                 'enhanced_query': query,
                 'technique_used': 'none',
+                'confidence': confidence,
                 'reason': 'No enabled techniques available from classifier recommendations'
             }
 
@@ -433,7 +562,7 @@ class QueryEnhancementManager:
         """
         analysis = {
             'length': len(query.split()),
-            'has_question_words': self._has_question_words(query),
+            'has_question_words': has_question_words(query),
             'is_complex': self.decomposer.should_decompose(query),
             'detected_language': self.translator.detect_language(query),
             'needs_translation': self.translator.should_translate(query),
@@ -442,23 +571,6 @@ class QueryEnhancementManager:
         }
 
         return analysis
-
-    def _has_question_words(self, query: str) -> bool:
-        """
-        Check if query contains question words.
-
-        Args:
-            query: Query to check
-
-        Returns:
-            True if question words are present
-        """
-        question_words = [
-            'what', 'how', 'why', 'when', 'where', 'who', 'which', 'whose',
-            '무엇', '어떻게', '왜', '언제', '어디', '누구', '어느', '누구의'
-        ]
-        query_lower = query.lower()
-        return any(word in query_lower for word in question_words)
 
     def _select_technique(self, analysis: Dict[str, Any]) -> Optional[str]:
         """
@@ -479,9 +591,7 @@ class QueryEnhancementManager:
                 return default_technique
 
         # Fallback to priority-based selection
-        priority_order = ['rewriting', 'step_back', 'decomposition', 'hyde', 'translation']
-
-        for technique in priority_order:
+        for technique in TECHNIQUE_PRIORITY_ORDER:
             if not techniques.get(technique, {}).get('enabled', False):
                 continue
 
@@ -528,39 +638,88 @@ class QueryEnhancementManager:
     def _apply_rewriting(self, query: str) -> Dict[str, Any]:
         """Apply query rewriting technique."""
         enhanced_query = self.rewriter.rewrite_query(query)
+        confidence = DEFAULT_CONFIDENCE_SCORES.get('rewriting', 0.8)
+
+        # Log confidence score
+        log_confidence_score(
+            technique='rewriting',
+            confidence=confidence,
+            query=query,
+            reasoning="Standard query rewriting applied",
+            context={'enhanced_query': enhanced_query}
+        )
+
         return {
             'enhanced': True,
             'original_query': query,
             'enhanced_query': enhanced_query,
             'technique_used': 'rewriting',
-            'confidence': 0.8
+            'confidence': confidence
         }
 
     def _apply_step_back(self, query: str) -> Dict[str, Any]:
         """Apply step-back prompting technique."""
         enhanced_query = self.step_back.step_back(query)
+        confidence = DEFAULT_CONFIDENCE_SCORES.get('step_back', 0.7)
+
+        # Log confidence score
+        log_confidence_score(
+            technique='step_back',
+            confidence=confidence,
+            query=query,
+            reasoning="Step-back prompting applied to generalize query",
+            context={'enhanced_query': enhanced_query}
+        )
+
         return {
             'enhanced': True,
             'original_query': query,
             'enhanced_query': enhanced_query,
             'technique_used': 'step_back',
-            'confidence': 0.7
+            'confidence': confidence
         }
 
     def _apply_decomposition(self, query: str) -> Dict[str, Any]:
-        """Apply query decomposition technique."""
+        """Apply query decomposition technique.
+
+        Confidence scoring:
+        - 0.9: Decomposition recommended and applied
+        - 0.0: Decomposition not needed
+        """
         decomposition_info = self.decomposer.enhance_complex_query(query)
+        should_decompose = decomposition_info['should_decompose']
+        confidence = DEFAULT_CONFIDENCE_SCORES.get('decomposition', 0.9) if should_decompose else 0.0
+
+        # Log confidence score
+        reasoning = "Query decomposition applied - complex query detected" if should_decompose else "Query decomposition not needed - simple query"
+        log_confidence_score(
+            technique='decomposition',
+            confidence=confidence,
+            query=query,
+            reasoning=reasoning,
+            context={
+                'should_decompose': should_decompose,
+                'decomposition_reason': decomposition_info.get('reason', 'N/A')
+            }
+        )
+
         return {
-            'enhanced': decomposition_info['should_decompose'],
+            'enhanced': should_decompose,
             'original_query': query,
             'enhanced_query': query,  # Decomposition doesn't produce a single query
             'technique_used': 'decomposition',
             'decomposition_info': decomposition_info,
-            'confidence': 0.9 if decomposition_info['should_decompose'] else 0.0
+            'confidence': confidence
         }
 
     def _apply_hyde(self, query: str) -> Dict[str, Any]:
-        """Apply HyDE technique with proper retrieval integration."""
+        """Apply HyDE technique with proper retrieval integration.
+
+        Confidence scoring:
+        - 0.9: Successful retrieval with results
+        - 0.6: Generated answer but no retrieval results
+        - 0.0: Complete failure or error
+        """
         try:
             # Generate hypothetical answer and retrieve documents using its embedding
             hyde_results = self.hyde.retrieve_with_hyde(query, top_k=5)
@@ -568,6 +727,19 @@ class QueryEnhancementManager:
             if hyde_results:
                 # Use the hypothetical answer as enhanced query for downstream processing
                 hypothetical_answer = self.hyde.generate_hypothetical_answer(query)
+                confidence = DEFAULT_CONFIDENCE_SCORES.get('hyde', 0.9)
+
+                # Log confidence score
+                log_confidence_score(
+                    technique='hyde',
+                    confidence=confidence,
+                    query=query,
+                    reasoning="HyDE applied successfully with retrieval results",
+                    context={
+                        'result_count': len(hyde_results),
+                        'hypothetical_answer': hypothetical_answer[:50] + '...'
+                    }
+                )
 
                 return {
                     'enhanced': True,
@@ -576,11 +748,25 @@ class QueryEnhancementManager:
                     'technique_used': 'hyde',
                     'retrieval_results': hyde_results,
                     'result_count': len(hyde_results),
-                    'confidence': 0.9
+                    'confidence': confidence
                 }
             else:
                 # Fallback to just generating hypothetical answer
                 hypothetical_answer = self.hyde.generate_hypothetical_answer(query)
+                confidence = 0.6  # Lower confidence without retrieval results
+
+                # Log confidence score
+                log_confidence_score(
+                    technique='hyde',
+                    confidence=confidence,
+                    query=query,
+                    reasoning="HyDE applied but no retrieval results found",
+                    context={
+                        'result_count': 0,
+                        'hypothetical_answer': hypothetical_answer[:50] + '...'
+                    }
+                )
+
                 return {
                     'enhanced': True,
                     'original_query': query,
@@ -588,11 +774,20 @@ class QueryEnhancementManager:
                     'technique_used': 'hyde',
                     'retrieval_results': [],
                     'result_count': 0,
-                    'confidence': 0.6
+                    'confidence': confidence
                 }
 
         except Exception as e:
             print(f"HyDE application failed: {e}")
+            confidence = 0.0  # Zero confidence on error
+
+            # Log error confidence
+            log_error_confidence(
+                technique='hyde',
+                error=str(e),
+                query=query
+            )
+
             # Fallback to original query
             return {
                 'enhanced': False,
@@ -600,20 +795,37 @@ class QueryEnhancementManager:
                 'enhanced_query': query,
                 'technique_used': 'hyde',
                 'error': str(e),
-                'confidence': 0.0
+                'confidence': confidence
             }
 
     def _apply_translation(self, query: str) -> Dict[str, Any]:
         """Apply query translation technique."""
         translation_info = self.translator.enhance_with_translation(query)
         enhanced_query = translation_info.get('translated_query', query)
+        translated = translation_info['translated']
+        confidence = DEFAULT_CONFIDENCE_SCORES.get('translation', 0.6)
+
+        # Log confidence score
+        reasoning = "Query translation applied" if translated else "Query translation not needed"
+        log_confidence_score(
+            technique='translation',
+            confidence=confidence,
+            query=query,
+            reasoning=reasoning,
+            context={
+                'translated': translated,
+                'target_language': translation_info.get('target_language', 'N/A'),
+                'enhanced_query': enhanced_query[:50] + '...' if len(enhanced_query) > 50 else enhanced_query
+            }
+        )
+
         return {
-            'enhanced': translation_info['translated'],
+            'enhanced': translated,
             'original_query': query,
             'enhanced_query': enhanced_query,
             'technique_used': 'translation',
             'translation_info': translation_info,
-            'confidence': 0.6
+            'confidence': confidence
         }
 
     def get_available_techniques(self) -> List[str]:
@@ -683,24 +895,6 @@ class QueryEnhancementManager:
             Classification category as string
         """
         # Enhanced classification prompt
-        prompt = """당신은 사용자 질문의 의도를 분석하여 가장 적절한 처리 방식을 결정하는 AI 분류 전문가입니다.
-다음 카테고리 중 하나로만 분류하여 그 키워드를 출력해야 합니다.
-
-[카테고리]
-- conversational: 사용자가 감정을 표현하거나, 인사하거나, AI 자체에 대해 묻는 등 정보 검색 목적이 아닌 일반 대화. (예: "고마워", "너는 누구니?", "오늘 기분 어때?", "요새 너무 힘들다")
-- conversational_follow_up: 이전 대화의 맥락 없이는 의미가 불분명한 후속 질문. (예: "그럼 그건 왜 그런데?", "다른 예시는 없어?")
-- simple_keyword: 명확한 키워드(고유명사, 전문 용어)를 포함하고 있어 추가적인 향상 없이도 검색이 가능한 직접적인 질문. (예: "엽록체의 역할은?", "라마 3.1 모델에 대해 알려줘.")
-- conceptual_vague: "방법", "원리", "영향", "이유", "차이점" 등 키워드가 아닌 개념에 대해 묻는 광범위하거나 추상적인 질문. (예: "공생과 기생의 차이점은?", "지구 온난화가 해양 생태계에 미치는 영향은?", "나무가 생태계에서 하는 역할에 대해 설명해줘.")
-
-[대화 기록]
-{conversation_history}
-
-[사용자 최근 질문]
-{query}
-
-[분류]
-출력은 카테고리 키워드만 출력하세요. 설명을 추가하지 마세요."""
-
         # Format conversation history
         if conversation_history:
             # Reconstruct history from the hashable tuple
@@ -710,10 +904,7 @@ class QueryEnhancementManager:
         else:
             history_text = "(이전 대화 없음)"
 
-        formatted_prompt = prompt.format(
-            conversation_history=history_text,
-            query=query
-        )
+        formatted_prompt = format_query_intent_prompt(query, history_text)
 
         try:
             # Use LLM client to classify
@@ -751,7 +942,7 @@ class QueryEnhancementManager:
 
     def _fallback_llm_classification(self, query: str) -> str:
         """
-        Fallback classification when LLM fails, using regex patterns.
+        Fallback classification when LLM fails, using centralized analysis module.
 
         Args:
             query: Query to classify
@@ -759,22 +950,21 @@ class QueryEnhancementManager:
         Returns:
             Classification category
         """
-        query_lower = query.lower()
+        try:
+            # Use centralized QueryAnalyzer for classification
+            features = self.query_analyzer.analyze_query(query)
 
-        # Check for conversational patterns
-        conversational_keywords = ['너', '너는', '너의', '안녕', '반가워', '고마워', '미안', '기분', '힘들', '좋아', '싫어']
-        if any(keyword in query_lower for keyword in conversational_keywords):
-            return 'conversational'
+            # Map query types to enhancement categories
+            # Check for conversational patterns using query features
+            query_lower = query.lower()
+            if has_conversational_indicators(query_lower):
+                return 'conversational'
 
-        # Check for simple keyword patterns
-        scientific_terms = ['dna', 'rna', '세포', '유전자', '단백질', '효소', '원자', '분자', '화학', '물리', '생물']
-        if any(term in query_lower for term in scientific_terms):
-            return 'simple_keyword'
+            # Return mapped classification
+            return QUERY_TYPE_MAPPING.get(features.query_type, "conceptual_vague")
 
-        # Check for conceptual patterns
-        conceptual_keywords = ['왜', '어떻게', '무엇을', '영향', '차이', '역할', '기능', '원리', '이유']
-        if any(keyword in query_lower for keyword in conceptual_keywords):
+        except Exception as e:
+            # Final fallback to conceptual_vague
+            import logging
+            logging.warning(f"Centralized classification failed: {e}, using default")
             return 'conceptual_vague'
-
-        # Default to conceptual_vague
-        return 'conceptual_vague'

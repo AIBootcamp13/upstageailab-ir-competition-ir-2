@@ -16,10 +16,10 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 try:
-    from switch_config import get_current_documents_path
+    from ir_core.utils import get_current_documents_path
     DATA_PATH = Path(get_current_documents_path())
 except ImportError:
-    # Fallback if switch_config is not available
+    # Fallback if utils module is not available
     DATA_PATH = Path("data/documents_ko.jsonl")
 
 if not DATA_PATH.exists():

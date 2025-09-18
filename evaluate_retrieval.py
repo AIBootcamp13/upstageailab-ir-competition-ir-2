@@ -162,11 +162,11 @@ class RetrievalEvaluator:
         print(f"{'='*60}")
 
         print(f"Total Queries: {metrics.total_queries}")
-        print(".3f")
-        print(".1%")
-        print(".1%")
-        print(".1%")
-        print(".1f")
+        print(f"Avg Execution Time: {metrics.avg_execution_time:.3f}s")
+        print(f"Top-1 Hit Rate:     {metrics.top1_hit_rate:.1%}")
+        print(f"Top-3 Hit Rate:     {metrics.top3_hit_rate:.1%}")
+        print(f"Top-5 Hit Rate:     {metrics.top5_hit_rate:.1%}")
+        print(f"Avg Retrieved Docs: {metrics.avg_retrieved_docs:.1f}")
 
         print(f"\nSCORE DISTRIBUTIONS:")
         for score_type, scores in metrics.score_distributions.items():

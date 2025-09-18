@@ -138,18 +138,22 @@ class Settings(BaseSettings):
 			'sentence-transformers/all-minilm-l6-v2': 384,
 			'snunlp/kr-sbert-v40k-kluenli-augsts': 768,
 			'jhgan/ko-sroberta-multitask': 768,
-			'klue/roberta-base': 768
+			'klue/roberta-base': 768,
+			'EleutherAI/polyglot-ko-1.3b': 2048,
+			'EleutherAI/polyglot-ko-3.8b': 3072,
+			'EleutherAI/polyglot-ko-5.8b': 4096,
+			'EleutherAI/polyglot-ko-12.8b': 5120
 		}
 
 		# Get expected dimension for current model
 		expected_dim = None
 		for model_key, dim in model_dimensions.items():
-			if model_key in embedding_model:
+			if model_key.lower() == embedding_model:
 				expected_dim = dim
 				break
 
 		# Korean models should use Korean indices
-		if 'kr-sbert' in embedding_model or 'klue' in embedding_model or 'ko-s' in embedding_model:
+		if any(korean_model in embedding_model for korean_model in ['snunlp/kr-sbert', 'klue/roberta-base', 'jhgan/ko-sroberta', 'EleutherAI/polyglot-ko']):
 			if 'en' in index_name and 'ko' not in index_name and 'bilingual' not in index_name:
 				warnings.append(
 					f"WARNING: Korean embedding model '{self.EMBEDDING_MODEL}' ({expected_dim}d) detected "
@@ -165,7 +169,7 @@ class Settings(BaseSettings):
 				)
 
 		# English models should use English indices
-		elif 'minilm' in embedding_model or 'all-mpnet' in embedding_model:
+		elif any(english_model in embedding_model for english_model in ['sentence-transformers/all-minilm', 'sentence-transformers/all-mpnet']):
 			if 'korean' in index_name or ('ko' in index_name and 'en' not in index_name and 'bilingual' not in index_name):
 				warnings.append(
 					f"WARNING: English embedding model '{self.EMBEDDING_MODEL}' ({expected_dim}d) detected "
@@ -180,7 +184,7 @@ class Settings(BaseSettings):
 				)		# Check translation settings
 		translation_enabled = getattr(self, 'translation', {}).get('enabled', False)
 		if translation_enabled:
-			if 'kr-sbert' in embedding_model or 'klue' in embedding_model:
+			if any(korean_model in embedding_model for korean_model in ['snunlp/kr-sbert', 'klue/roberta-base', 'jhgan/ko-sroberta', 'EleutherAI/polyglot-ko']):
 				warnings.append(
 					"INFO: Translation is enabled but Korean embedding model is configured. "
 					"Translation may not be needed for Korean queries."

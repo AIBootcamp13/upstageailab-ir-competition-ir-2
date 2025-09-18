@@ -2,17 +2,7 @@
 """
 Data Management Menu Module for RAG CLI
 
-This module provi        # Check if data files exist
-        data_dir = self.project_root / "data"
-        documents_file = data_dir / Path(self.get_current_documents_path()).name
-        results["data_files_exist"] = documents_file.exists()        try:
-            result = subprocess.run(
-                ["curl", "-s", "http://localhost:9200/_cluster/health"],
-                capture_output=True, timeout=5
-            )
-            results["elasticsearch_connection"] = result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
-            results["elasticsearch_connection"] = Falseessing and indexing commands for the CLI menu system.
+This module provides data processing and indexing commands for the CLI menu system.
 It handles document indexing, data analysis, and duplicate detection.
 """
 
@@ -34,12 +24,13 @@ class DataManagementMenu(BaseMenuModule):
     def get_current_documents_path(self) -> str:
         """Get the current documents path from the active data configuration"""
         try:
-            # Import here to avoid circular imports
-            sys.path.insert(0, str(self.project_root))
-            from switch_config import get_current_documents_path
+            # Import from the proper utils module
+            import sys
+            sys.path.insert(0, str(self.project_root / "src"))
+            from ir_core.utils import get_current_documents_path
             return get_current_documents_path()
         except ImportError:
-            # Fallback if switch_config is not available
+            # Fallback if utils module is not available
             return "data/documents_ko.jsonl"
 
     def get_commands(self) -> Dict[str, List[Dict]]:

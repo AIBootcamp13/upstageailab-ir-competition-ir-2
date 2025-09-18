@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json
 import logging
 from typing import cast
 from tqdm import tqdm
@@ -98,6 +99,53 @@ def run(cfg: DictConfig) -> None:
     logger.info(f"Validation file: {cfg.data.validation_path}")
     logger.info(f"Debug mode: {getattr(cfg, 'debug', False)}")
     logger.info(f"Debug limit: {getattr(cfg, 'debug_limit', 'unlimited')}")
+
+    # Handle output file generation
+    generate_output = getattr(cfg, 'generate_output', False)
+    if generate_output:
+        # Get default output path from data config
+        default_output_path = getattr(cfg.data, 'output_path', 'outputs/submission.jsonl')
+
+        # Check if custom output file is specified
+        if hasattr(cfg, 'custom_output_file') and cfg.custom_output_file:
+            custom_file = cfg.custom_output_file
+            # If custom file doesn't have directory, put it in outputs/
+            if '/' not in custom_file and '\\' not in custom_file:
+                custom_file = f"outputs/{custom_file}"
+            output_path = custom_file
+            logger.info(f"Using custom output file: {output_path}")
+        else:
+            output_path = default_output_path
+            logger.info(f"Using default output file: {output_path}")
+
+        # Ask for confirmation
+        import questionary
+        confirmed = questionary.confirm(
+            f"Generate output file: {output_path}?",
+            default=True
+        ).ask()
+
+        if not confirmed:
+            new_path = questionary.text(
+                "Enter new output file path:",
+                default=output_path
+            ).ask()
+            if new_path:
+                output_path = new_path
+            else:
+                generate_output = False
+                logger.info("Output file generation cancelled")
+
+        if generate_output:
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+                logger.info(f"Removed existing output file: {output_path}")
+    else:
+        output_path = None
+        logger.info("Output file generation disabled")
 
     # 필요한 모듈들을 지연 임포트합니다.
     from ir_core.config import settings
@@ -392,6 +440,39 @@ def run(cfg: DictConfig) -> None:
 
     if wandb.run is not None:
         logger.info(f"WandB 실행 URL: {wandb.run.url}")
+
+    # Generate output file if requested
+    if generate_output and output_path:
+        logger.info(f"📝 Generating output file: {output_path}")
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for i, (query_data, retrieval_result) in enumerate(zip(queries_data, retrieval_results_data)):
+                    # Create submission entry
+                    submission_entry = {
+                        "id": i,
+                        "question": query_data["msg"][0]["content"],
+                        "retrieved_docs": []
+                    }
+
+                    # Add retrieved documents
+                    docs = retrieval_result.get("docs", [])
+                    if docs and isinstance(docs, list):
+                        for doc in docs:
+                            if isinstance(doc, dict):
+                                submission_entry["retrieved_docs"].append({
+                                    "doc_id": doc.get("doc_id", ""),
+                                    "score": doc.get("score", 0.0)
+                                })
+
+                    # Write JSONL entry
+                    f.write(json.dumps(submission_entry, ensure_ascii=False) + '\n')
+
+            logger.info(f"✅ Successfully generated output file: {output_path}")
+            logger.info(f"📊 Generated {len(queries_data)} entries")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to generate output file: {e}")
+
     wandb.finish()
 
 

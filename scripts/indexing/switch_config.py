@@ -23,6 +23,15 @@ yaml_handler.indent(mapping=2, sequence=4, offset=2)
 PROFILES_PATH = Path(__file__).parent / "conf" / "embedding_profiles.yaml"
 SETTINGS_PATH = Path(__file__).parent / "conf" / "settings.yaml"
 
+def load_profiles() -> Dict[str, Any]:
+    """Load all profiles from settings.yaml."""
+    if not SETTINGS_PATH.exists():
+        print("❌ settings.yaml not found.")
+        return {}
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    return data.get('profiles', {})
+
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""
     settings_file = Path(__file__).parent / "conf" / "settings.yaml"
@@ -101,22 +110,13 @@ def load_data_config() -> Dict[str, Any]:
             'documents_path': 'data/documents_ko.jsonl',
             'validation_path': 'data/validation_balanced.jsonl',
             'evaluation_path': 'data/eval.jsonl',
-            'output_path': 'outputs/submission_ko.csv'
+            'output_path': 'outputs/submission_ko.jsonl'
         }
 
 def get_current_documents_path() -> str:
     """Get the current documents path from the active data configuration"""
     data_config = load_data_config()
     return data_config.get('documents_path', 'data/documents_ko.jsonl')
-
-def load_profiles() -> Dict[str, Any]:
-    """Load all embedding profiles from the configuration file."""
-    if not PROFILES_PATH.exists():
-        print(f"❌ Error: Profiles file not found at {PROFILES_PATH}")
-        return {}
-
-    with open(PROFILES_PATH, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 def switch_to_profile(profile_name: str) -> None:
     """Switch configuration to a named profile."""

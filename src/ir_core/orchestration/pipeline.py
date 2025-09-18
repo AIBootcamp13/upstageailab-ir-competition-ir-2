@@ -11,6 +11,9 @@ from rich import print as rprint
 from rich.panel import Panel
 from rich.text import Text
 
+# Simple toggle for rich logging - set RAG_SIMPLE_LOGGING=1 to disable rich output
+USE_RICH_LOGGING = os.getenv('RAG_SIMPLE_LOGGING', '0') != '1'
+
 from ..generation.base import BaseGenerator
 from ..generation import get_generator
 from ..tools.dispatcher import default_dispatcher, ToolDispatcher
@@ -96,6 +99,7 @@ class RAGPipeline:
         """
         평가 목적으로 파이프라인의 검색 부분만 실행합니다.
         """
+        technique_used: str = 'none'
         # --- 1단계: 쿼리 개선 ---
         if self.enhancement_manager:
             # Use new query enhancement system
@@ -104,8 +108,12 @@ class RAGPipeline:
             # Check if enhancement was bypassed (conversational queries)
             if enhancement_result.get('technique_used') == 'CONVERSATIONAL_SKIP':
                 reason = enhancement_result.get('reason', 'unknown')
-                rprint(f"[dim cyan]쿼리 개선 우회:[/dim cyan] [yellow]'{query}'[/yellow] [dim](유형: {reason})[/dim]")
-                return [{"standalone_query": query, "docs": []}]
+                if USE_RICH_LOGGING:
+                    rprint(f"[dim cyan]쿼리 개선 우회:[/dim cyan] [yellow]'{query}'[/yellow] [dim](유형: {reason})[/dim]")
+                else:
+                    print(f"Query enhancement bypassed: {query} (type: {reason})")
+                technique_used = 'CONVERSATIONAL_SKIP'
+                return [{"standalone_query": query, "docs": [], "technique_used": technique_used}]
 
             enhanced_query = enhancement_result.get('enhanced_query', query)
             technique_used = enhancement_result.get('technique_used', 'none')
@@ -114,8 +122,11 @@ class RAGPipeline:
             if technique_used == 'hyde' and 'retrieval_results' in enhancement_result:
                 hyde_results = enhancement_result['retrieval_results']
                 if hyde_results:
-                    rprint(f"[bold green]HyDE 검색 결과 사용:[/bold green] [yellow]'{query}'[/yellow] -> [green]{len(hyde_results)}개 문서 발견[/green]")
-                    return [{"standalone_query": enhanced_query, "docs": hyde_results}]
+                    if USE_RICH_LOGGING:
+                        rprint(f"[bold green]HyDE 검색 결과 사용:[/bold green] [yellow]'{query}'[/yellow] -> [green]{len(hyde_results)}개 문서 발견[/green]")
+                    else:
+                        print(f"HyDE retrieval results used: {query} -> {len(hyde_results)} documents found")
+                    return [{"standalone_query": enhanced_query, "docs": hyde_results, "technique_used": technique_used}]
 
             # Create structured output for query enhancement
             # original_text = Text(f"원본 쿼리: {query}", style="bold red")
@@ -144,32 +155,64 @@ class RAGPipeline:
             enhancement_content.append("\nTechnique Used: ", style="bold blue")
             enhancement_content.append(technique_used, style="white")
 
+            # Add confidence score if available
+            confidence = enhancement_result.get('confidence')
+            if confidence is not None:
+                enhancement_content.append("\nConfidence Score: ", style="bold yellow")
+                # Format confidence with color coding
+                if confidence >= 0.8:
+                    confidence_style = "green"
+                elif confidence >= 0.5:
+                    confidence_style = "yellow"
+                else:
+                    confidence_style = "red"
+                enhancement_content.append(f"{confidence:.2f}", style=confidence_style)
+
             enhanced_panel = Panel.fit(
                 enhancement_content,
                 title="[bold green]Enhancement Result[/bold green]",
                 border_style="green"
             )
 
-            rprint(original_panel)
-            rprint(enhanced_panel)
+            # Display enhancement results
+            if USE_RICH_LOGGING:
+                rprint(original_panel)
+                rprint(enhanced_panel)
+            else:
+                # Simple LM-friendly logging
+                print(f"Original Query: {query}")
+                print(f"Enhanced Query: {enhanced_query}")
+                print(f"Technique Used: {technique_used}")
+                if confidence is not None:
+                    print(f"Confidence Score: {confidence:.2f}")
 
 
         elif self.query_rewriter:
             # Fallback to old rewriter for backward compatibility
             enhanced_query = self.query_rewriter.rewrite_query(query)
-            original_text = Text(f"원본 쿼리: {query}", style="bold red")
-            enhanced_text = Text(f"재작성된 쿼리: {enhanced_query}", style="bold green")
+            technique_used = 'rewriting'
+            if USE_RICH_LOGGING:
+                original_text = Text(f"원본 쿼리: {query}", style="bold red")
+                enhanced_text = Text(f"재작성된 쿼리: {enhanced_query}", style="bold green")
 
-            panel = Panel.fit(
-                f"{original_text}\n{enhanced_text}",
-                title="[bold cyan]쿼리 재작성 결과[/bold cyan]",
-                border_style="cyan"
-            )
-            rprint(panel)
+                panel = Panel.fit(
+                    f"{original_text}\n{enhanced_text}",
+                    title="[bold cyan]쿼리 재작성 결과[/bold cyan]",
+                    border_style="cyan"
+                )
+                rprint(panel)
+            else:
+                print(f"Original Query: {query}")
+                print(f"Rewritten Query: {enhanced_query}")
+                print(f"Technique Used: rewriting")
         else:
             # No enhancement
             enhanced_query = query
-            rprint(f"[dim yellow]쿼리 개선 없이 사용:[/dim yellow] [yellow]'{query}'[/yellow]")
+            technique_used = 'none'
+            if USE_RICH_LOGGING:
+                rprint(f"[dim yellow]쿼리 개선 없이 사용:[/dim yellow] [yellow]'{query}'[/yellow]")
+            else:
+                print(f"No query enhancement used: {query}")
 
         tools = [cast(Any, get_tool_definition(self.tool_prompt_description))]
 
@@ -220,12 +263,12 @@ class RAGPipeline:
                     tool_name=tool_name,
                     tool_args_json=tool_args_json
                 )
-                return [{"standalone_query": enhanced_query, "docs": tool_result}]
+                return [{"standalone_query": enhanced_query, "docs": tool_result, "technique_used": technique_used}]
             else:
-                return [{"standalone_query": enhanced_query, "docs": []}]
+                return [{"standalone_query": enhanced_query, "docs": [], "technique_used": technique_used}]
         except Exception as e:
             print(f"'{query}' 쿼리에 대한 검색 중 오류 발생: {e}")
-            return [{"standalone_query": enhanced_query, "docs": []}]
+            return [{"standalone_query": enhanced_query, "docs": [], "technique_used": technique_used}]
 
     def run(self, query: str) -> str:
         """
@@ -246,7 +289,7 @@ class RAGPipeline:
             final_answer = self.generator.generate(
                 query=standalone_query,
                 context_docs=[],
-                prompt_template_path="prompts/error_fallback_v1.jinja2" # Use a conversational template for error messages
+                prompt_template_path="prompts/error_fallback/error_fallback_v1.jinja2" # Use a conversational template for error messages
             )
             return final_answer
 
@@ -264,11 +307,8 @@ class RAGPipeline:
                 """
                 return self.generator.generate(query=conversational_prompt, context_docs=[])
 
-        if docs and isinstance(docs, list):
-            context_docs_content = [item.get('content', '') for item in docs if isinstance(item, dict)]
-            # 최종 답변 생성 시에도 명확성을 위해 재작성된 쿼리를 사용합니다.
-            final_answer = self.generator.generate(query=standalone_query, context_docs=context_docs_content)
-        else:
-            final_answer = self.generator.generate(query=query, context_docs=[])
+        # Always run generation; if no docs, generate with empty context
+        context_docs_content = [item.get('content', '') for item in docs if isinstance(item, dict)] if isinstance(docs, list) else []
+        final_answer = self.generator.generate(query=standalone_query, context_docs=context_docs_content)
 
         return final_answer

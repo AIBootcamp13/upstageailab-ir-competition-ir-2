@@ -85,7 +85,7 @@ def main():
             "Usage: python trim_submission.py <input_file> <output_file> [max_length]"
         )
         print(
-            "Example: python trim_submission.py outputs/submission.csv outputs/submission_trimmed.csv 500"
+            "Example: python trim_submission.py outputs/submission.jsonl outputs/submission_trimmed.jsonl 500"
         )
         sys.exit(1)
 
