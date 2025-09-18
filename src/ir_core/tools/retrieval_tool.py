@@ -46,11 +46,17 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
 
     formatted_results = []
     for hit in retrieved_hits:
-        inner = hit.get("hit", {})
-        source_doc = inner.get("_source", {})
-        doc_id = source_doc.get("docid") or inner.get("_id")
+        # Access the result directly (not nested under "hit" key)
+        source_doc = hit.get("_source", {})
+        doc_id = source_doc.get("docid") or hit.get("_id")
         content = source_doc.get("content", "No content available.")
-        score = hit.get("score")
+        score = hit.get("score", 0.0)
+
+        # Extract preserved scores
+        rrf_score = hit.get("rrf_score", 0.0)
+        sparse_score = hit.get("sparse_score", 0.0)
+        dense_score = hit.get("dense_score", 0.0)
+        es_score = hit.get("_score", 0.0)
 
         # Handle NaN values by converting them to 0.0
         if score is not None and not math.isnan(score):
@@ -62,7 +68,11 @@ def scientific_search(query: str, top_k: int = 5, use_profiling_insights: Option
             formatted_results.append({
                 "id": doc_id,
                 "content": content,
-                "score": score
+                "score": score,
+                "rrf_score": rrf_score,
+                "sparse_score": sparse_score,
+                "dense_score": dense_score,
+                "es_score": es_score
             })
 
     # ID를 기준으로 중복을 제거하면서 순서를 보존합니다.

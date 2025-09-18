@@ -206,21 +206,27 @@ def evaluate_fine_tuned_model(
     }
 
 
-@hydra.main(config_path="../../conf", config_name="settings", version_base=None)
-def main(cfg: DictConfig):
+# @hydra.main(config_path="../../conf", config_name="settings", version_base=None)
+def main(cfg=None):
     """Main function for testing fine-tuned models."""
     _add_src_to_path()
 
-    # Configuration
-    fine_tune_config = cfg.get("fine_tune", {})
-    embedding_model_path = fine_tune_config.get("output_dir", "models/fine_tuned_embedding")
-    reranker_model_path = fine_tune_config.get("output_dir", "models/fine_tuned_reranker")
+    # Configuration - use defaults if cfg is None
+    if cfg is None:
+        fine_tune_config = {}
+        embedding_model_path = "models/fine_tuned_embedding"
+        reranker_model_path = "models/fine_tuned_reranker"
+        enhanced_data_path = "data/eval_enhanced.jsonl"
+    else:
+        fine_tune_config = cfg.get("fine_tune", {})
+        embedding_model_path = fine_tune_config.get("output_dir", "models/fine_tuned_embedding")
+        reranker_model_path = fine_tune_config.get("output_dir", "models/fine_tuned_reranker")
 
-    # Override with specific paths if provided
-    embedding_model_path = cfg.get("test_fine_tuned", {}).get("embedding_model_path", embedding_model_path)
-    reranker_model_path = cfg.get("test_fine_tuned", {}).get("reranker_model_path", reranker_model_path)
+        # Override with specific paths if provided
+        embedding_model_path = cfg.get("test_fine_tuned", {}).get("embedding_model_path", embedding_model_path)
+        reranker_model_path = cfg.get("test_fine_tuned", {}).get("reranker_model_path", reranker_model_path)
 
-    enhanced_data_path = cfg.get("enhanced_validation", {}).get("output_file", "data/eval_enhanced.jsonl")
+        enhanced_data_path = cfg.get("enhanced_validation", {}).get("output_file", "data/eval_enhanced.jsonl")
 
     print("=== Testing Fine-tuned Retrieval Models ===")
     print(f"Embedding model: {embedding_model_path}")
@@ -241,8 +247,8 @@ def main(cfg: DictConfig):
     metrics = evaluate_fine_tuned_model(retriever, test_data, top_k=3)
 
     print("\n=== Evaluation Results ===")
-    print(".3f")
-    print(".3f")
+    print(f"Recall@3: {metrics['recall_at_k']:.3f}")
+    print(f"Precision@3: {metrics['precision_at_k']:.3f}")
     print(f"Total queries evaluated: {metrics['total_queries']}")
 
     # Save results
@@ -254,5 +260,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    main()</content>
-<parameter name="filePath">/home/wb2x/workspace/information_retrieval_rag/scripts/test_fine_tuned_models.py
+    main()

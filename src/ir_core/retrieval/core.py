@@ -22,6 +22,7 @@ from .insights_manager import (
     get_memory_recommendation,
     get_query_expansion_terms
 )
+from .keywords_integration import get_curated_keywords_integrator, enhance_query_with_curated_keywords
 from ..generation import get_generator
 from omegaconf import OmegaConf
 import os
@@ -49,30 +50,45 @@ def build_flexible_match_query(query: str, size: int) -> dict:
     - keywords: Extracted keywords (high boost)
     - hypothetical_questions: Generated questions (high boost)
     """
-    # Extract dynamic keywords from the query
+    # Extract dynamic keywords from the query using LLM
     dynamic_keywords = _extract_keywords_from_query(query)
+
+    # Enhance with curated scientific keywords (improved with similarity threshold)
+    try:
+        integrator = get_curated_keywords_integrator()
+        enhanced_query, all_keywords = integrator.enhance_query_with_keywords(
+            query, dynamic_keywords, use_semantic_matching=True, max_additional=3
+        )
+
+        # Use all keywords (LLM + curated) for the keywords field
+        combined_keywords = all_keywords if all_keywords else dynamic_keywords
+
+    except Exception as e:
+        print(f"Warning: Curated keywords integration failed: {e}")
+        enhanced_query = query
+        combined_keywords = dynamic_keywords
 
     # Build multi-field query with appropriate boosts
     bool_query = {
         "should": [
             # Highest boost for keywords field - direct keyword matches are very strong signals
-            {"match": {"keywords": {"query": ' '.join(dynamic_keywords), "boost": 4.0}}},
+            {"match": {"keywords": {"query": ' '.join(combined_keywords), "boost": 4.0}}},
             # High boost for hypothetical questions - these are phrased like user queries
-            {"match": {"hypothetical_questions": {"query": query, "boost": 3.0}}},
+            {"match": {"hypothetical_questions": {"query": enhanced_query, "boost": 3.0}}},
             # Medium boost for summary - concise version of document content
-            {"match": {"summary": {"query": query, "boost": 2.0}}},
+            {"match": {"summary": {"query": enhanced_query, "boost": 2.0}}},
             # Default boost for full content - comprehensive but less specific
-            {"match": {"content": {"query": query, "boost": 1.0}}}
+            {"match": {"content": {"query": enhanced_query, "boost": 1.0}}}
         ],
         "minimum_should_match": 1  # At least one field must match
     }
 
     # Add phrase matching for better precision on Korean queries
-    if any('\uac00' <= char <= '\ud7a3' for char in query):
+    if any('\uac00' <= char <= '\ud7a3' for char in enhanced_query):
         bool_query["should"].append({
             "match_phrase": {
                 "content": {
-                    "query": query,
+                    "query": enhanced_query,
                     "slop": 2,  # Allow some reordering
                     "boost": 1.5
                 }
@@ -161,38 +177,44 @@ def reciprocal_rank_fusion(
         k: RRF constant (typically 60)
 
     Returns:
-        Combined and re-ranked results
+        Combined and re-ranked results with preserved original scores
     """
     # Create a mapping of document IDs to their results
     doc_map = {}
 
     # Process sparse results
     for rank, result in enumerate(sparse_results, 1):
-        doc_id = result.get("hit", {}).get("_source", {}).get("docid") or result.get("hit", {}).get("_id")
+        doc_id = result.get("_source", {}).get("docid") or result.get("_id")
         if doc_id:
             if doc_id not in doc_map:
                 doc_map[doc_id] = {
                     "result": result,
                     "rrf_score": 0.0,
                     "sparse_rank": rank,
-                    "dense_rank": None
+                    "dense_rank": None,
+                    "sparse_score": result.get("_score", 0.0),
+                    "dense_score": None
                 }
             else:
                 doc_map[doc_id]["sparse_rank"] = rank
+                doc_map[doc_id]["sparse_score"] = result.get("_score", 0.0)
 
     # Process dense results
     for rank, result in enumerate(dense_results, 1):
-        doc_id = result.get("hit", {}).get("_source", {}).get("docid") or result.get("hit", {}).get("_id")
+        doc_id = result.get("_source", {}).get("docid") or result.get("_id")
         if doc_id:
             if doc_id not in doc_map:
                 doc_map[doc_id] = {
                     "result": result,
                     "rrf_score": 0.0,
                     "sparse_rank": None,
-                    "dense_rank": rank
+                    "dense_rank": rank,
+                    "sparse_score": None,
+                    "dense_score": result.get("score", 0.0)
                 }
             else:
                 doc_map[doc_id]["dense_rank"] = rank
+                doc_map[doc_id]["dense_score"] = result.get("score", 0.0)
 
     # Calculate RRF scores
     for doc_id, doc_info in doc_map.items():
@@ -205,6 +227,18 @@ def reciprocal_rank_fusion(
             rrf_score += 1.0 / (k + doc_info["dense_rank"])
 
         doc_info["rrf_score"] = rrf_score
+
+        # Preserve original scores in the result
+        result = doc_info["result"]
+        # Add RRF score
+        result["rrf_score"] = rrf_score
+        # Preserve original scores
+        if doc_info["sparse_score"] is not None:
+            result["sparse_score"] = doc_info["sparse_score"]
+        if doc_info["dense_score"] is not None:
+            result["dense_score"] = doc_info["dense_score"]
+        # Set the final score to RRF score for compatibility
+        result["score"] = rrf_score
 
     # Sort by RRF score (descending) and return results
     sorted_docs = sorted(doc_map.values(), key=lambda x: x["rrf_score"], reverse=True)
@@ -223,6 +257,9 @@ def hybrid_retrieve(
     """
     Enhanced hybrid retrieval with RRF (Reciprocal Rank Fusion) support.
 
+    This function now uses the new modular RetrievalPipeline for better maintainability.
+    The original monolithic implementation has been refactored into separate components.
+
     Args:
         query: Search query string
         bm25_k: Number of BM25 results to retrieve
@@ -231,275 +268,18 @@ def hybrid_retrieve(
         use_profiling_insights: Whether to apply profiling-based optimizations
         use_rrf: Whether to use RRF instead of alpha-based weighting
     """
-    bm25_k = bm25_k or settings.BM25_K
-    rerank_k = rerank_k or settings.RERANK_K
+    from .retrieval_pipeline import RetrievalPipeline
 
-    # --- NEW: Apply profiling insights for query enhancement ---
-    enhanced_query = query
-    query_expansion_terms = []
-    domain_routing = None
+    # Create pipeline with existing Redis client
+    alpha = alpha if alpha is not None else settings.ALPHA
+    pipeline = RetrievalPipeline(
+        redis_client=redis_client,
+        use_rrf=use_rrf,
+        alpha=alpha
+    )
 
-    # Get profiling insights configuration
-    insights_config = getattr(settings, 'profiling_insights', {})
-    use_query_expansion = insights_config.get('use_query_expansion', True)
-    use_domain_routing = insights_config.get('use_domain_routing', True)
-    use_memory_optimization = insights_config.get('use_memory_optimization', True)
-    query_expansion_terms_count = insights_config.get('query_expansion_terms', 3)
-
-    if use_profiling_insights and settings.PROFILE_REPORT_DIR and use_query_expansion:
-        try:
-            # Get query expansion terms based on vocabulary overlap
-            # Use a representative source or try multiple sources
-            insights = insights_manager.get_insights()
-            vocab_sources = list(insights.get('vocab_overlap', {}).keys())
-
-            if vocab_sources:
-                # Use the first source as representative for query expansion
-                representative_src = vocab_sources[0]
-                query_expansion_terms = get_query_expansion_terms(representative_src, top_k=query_expansion_terms_count)
-
-                # Enhance query with expansion terms if they seem relevant
-                if query_expansion_terms:
-                    # Simple relevance check: if expansion terms appear in query, boost them
-                    query_lower = query.lower()
-                    relevant_terms = [term for term in query_expansion_terms
-                                    if term.lower() in query_lower or
-                                       any(word in query_lower for word in term.split())]
-
-                    if relevant_terms:
-                        enhanced_query = f"{query} {' '.join(relevant_terms)}"
-                        print(f"Enhanced query with expansion terms: {enhanced_query}")
-
-        except Exception as e:
-            print(f"Warning: Failed to apply query expansion: {e}")
-
-    # Use enhanced query for BM25 retrieval
-    bm25_hits = sparse_retrieve(enhanced_query, size=bm25_k)
-
-    # --- NEW: Apply domain-based filtering if routing was determined ---
-    if use_profiling_insights and domain_routing and use_domain_routing:
-        try:
-            # Filter results to preferred domains based on clustering
-            filtered_hits = []
-            for hit in bm25_hits:
-                src = hit.get("_source", {}).get("src", "")
-                if src:
-                    cluster_info = get_domain_cluster(src)
-                    if cluster_info.get("cluster_id") == domain_routing.get("target_cluster"):
-                        filtered_hits.append(hit)
-
-            # If we have filtered results, use them; otherwise fall back to all
-            if filtered_hits:
-                bm25_hits = filtered_hits[:bm25_k]  # Maintain original size limit
-                print(f"Applied domain routing: {len(filtered_hits)} results from target cluster")
-        except Exception as e:
-            print(f"Warning: Failed to apply domain filtering: {e}")
-
-    if not bm25_hits:
-        return []
-
-    # --- Enhanced Caching Logic with Memory Optimization ---
-    doc_embs = []
-    texts_to_encode = []
-    indices_to_encode = [] # Keep track of which documents need encoding
-
-    # Determine optimal batch size based on profiling insights
-    optimal_batch_size = insights_config.get('memory_batch_fallback', 16)  # default from config
-    if use_profiling_insights and bm25_hits and use_memory_optimization:
-        try:
-            # Get memory recommendations from a sample source
-            sample_src = bm25_hits[0].get("_source", {}).get("src", "")
-            if sample_src:
-                memory_rec = get_memory_recommendation(sample_src)
-                optimal_batch_size = memory_rec.get("batch_size", optimal_batch_size)
-                print(f"Using optimized batch size: {optimal_batch_size} (based on {memory_rec.get('avg_tokens', 'N/A')} avg tokens)")
-        except Exception as e:
-            print(f"Warning: Failed to get memory optimization: {e}")
-
-    if redis_client:
-        # 1. Try to fetch embeddings from Redis cache first
-        doc_ids = []
-        for h in bm25_hits:
-            if isinstance(h, dict):
-                doc_ids.append(h.get("_id", ""))
-            elif isinstance(h, str):
-                doc_ids.append(h)
-            else:
-                doc_ids.append(str(h) if h else "")
-        cached_embs_raw = cast(List[Any], redis_client.mget(doc_ids))
-
-        for i, emb_raw in enumerate(cached_embs_raw):
-            if emb_raw:
-                # If found in cache, decode it
-                doc_embs.append(np.frombuffer(emb_raw, dtype=np.float32))
-            else:
-                # If not found, mark it for encoding
-                doc_embs.append(None) # Placeholder
-                if isinstance(bm25_hits[i], dict):
-                    texts_to_encode.append(bm25_hits[i].get("_source", {}).get("content", ""))
-                else:
-                    texts_to_encode.append(str(bm25_hits[i]) if bm25_hits[i] else "")
-                indices_to_encode.append(i)
-    else:
-        # If Redis is not available, encode everything
-        texts_to_encode = []
-        for h in bm25_hits:
-            if isinstance(h, dict):
-                texts_to_encode.append(h.get("_source", {}).get("content", ""))
-            else:
-                texts_to_encode.append(str(h) if h else "")
-        indices_to_encode = list(range(len(bm25_hits)))
-        doc_embs = [None] * len(bm25_hits)
-
-
-    # 2. Encode only the texts that were not in the cache
-    if texts_to_encode:
-        newly_encoded_embs = encode_texts(texts_to_encode)
-
-        # 3. Fill in the missing embeddings and update the cache
-        if redis_client:
-            pipe = redis_client.pipeline()
-            for i, emb in zip(indices_to_encode, newly_encoded_embs):
-                doc_id = bm25_hits[i]["_id"]
-                doc_embs[i] = emb
-                # Cache the newly encoded embedding for future use
-                pipe.set(doc_id, emb.tobytes())
-            pipe.execute()
-        else:
-             for i, emb in zip(indices_to_encode, newly_encoded_embs):
-                doc_embs[i] = emb
-
-    # Ensure all embeddings are now populated
-    doc_embs_np = np.array(doc_embs, dtype=np.float32)
-
-    # --- End of Caching Logic ---
-
-    q_emb = encode_query(query)
-
-    # Validate query embedding for NaN/inf values
-    if np.isnan(q_emb).any() or np.isinf(q_emb).any():
-        print(f"⚠️  Invalid query embedding detected (contains NaN/inf), falling back to BM25 only")
-        # Return BM25 results only with zero cosine scores
-        results = []
-        for hit in bm25_hits:
-            bm25_score = hit.get("_score", 0.0) or 0.0
-            if np.isnan(bm25_score):
-                bm25_score = 0.0
-            results.append({"hit": hit, "cosine": 0.0, "score": float(bm25_score)})
-        results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
-        return [r["hit"] for r in results_sorted[:rerank_k]]
-
-    # Add dimension validation to catch configuration mismatches early
-    if doc_embs_np.shape[1] != q_emb.shape[0]:
-        error_msg = (
-            f"Dimension mismatch: Document embeddings have dimension {doc_embs_np.shape[1]}, "
-            f"but query embedding has dimension {q_emb.shape[0]}. "
-            "Check for conflicting configurations."
-        )
-        print(f"❌ {error_msg}")
-        return []
-
-    cosines = (doc_embs_np @ q_emb).tolist()
-
-    # Handle NaN values in cosine similarities
-    cosines = [float(c) if not np.isnan(c) else 0.0 for c in cosines]
-
-    # Create dense results for RRF
-    dense_results = []
-    for hit, cos in zip(bm25_hits, cosines):
-        dense_results.append({"hit": hit, "cosine": float(cos)})
-
-    # Sort dense results by cosine similarity (descending)
-    dense_results_sorted = sorted(dense_results, key=lambda x: x["cosine"], reverse=True)
-
-    # Use RRF if enabled, otherwise fall back to alpha-based weighting
-    if use_rrf:
-        print("Using Reciprocal Rank Fusion (RRF) for hybrid retrieval")
-        # Convert BM25 hits to the expected format for RRF
-        sparse_results_formatted = [{"hit": hit} for hit in bm25_hits]
-
-        # Apply RRF
-        fused_results = reciprocal_rank_fusion(sparse_results_formatted, dense_results_sorted, k=60)
-
-        # Extract the hits from RRF results
-        results_sorted = [{"hit": result["hit"], "cosine": result.get("cosine", 0.0), "score": 0.0}
-                         for result in fused_results]
-    else:
-        # Legacy alpha-based weighting
-        alpha = settings.ALPHA if alpha is None else alpha
-        print(f"Using alpha-based weighting (alpha={alpha}) for hybrid retrieval")
-
-        results = []
-        for hit, cos in zip(bm25_hits, cosines):
-            bm25_score = hit.get("_score", 0.0) or 0.0
-
-            # Handle NaN values from Elasticsearch
-            if np.isnan(bm25_score):
-                bm25_score = 0.0
-            if np.isnan(cos):
-                cos = 0.0
-
-            if alpha is None:
-                score = cos
-            else:
-                # Normalize BM25 score to avoid division by zero or NaN
-                if bm25_score > 0:
-                    normalized_bm25 = bm25_score / (bm25_score + 1.0)
-                else:
-                    normalized_bm25 = 0.0
-                score = alpha * normalized_bm25 + (1 - alpha) * cos
-
-            results.append({"hit": hit, "cosine": float(cos), "score": float(score)})
-
-        # Sort by combined score (descending)
-        results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
-
-    # Deduplicate by stable doc id (prefer _source.docid if present,
-    # otherwise fall back to ES internal _id). Since results_sorted is
-    # ordered by score descending, keeping the first occurrence ensures
-    # we preserve the highest-scored hit for each document.
-    seen_ids = set()
-    deduped = []
-    for r in results_sorted:
-        hit = r.get("hit", {})
-        src = hit.get("_source", {}) if isinstance(hit, dict) else {}
-        docid = None
-        try:
-            docid = src.get("docid") if isinstance(src, dict) else None
-        except Exception:
-            docid = None
-        if not docid:
-            # fallback to ES internal id
-            try:
-                docid = hit.get("_id")
-            except Exception:
-                docid = None
-
-        if docid is None:
-            # If no id can be determined, include the item (unique by position)
-            deduped.append(r)
-            continue
-
-        if docid in seen_ids:
-            continue
-        seen_ids.add(docid)
-        deduped.append(r)
-
-    # Return top-k after deduplication
-    final_results = deduped[:rerank_k]
-
-    # Optional duplicate filtering using profiling artifacts
-    if settings.USE_DUPLICATE_FILTERING and settings.PROFILE_REPORT_DIR:
-        duplicates = load_duplicates(settings.PROFILE_REPORT_DIR)
-        if duplicates:
-            blacklist = build_duplicate_blacklist(duplicates)
-            final_results = filter_duplicates(final_results, blacklist)
-
-    # Optional near-duplicate penalty
-    if settings.USE_NEAR_DUP_PENALTY and settings.PROFILE_REPORT_DIR:
-        final_results = apply_near_dup_penalty(final_results, penalty=0.1)
-
-    return final_results
+    # Execute retrieval using the modular pipeline
+    return pipeline.retrieve(query, bm25_k, rerank_k, use_profiling_insights)
 
 
 def _extract_keywords_from_query(query: str) -> List[str]:
@@ -557,3 +337,12 @@ def _extract_keywords_from_query(query: str) -> List[str]:
         print(f"Warning: Keyword extraction failed: {e}")
         # Fallback to simple splitting
         return [word.strip() for word in query.split() if len(word.strip()) > 1]
+
+
+# --- NEW: Initialize curated keywords integration ---
+try:
+    from .keywords_integration import initialize_keywords_integration
+    initialize_keywords_integration()
+    print("Curated keywords integration initialized successfully")
+except Exception as e:
+    print(f"Warning: Could not initialize curated keywords integration: {e}")
