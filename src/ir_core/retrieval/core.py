@@ -2,7 +2,7 @@
 import redis
 import json
 import numpy as np
-from typing import Optional, List, Any, cast
+from typing import Optional, List, Any, cast, Dict
 
 from ..infra import get_es
 from ..config import settings
@@ -22,6 +22,9 @@ from .insights_manager import (
     get_memory_recommendation,
     get_query_expansion_terms
 )
+from ..generation import get_generator
+from omegaconf import OmegaConf
+import os
 
 # --- NEW: Initialize Redis Client for Caching ---
 # Create a Redis client instance from the URL in the settings.
@@ -37,125 +40,49 @@ except redis.ConnectionError as e:
 
 def build_flexible_match_query(query: str, size: int) -> dict:
     """
-    Build a flexible boolean query that handles partial matches and synonyms better.
+    Build an enhanced multi-field boolean query that leverages generated metadata.
+    This replaces hardcoded logic with dynamic keyword extraction and multi-field search.
 
-    This improves retrieval for cases where exact term matching fails due to:
-    - Synonym variations (e.g., "공교육" vs "공공 교육")
-    - Missing terms in documents
-    - Different phrasings of the same concept
+    The query searches across:
+    - content: Full document text (default boost)
+    - summary: Document summary (medium boost)
+    - keywords: Extracted keywords (high boost)
+    - hypothetical_questions: Generated questions (high boost)
     """
-    # Split query into terms for flexible matching
-    terms = query.split()
+    # Extract dynamic keywords from the query
+    dynamic_keywords = _extract_keywords_from_query(query)
 
-    # Define synonym mappings for common terms
-    synonym_map = {
-        "공교육": ["공공", "교육", "공교육"],  # 공교육 tokenizes to 공+교육, but document has 공공+교육
-        "교육": ["교육", "교육제도", "교육시스템"],
-        "지출": ["지출", "예산", "투자", "비용"],
-        "나라": ["나라", "국가", "국가별"],
-        "각": ["각", "각각의", "모든"],
-        "현황": ["현황", "상황", "현황", "실태"]
+    # Build multi-field query with appropriate boosts
+    bool_query = {
+        "should": [
+            # Highest boost for keywords field - direct keyword matches are very strong signals
+            {"match": {"keywords": {"query": ' '.join(dynamic_keywords), "boost": 4.0}}},
+            # High boost for hypothetical questions - these are phrased like user queries
+            {"match": {"hypothetical_questions": {"query": query, "boost": 3.0}}},
+            # Medium boost for summary - concise version of document content
+            {"match": {"summary": {"query": query, "boost": 2.0}}},
+            # Default boost for full content - comprehensive but less specific
+            {"match": {"content": {"query": query, "boost": 1.0}}}
+        ],
+        "minimum_should_match": 1  # At least one field must match
     }
 
-    # Build must clauses for core terms (education and spending related)
-    must_clauses = []
-    should_clauses = []
-
-    # Identify core terms that should be required
-    core_terms = []
-    optional_terms = []
-
-    # Define what constitutes core terms for different query types
-    education_related = ["교육", "공교육", "교육제도", "교육시스템"]
-    spending_related = ["지출", "예산", "투자", "비용", "예산안"]
-
-    for term in terms:
-        # Check if term is education-related
-        if any(edu_term in term for edu_term in education_related):
-            core_terms.append(term)
-        # Check if term is spending-related
-        elif any(spend_term in term for spend_term in spending_related):
-            core_terms.append(term)
-        else:
-            optional_terms.append(term)
-
-    # Add core terms to must clauses (only the essential parts)
-    for term in core_terms:
-        if any(edu_term in term for edu_term in education_related):
-            # For education terms, require just "교육" not the compound
-            must_clauses.append({"match": {"content": "교육"}})
-        elif any(spend_term in term for spend_term in spending_related):
-            # For spending terms, require the base spending term
-            if "예산" in term:
-                must_clauses.append({"match": {"content": "예산"}})
-            elif "지출" in term:
-                must_clauses.append({"match": {"content": "지출"}})
-            elif "투자" in term:
-                must_clauses.append({"match": {"content": "투자"}})
-            elif "비용" in term:
-                must_clauses.append({"match": {"content": "비용"}})
-            else:
-                must_clauses.append({"match": {"content": term}})
-        else:
-            must_clauses.append({"match": {"content": term}})
-
-    # Add synonyms for core terms to should clauses (not must)
-    for term in core_terms:
-        if term in synonym_map:
-            for synonym in synonym_map[term]:
-                if synonym != term:
-                    should_clauses.append({"match": {"content": synonym}})
-
-    # Add optional terms to should clauses
-    for term in optional_terms:
-        should_clauses.append({"match": {"content": term}})
-        # Add synonyms for optional terms
-        if term in synonym_map:
-            for synonym in synonym_map[term]:
-                if synonym != term:
-                    should_clauses.append({"match": {"content": synonym}})
-
-    # If no core terms identified, fall back to should-only approach
-    if not must_clauses:
-        should_clauses = []
-        for term in terms:
-            should_clauses.append({"match": {"content": term}})
-            if term in synonym_map:
-                for synonym in synonym_map[term]:
-                    if synonym != term:
-                        should_clauses.append({"match": {"content": synonym}})
-
-    # For Korean queries, also try partial phrase matching
+    # Add phrase matching for better precision on Korean queries
     if any('\uac00' <= char <= '\ud7a3' for char in query):
-        # Add phrase matching with slop for flexibility
-        should_clauses.append({
+        bool_query["should"].append({
             "match_phrase": {
                 "content": {
                     "query": query,
-                    "slop": 2  # Allow some reordering
+                    "slop": 2,  # Allow some reordering
+                    "boost": 1.5
                 }
             }
         })
 
-    # Build the final query
-    if must_clauses:
-        query_body = {
-            "bool": {
-                "must": must_clauses,
-                "should": should_clauses,
-                "minimum_should_match": 0  # Optional terms are truly optional
-            }
-        }
-    else:
-        query_body = {
-            "bool": {
-                "should": should_clauses,
-                "minimum_should_match": 1
-            }
-        }
-
     return {
-        "query": query_body,
+        "query": {
+            "bool": bool_query
+        },
         "size": size
     }
 
@@ -217,26 +144,95 @@ def dense_retrieve(query_emb: np.ndarray, size: int = 10, index: Optional[str] =
     return res.get("hits", {}).get("hits", [])
 
 
+def reciprocal_rank_fusion(
+    sparse_results: List[Dict[str, Any]],
+    dense_results: List[Dict[str, Any]],
+    k: int = 60
+) -> List[Dict[str, Any]]:
+    """
+    Combine sparse and dense retrieval results using Reciprocal Rank Fusion (RRF).
+
+    RRF is a state-of-the-art method for fusing results from different retrieval systems.
+    It uses reciprocal ranks instead of raw scores, making it robust to different scoring scales.
+
+    Args:
+        sparse_results: Results from sparse (BM25) retrieval
+        dense_results: Results from dense (vector) retrieval
+        k: RRF constant (typically 60)
+
+    Returns:
+        Combined and re-ranked results
+    """
+    # Create a mapping of document IDs to their results
+    doc_map = {}
+
+    # Process sparse results
+    for rank, result in enumerate(sparse_results, 1):
+        doc_id = result.get("hit", {}).get("_source", {}).get("docid") or result.get("hit", {}).get("_id")
+        if doc_id:
+            if doc_id not in doc_map:
+                doc_map[doc_id] = {
+                    "result": result,
+                    "rrf_score": 0.0,
+                    "sparse_rank": rank,
+                    "dense_rank": None
+                }
+            else:
+                doc_map[doc_id]["sparse_rank"] = rank
+
+    # Process dense results
+    for rank, result in enumerate(dense_results, 1):
+        doc_id = result.get("hit", {}).get("_source", {}).get("docid") or result.get("hit", {}).get("_id")
+        if doc_id:
+            if doc_id not in doc_map:
+                doc_map[doc_id] = {
+                    "result": result,
+                    "rrf_score": 0.0,
+                    "sparse_rank": None,
+                    "dense_rank": rank
+                }
+            else:
+                doc_map[doc_id]["dense_rank"] = rank
+
+    # Calculate RRF scores
+    for doc_id, doc_info in doc_map.items():
+        rrf_score = 0.0
+
+        if doc_info["sparse_rank"] is not None:
+            rrf_score += 1.0 / (k + doc_info["sparse_rank"])
+
+        if doc_info["dense_rank"] is not None:
+            rrf_score += 1.0 / (k + doc_info["dense_rank"])
+
+        doc_info["rrf_score"] = rrf_score
+
+    # Sort by RRF score (descending) and return results
+    sorted_docs = sorted(doc_map.values(), key=lambda x: x["rrf_score"], reverse=True)
+
+    return [doc_info["result"] for doc_info in sorted_docs]
+
+
 def hybrid_retrieve(
     query: str,
     bm25_k: Optional[int] = None,
     rerank_k: Optional[int] = None,
     alpha: Optional[float] = None,
     use_profiling_insights: bool = True,
+    use_rrf: bool = True,
 ):
     """
-    Enhanced hybrid retrieval with profiling insights integration.
+    Enhanced hybrid retrieval with RRF (Reciprocal Rank Fusion) support.
 
     Args:
         query: Search query string
         bm25_k: Number of BM25 results to retrieve
         rerank_k: Number of final results to return
-        alpha: Weight for BM25 vs dense retrieval (0.0 = dense only, 1.0 = BM25 only)
+        alpha: Weight for BM25 vs dense retrieval (deprecated when use_rrf=True)
         use_profiling_insights: Whether to apply profiling-based optimizations
+        use_rrf: Whether to use RRF instead of alpha-based weighting
     """
     bm25_k = bm25_k or settings.BM25_K
     rerank_k = rerank_k or settings.RERANK_K
-    alpha = settings.ALPHA if alpha is None else alpha
 
     # --- NEW: Apply profiling insights for query enhancement ---
     enhanced_query = query
@@ -408,30 +404,55 @@ def hybrid_retrieve(
     # Handle NaN values in cosine similarities
     cosines = [float(c) if not np.isnan(c) else 0.0 for c in cosines]
 
-    results = []
+    # Create dense results for RRF
+    dense_results = []
     for hit, cos in zip(bm25_hits, cosines):
-        bm25_score = hit.get("_score", 0.0) or 0.0
+        dense_results.append({"hit": hit, "cosine": float(cos)})
 
-        # Handle NaN values from Elasticsearch
-        if np.isnan(bm25_score):
-            bm25_score = 0.0
-        if np.isnan(cos):
-            cos = 0.0
+    # Sort dense results by cosine similarity (descending)
+    dense_results_sorted = sorted(dense_results, key=lambda x: x["cosine"], reverse=True)
 
-        if alpha is None:
-            score = cos
-        else:
-            # Normalize BM25 score to avoid division by zero or NaN
-            if bm25_score > 0:
-                normalized_bm25 = bm25_score / (bm25_score + 1.0)
+    # Use RRF if enabled, otherwise fall back to alpha-based weighting
+    if use_rrf:
+        print("Using Reciprocal Rank Fusion (RRF) for hybrid retrieval")
+        # Convert BM25 hits to the expected format for RRF
+        sparse_results_formatted = [{"hit": hit} for hit in bm25_hits]
+
+        # Apply RRF
+        fused_results = reciprocal_rank_fusion(sparse_results_formatted, dense_results_sorted, k=60)
+
+        # Extract the hits from RRF results
+        results_sorted = [{"hit": result["hit"], "cosine": result.get("cosine", 0.0), "score": 0.0}
+                         for result in fused_results]
+    else:
+        # Legacy alpha-based weighting
+        alpha = settings.ALPHA if alpha is None else alpha
+        print(f"Using alpha-based weighting (alpha={alpha}) for hybrid retrieval")
+
+        results = []
+        for hit, cos in zip(bm25_hits, cosines):
+            bm25_score = hit.get("_score", 0.0) or 0.0
+
+            # Handle NaN values from Elasticsearch
+            if np.isnan(bm25_score):
+                bm25_score = 0.0
+            if np.isnan(cos):
+                cos = 0.0
+
+            if alpha is None:
+                score = cos
             else:
-                normalized_bm25 = 0.0
-            score = alpha * normalized_bm25 + (1 - alpha) * cos
+                # Normalize BM25 score to avoid division by zero or NaN
+                if bm25_score > 0:
+                    normalized_bm25 = bm25_score / (bm25_score + 1.0)
+                else:
+                    normalized_bm25 = 0.0
+                score = alpha * normalized_bm25 + (1 - alpha) * cos
 
-        results.append({"hit": hit, "cosine": float(cos), "score": float(score)})
+            results.append({"hit": hit, "cosine": float(cos), "score": float(score)})
 
-    # Sort by combined score (descending)
-    results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
+        # Sort by combined score (descending)
+        results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
 
     # Deduplicate by stable doc id (prefer _source.docid if present,
     # otherwise fall back to ES internal _id). Since results_sorted is
@@ -479,3 +500,60 @@ def hybrid_retrieve(
         final_results = apply_near_dup_penalty(final_results, penalty=0.1)
 
     return final_results
+
+
+def _extract_keywords_from_query(query: str) -> List[str]:
+    """
+    Uses an LLM to extract the most critical keywords from a user query.
+    This replaces hardcoded synonym mappings with dynamic, context-aware keyword extraction.
+    """
+    try:
+        # Try to get the generator from settings
+        from ..config import settings
+
+        # Create a minimal config for the generator
+        cfg_dict = {
+            'pipeline': {
+                'generator_type': getattr(settings, 'GENERATOR_TYPE', 'openai'),
+                'generator_model_name': getattr(settings, 'GENERATOR_MODEL_NAME', 'gpt-4o-mini'),
+            },
+            'prompts': {
+                'generation_qa': getattr(settings, 'GENERATOR_SYSTEM_MESSAGE_FILE', ''),
+                'persona': getattr(settings, 'GENERATOR_SYSTEM_MESSAGE_FILE', ''),
+            }
+        }
+        cfg = OmegaConf.create(cfg_dict)
+
+        generator = get_generator(cfg)
+
+        prompt = f"""
+        Extract the most important and specific keywords from the following user query.
+        Focus on nouns, technical terms, and core concepts that would be most relevant for document retrieval.
+        Return only the keywords as a comma-separated list, no explanations.
+
+        Query: "{query}"
+
+        Keywords:
+        """
+
+        # Use the generator's client directly for a simple completion
+        if hasattr(generator, 'client') and hasattr(generator, 'model_name'):
+            response = generator.client.chat.completions.create(  # type: ignore
+                model=generator.model_name,  # type: ignore
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=100,
+            )
+            keywords_str = response.choices[0].message.content or ""
+            keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+            print(f"Extracted keywords: {keywords}")
+            return keywords
+        else:
+            # Fallback to simple splitting if no client available
+            print("Warning: No LLM client available, falling back to simple keyword extraction")
+            return [word.strip() for word in query.split() if len(word.strip()) > 1]
+
+    except Exception as e:
+        print(f"Warning: Keyword extraction failed: {e}")
+        # Fallback to simple splitting
+        return [word.strip() for word in query.split() if len(word.strip()) > 1]
