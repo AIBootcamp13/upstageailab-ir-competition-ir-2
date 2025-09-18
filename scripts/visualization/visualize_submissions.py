@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from pathlib import Path
 import sys
-sys.path.append('/home/wb2x/workspace/information_retrieval_rag/src')
+
+sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))
 
 # Import retrieval functions for debug page
 try:
@@ -18,14 +19,33 @@ try:
 except ImportError as e:
     st.error(f"Retrieval modules not available: {e}")
     RETRIEVAL_AVAILABLE = False
+    # Define as None to avoid "possibly unbound" errors
+    sparse_retrieve = None
+    dense_retrieve = None
+    hybrid_retrieve = None
+    encode_texts = None
+    ConfidenceLogger = None
 
 # Function to load JSONL data
 def load_jsonl(file_path):
-    data = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            data.append(json.loads(line))
-    return pd.DataFrame(data)
+    try:
+        data = []
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if line:  # Skip empty lines
+                    try:
+                        data.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        st.warning(f"Skipping malformed JSON at line {line_num} in {Path(file_path).name}: {e}")
+                        continue
+        return pd.DataFrame(data)
+    except FileNotFoundError:
+        st.error(f"File not found: {file_path}")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading {Path(file_path).name}: {e}")
+        return pd.DataFrame()
 
 # Function to get submission files
 def get_submission_files():
@@ -81,13 +101,34 @@ def show_submission_visualizer():
     )
 
     if selected_file:
-        df = load_jsonl(selected_file)
-        st.sidebar.success(f"Loaded {len(df)} entries from {Path(selected_file).name}")
+        try:
+            df = load_jsonl(selected_file)
+            if df.empty:
+                st.error(f"No data loaded from {Path(selected_file).name}. The file might be empty or contain invalid JSON.")
+                st.stop()
+            st.sidebar.success(f"Loaded {len(df)} entries from {Path(selected_file).name}")
+        except Exception as e:
+            st.error(f"Failed to load {Path(selected_file).name}: {e}")
+            st.stop()
 
         df2 = None
         if compare_file and compare_file != selected_file:
-            df2 = load_jsonl(compare_file)
-            st.sidebar.success(f"Loaded comparison: {Path(compare_file).name}")
+            try:
+                df2 = load_jsonl(compare_file)
+                if df2.empty:
+                    st.warning(f"No data loaded from comparison file {Path(compare_file).name}")
+                else:
+                    st.sidebar.success(f"Loaded comparison: {Path(compare_file).name}")
+            except Exception as e:
+                st.warning(f"Failed to load comparison file {Path(compare_file).name}: {e}")
+
+        # Check if required columns exist
+        required_cols = ['eval_id', 'standalone_query', 'answer']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Missing required columns in {Path(selected_file).name}: {missing_cols}")
+            st.write("Available columns:", df.columns.tolist())
+            st.stop()
 
         # Tabs
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Detailed View", "Statistics", "Comparison", "Documents"])
@@ -371,6 +412,11 @@ def show_retrieval_debug():
     if test_button and query.strip():
         st.header("🔍 Retrieval Results")
 
+        # Show current settings
+        st.info(f"**Query:** {query} | **Type:** {retrieval_type} | **Size:** {size}")
+        if retrieval_type == "Hybrid (Combined)":
+            st.info(f"**Hybrid Settings:** Alpha={alpha}, BM25 K={bm25_k}, Rerank K={rerank_k}")
+
         with st.spinner("Running retrieval test..."):
             try:
                 if retrieval_type == "Sparse (BM25)":
@@ -383,6 +429,7 @@ def show_retrieval_debug():
             except Exception as e:
                 st.error(f"❌ Error during retrieval: {str(e)}")
                 st.code(str(e))
+                st.info("💡 If you're seeing import errors, try restarting the Streamlit app.")
 
     elif test_button and not query.strip():
         st.warning("⚠️ Please enter a query to test retrieval.")
@@ -403,6 +450,12 @@ def show_retrieval_debug():
         - **Hybrid**: Combines both sparse and dense retrieval for better results
         """)
 
+        # Show status
+        if RETRIEVAL_AVAILABLE:
+            st.success("✅ Retrieval modules are loaded and ready.")
+        else:
+            st.error("❌ Retrieval modules failed to load. Check the terminal for import errors.")
+
         # Example queries
         st.subheader("📝 Example Queries")
         example_queries = [
@@ -420,7 +473,7 @@ def show_retrieval_debug():
 
 def run_sparse_retrieval(query, size, enable_debug, show_full_content):
     """Run sparse retrieval test with detailed output."""
-    if not RETRIEVAL_AVAILABLE:
+    if not RETRIEVAL_AVAILABLE or sparse_retrieve is None:
         st.error("Retrieval modules not available")
         return
 
@@ -479,7 +532,10 @@ def run_sparse_retrieval(query, size, enable_debug, show_full_content):
     if enable_debug:
         st.subheader("🔧 Debug Information")
         with st.expander("Detailed Scores & Analysis", expanded=False):
-            logger = ConfidenceLogger(debug_mode=True)
+            logger = ConfidenceLogger(debug_mode=True) if ConfidenceLogger is not None else None
+
+            # Create a list to capture debug information
+            debug_info = []
 
             for i, hit in enumerate(results):
                 source = hit.get('_source', {})
@@ -492,21 +548,44 @@ def run_sparse_retrieval(query, size, enable_debug, show_full_content):
                     'total_results': len(results)
                 }
 
-                logger.log_confidence_score(
-                    technique='sparse_retrieval',
-                    confidence=min(bm25_score / 100.0, 1.0),
-                    query=query,
-                    reasoning=f"BM25 retrieval result #{i+1}",
-                    retrieval_scores=retrieval_scores,
-                    context={
-                        'doc_id': doc_id,
-                        'has_content': bool(source.get('content')),
-                        'content_length': len(source.get('content', ''))
-                    }
-                )
+                # Capture debug info instead of just logging
+                debug_entry = {
+                    'rank': i + 1,
+                    'doc_id': doc_id,
+                    'bm25_score': bm25_score,
+                    'has_content': bool(source.get('content')),
+                    'content_length': len(source.get('content', ''))
+                }
+                debug_info.append(debug_entry)
+
+                if logger is not None:
+                    logger.log_confidence_score(
+                        technique='sparse_retrieval',
+                        confidence=min(bm25_score / 100.0, 1.0),
+                        query=query,
+                        reasoning=f"BM25 retrieval result #{i+1}",
+                        retrieval_scores=retrieval_scores,
+                        context={
+                            'doc_id': doc_id,
+                            'has_content': bool(source.get('content')),
+                            'content_length': len(source.get('content', ''))
+                        }
+                    )
+
+            # Display debug information in the UI
+            if debug_info:
+                debug_df = pd.DataFrame(debug_info)
+                st.dataframe(debug_df)
+                st.info("📝 Debug logs are also printed to the terminal where Streamlit is running.")
+            else:
+                st.warning("No debug information available.")
 
 def run_dense_retrieval(query, size, enable_debug, show_full_content):
     """Run dense retrieval test with detailed output."""
+    if not RETRIEVAL_AVAILABLE or dense_retrieve is None or encode_texts is None:
+        st.error("Retrieval modules not available")
+        return
+
     st.subheader("🔍 Dense Retrieval Results (Embeddings)")
 
     # Show query info
@@ -567,7 +646,10 @@ def run_dense_retrieval(query, size, enable_debug, show_full_content):
     if enable_debug:
         st.subheader("🔧 Debug Information")
         with st.expander("Detailed Scores & Analysis", expanded=False):
-            logger = ConfidenceLogger(debug_mode=True)
+            logger = ConfidenceLogger(debug_mode=True) if ConfidenceLogger is not None else None
+
+            # Create a list to capture debug information
+            debug_info = []
 
             for i, hit in enumerate(results):
                 source = hit.get('_source', {})
@@ -581,21 +663,45 @@ def run_dense_retrieval(query, size, enable_debug, show_full_content):
                     'embedding_norm': np.linalg.norm(q_emb)
                 }
 
-                logger.log_confidence_score(
-                    technique='dense_retrieval',
-                    confidence=min(abs(cosine_score), 1.0),
-                    query=query,
-                    reasoning=f"Dense retrieval result #{i+1}",
-                    retrieval_scores=retrieval_scores,
-                    context={
-                        'doc_id': doc_id,
-                        'has_content': bool(source.get('content')),
-                        'content_length': len(source.get('content', ''))
-                    }
-                )
+                # Capture debug info instead of just logging
+                debug_entry = {
+                    'rank': i + 1,
+                    'doc_id': doc_id,
+                    'cosine_score': cosine_score,
+                    'embedding_norm': np.linalg.norm(q_emb),
+                    'has_content': bool(source.get('content')),
+                    'content_length': len(source.get('content', ''))
+                }
+                debug_info.append(debug_entry)
+
+                if logger is not None:
+                    logger.log_confidence_score(
+                        technique='dense_retrieval',
+                        confidence=min(abs(cosine_score), 1.0),
+                        query=query,
+                        reasoning=f"Dense retrieval result #{i+1}",
+                        retrieval_scores=retrieval_scores,
+                        context={
+                            'doc_id': doc_id,
+                            'has_content': bool(source.get('content')),
+                            'content_length': len(source.get('content', ''))
+                        }
+                    )
+
+            # Display debug information in the UI
+            if debug_info:
+                debug_df = pd.DataFrame(debug_info)
+                st.dataframe(debug_df)
+                st.info("📝 Debug logs are also printed to the terminal where Streamlit is running.")
+            else:
+                st.warning("No debug information available.")
 
 def run_hybrid_retrieval(query, bm25_k, rerank_k, alpha, enable_debug, show_full_content):
     """Run hybrid retrieval test with detailed output."""
+    if not RETRIEVAL_AVAILABLE or hybrid_retrieve is None:
+        st.error("Retrieval modules not available")
+        return
+
     st.subheader("🔍 Hybrid Retrieval Results")
 
     # Show query info
@@ -662,7 +768,10 @@ def run_hybrid_retrieval(query, bm25_k, rerank_k, alpha, enable_debug, show_full
     if enable_debug:
         st.subheader("🔧 Debug Information")
         with st.expander("Detailed Scores & Analysis", expanded=False):
-            logger = ConfidenceLogger(debug_mode=True)
+            logger = ConfidenceLogger(debug_mode=True) if ConfidenceLogger is not None else None
+
+            # Create a list to capture debug information
+            debug_info = []
 
             for i, result in enumerate(results):
                 hit = result.get('hit', {})
@@ -681,18 +790,40 @@ def run_hybrid_retrieval(query, bm25_k, rerank_k, alpha, enable_debug, show_full
                     'alpha': alpha
                 }
 
-                logger.log_confidence_score(
-                    technique='hybrid_retrieval',
-                    confidence=min(final_score, 1.0),
-                    query=query,
-                    reasoning=f"Hybrid retrieval result #{i+1} (BM25 + Dense)",
-                    retrieval_scores=retrieval_scores,
-                    context={
-                        'doc_id': doc_id,
-                        'has_content': bool(source.get('content')),
-                        'content_length': len(source.get('content', ''))
-                    }
-                )
+                # Capture debug info instead of just logging
+                debug_entry = {
+                    'rank': i + 1,
+                    'doc_id': doc_id,
+                    'final_score': final_score,
+                    'bm25_score': bm25_score,
+                    'cosine_score': cosine_score,
+                    'alpha': alpha,
+                    'has_content': bool(source.get('content')),
+                    'content_length': len(source.get('content', ''))
+                }
+                debug_info.append(debug_entry)
+
+                if logger is not None:
+                    logger.log_confidence_score(
+                        technique='hybrid_retrieval',
+                        confidence=min(final_score, 1.0),
+                        query=query,
+                        reasoning=f"Hybrid retrieval result #{i+1} (BM25 + Dense)",
+                        retrieval_scores=retrieval_scores,
+                        context={
+                            'doc_id': doc_id,
+                            'has_content': bool(source.get('content')),
+                            'content_length': len(source.get('content', ''))
+                        }
+                    )
+
+            # Display debug information in the UI
+            if debug_info:
+                debug_df = pd.DataFrame(debug_info)
+                st.dataframe(debug_df)
+                st.info("📝 Debug logs are also printed to the terminal where Streamlit is running.")
+            else:
+                st.warning("No debug information available.")
 
 if __name__ == "__main__":
     main()

@@ -60,7 +60,7 @@ REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------
-INDEX_NAME: docs-ko-polyglot-1b-d2048-20250918-nori   # Updated to the index with enhanced Nori analyzer and correct dense_vector mapping
+INDEX_NAME: docs-ko-polyglot-1b-d2048-fixed   # Updated to re-indexed documents with correct embeddings
 INDEX_ALIAS: documents         # Index alias for seamless switching
 INDEX_NAME_PREFIX: documents_v # Prefix for versioned indices
 KEEP_OLD_INDEX_DAYS: 3        # Days to keep old indices before deletion

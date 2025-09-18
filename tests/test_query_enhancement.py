@@ -190,7 +190,8 @@ class TestHyDE:
         mock_response = Mock()
         mock_choice = Mock()
         mock_message = Mock()
-        mock_message.content = "Photosynthesis is the process by which plants convert light energy into chemical energy..."
+        # Make content longer than 120 chars and ensure it contains query tokens
+        mock_message.content = "Photosynthesis is the process by which plants, algae, and some bacteria convert light energy into chemical energy. This process involves the absorption of sunlight by chlorophyll pigments in the chloroplasts of plant cells. The light energy is used to convert carbon dioxide from the air and water from the soil into glucose, which serves as food for the plant, and oxygen is released as a byproduct. This fundamental biological process is essential for life on Earth as it produces the oxygen we breathe and forms the base of the food chain."
         mock_choice.message = mock_message
         mock_response.choices = [mock_choice]
         client.chat.completions.create.return_value = mock_response
