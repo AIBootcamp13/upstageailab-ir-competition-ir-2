@@ -6,7 +6,7 @@ This script fine-tunes the EleutherAI/polyglot-ko-1.3b model using the generated
 to improve dense retrieval alignment with sparse retrieval results.
 
 Usage:
-    PYTHONPATH=src poetry run python scripts/fine_tune_embedding.py
+    PYTHONPATH=src poetry run python scripts/fine_tuning/fine_tune_embedding.py
 """
 
 import os
@@ -18,7 +18,7 @@ from sentence_transformers import SentenceTransformer, InputExample, losses, mod
 from torch.utils.data import DataLoader, Dataset
 from omegaconf import OmegaConf
 
-# --- NEW: Memory-Efficient Streaming Dataset Class ---
+# --- Memory-Efficient Streaming Dataset Class ---
 class StreamingJsonlDataset(Dataset):
     """
     An iterable dataset that reads from a JSONL file line by line.
@@ -85,21 +85,21 @@ def fine_tune_model(
     output_dir: str,
     epochs: int = 3,
     batch_size: int = 4,
-    val_split: float = 0.1
+    val_split: float = 0.1 # This parameter is currently unused with streaming
 ):
     """Fine-tune the embedding model using Multiple Negatives Ranking Loss."""
 
     print(f"Loading base model components: {base_model_name}")
 
-    # --- NEW: Manually load the transformer model to enable gradient checkpointing ---
+    # --- Manually load the transformer model to enable gradient checkpointing ---
     # 1. Load the raw transformer model from Hugging Face
     word_embedding_model = models.Transformer(base_model_name)
 
     # 2. Enable gradient checkpointing on the transformer model itself
-    # This is the correct way to do it for models that don't support the top-level shortcut
     try:
+        # This is the correct way to do it for models that support it
         if hasattr(word_embedding_model, 'model') and hasattr(word_embedding_model.model, 'gradient_checkpointing_enable'):
-            word_embedding_model.model.gradient_checkpointing_enable()  # type: ignore
+            word_embedding_model.model.gradient_checkpointing_enable() # type: ignore
             print("Enabled gradient checkpointing for memory efficiency")
         else:
             print("Gradient checkpointing not available for this model")
@@ -113,7 +113,6 @@ def fine_tune_model(
     model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
     print("Model loaded successfully.")
-
     print("Training data: Streaming dataset (size determined at runtime)")
     print("Note: Validation split is ignored for streaming datasets.")
 
@@ -126,141 +125,61 @@ def fine_tune_model(
     print(f"Starting fine-tuning for {epochs} epochs...")
     print(f"Output directory: {output_path}")
 
-    # Load data in chunks to balance memory efficiency with training effectiveness
     chunk_size = 2000  # Process in chunks of 2000 examples
-    all_examples = []
 
-    print("Loading training data in chunks...")
-    for i, example in enumerate(train_dataset):
-        all_examples.append(example)
-        if (i + 1) % chunk_size == 0:
-            print(f"Loaded chunk {i // chunk_size + 1} with {len(all_examples)} examples")
+    # --- FIXED: Added main epoch loop ---
+    for epoch in range(epochs):
+        print(f"\n--- Epoch {epoch + 1}/{epochs} ---")
+        all_examples = []
 
+        # The StreamingJsonlDataset's __iter__ method will be called anew for each epoch,
+        # effectively re-reading the data from the file.
+        for i, example in enumerate(train_dataset):
+            all_examples.append(example)
+
+            # Train when a chunk is full
+            if (i + 1) % chunk_size == 0:
+                print(f"Training on chunk ending at example {i + 1}...")
+                chunk_dataset = ChunkDataset(all_examples)
+                chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)
+
+                model.fit(
+                    train_objectives=[(chunk_dataloader, train_loss)],
+                    evaluator=None,
+                    epochs=1, # We train for 1 epoch on each chunk
+                    warmup_steps=max(1, len(chunk_dataloader) // 10),
+                    output_path=None,  # Don't save intermediate models
+                    save_best_model=False,
+                    show_progress_bar=True,
+                    use_amp=True
+                )
+
+                # Clear the chunk to free memory
+                all_examples = []
+
+        # Process any remaining examples at the end of the epoch
+        if all_examples:
+            print(f"Training on final chunk of {len(all_examples)} examples for this epoch...")
             chunk_dataset = ChunkDataset(all_examples)
-            chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)  # type: ignore
+            chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)
 
-            # Fine-tune on this chunk for one epoch
             model.fit(
                 train_objectives=[(chunk_dataloader, train_loss)],
                 evaluator=None,
                 epochs=1,
                 warmup_steps=max(1, len(chunk_dataloader) // 10),
-                output_path=None,  # Don't save intermediate results
-                save_best_model=False,
-                show_progress_bar=True,
-                use_amp=True  # Keep AMP enabled, it's very important
-            )
-
-            # Clear the chunk to free memory
-            all_examples = []
-
-    # Process any remaining examples
-    if all_examples:
-        print(f"Processing final chunk with {len(all_examples)} examples")
-        chunk_dataset = ChunkDataset(all_examples)
-        chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)  # type: ignore
-
-        model.fit(
-            train_objectives=[(chunk_dataloader, train_loss)],
-            evaluator=None,
-            epochs=1,
-            warmup_steps=max(1, len(chunk_dataloader) // 10),
-            output_path=None,
-            save_best_model=False,
-            show_progress_bar=True,
-            use_amp=True
-        )
-
-    # Save the final model
-    model.save(str(output_path))
-    print(f"Fine-tuned model saved to: {output_path}")
-    return str(output_path)
-
-def fine_tune_model(
-    base_model_name: str,
-    train_dataset: StreamingJsonlDataset,
-    output_dir: str,
-    epochs: int = 3,
-    batch_size: int = 4,
-    val_split: float = 0.1
-):
-    """Fine-tune the embedding model using Multiple Negatives Ranking Loss."""
-
-    print(f"Loading base model: {base_model_name}")
-    model = SentenceTransformer(base_model_name)
-
-    # --- NEW: Enable Gradient Checkpointing to save VRAM ---
-    try:
-        # Try to enable gradient checkpointing for memory efficiency
-        if hasattr(model, 'model') and hasattr(model.model, 'gradient_checkpointing_enable'):
-            model.model.gradient_checkpointing_enable()  # type: ignore
-            print("Enabled gradient checkpointing for memory efficiency")
-        else:
-            print("Gradient checkpointing not available for this model")
-    except Exception as e:
-        print(f"Could not enable gradient checkpointing: {e}")
-
-    print("Training data: Streaming dataset (size determined at runtime)")
-    print("Note: Validation split is ignored for streaming datasets.")
-
-    # Use Multiple Negatives Ranking Loss
-    train_loss = losses.MultipleNegativesRankingLoss(model)
-
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    print(f"Starting fine-tuning for {epochs} epochs...")
-    print(f"Output directory: {output_path}")
-
-    # Load data in chunks to balance memory efficiency with training effectiveness
-    chunk_size = 2000  # Process in chunks of 2000 examples
-    all_examples = []
-
-    print("Loading training data in chunks...")
-    for i, example in enumerate(train_dataset):
-        all_examples.append(example)
-        if (i + 1) % chunk_size == 0:
-            print(f"Loaded chunk {i // chunk_size + 1} with {len(all_examples)} examples")
-
-            chunk_dataset = ChunkDataset(all_examples)
-            chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)  # type: ignore
-
-            # Fine-tune on this chunk for one epoch
-            model.fit(
-                train_objectives=[(chunk_dataloader, train_loss)],
-                evaluator=None,
-                epochs=1,
-                warmup_steps=max(1, len(chunk_dataloader) // 10),
-                output_path=None,  # Don't save intermediate results
+                output_path=None,
                 save_best_model=False,
                 show_progress_bar=True,
                 use_amp=True
             )
 
-            # Clear the chunk to free memory
-            all_examples = []
-
-    # Process any remaining examples
-    if all_examples:
-        print(f"Processing final chunk with {len(all_examples)} examples")
-        chunk_dataset = ChunkDataset(all_examples)
-        chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)
-
-        model.fit(
-            train_objectives=[(chunk_dataloader, train_loss)],
-            evaluator=None,
-            epochs=1,
-            warmup_steps=max(1, len(chunk_dataloader) // 10),
-            output_path=None,
-            save_best_model=False,
-            show_progress_bar=True,
-            use_amp=True
-        )
-
-    # Save the final model
+    # Save the final model after all epochs are complete
     model.save(str(output_path))
-    print(f"Fine-tuned model saved to: {output_path}")
+    print(f"\nFine-tuned model saved to: {output_path}")
     return str(output_path)
+
+# --- NOTE: The redundant second definition of fine_tune_model has been removed ---
 
 def main():
     """Main fine-tuning pipeline."""
@@ -273,7 +192,6 @@ def main():
     base_model = fine_tune_config.get('base_model', 'EleutherAI/polyglot-ko-1.3b')
     output_dir = fine_tune_config.get('output_dir', 'models/fine_tuned')
     epochs = fine_tune_config.get('epochs', 3)
-    # --- MODIFIED: Lower default batch size ---
     batch_size = fine_tune_config.get('batch_size', 4)
     val_split = fine_tune_config.get('val_split', 0.1)
 
@@ -291,7 +209,6 @@ def main():
         print(f"Error: Data file not found: {data_path}")
         return 1
 
-    # --- MODIFIED: Use the streaming dataset ---
     print("Initializing streaming dataset...")
     training_dataset = StreamingJsonlDataset(data_path)
 
@@ -302,7 +219,7 @@ def main():
     print("Starting model fine-tuning...")
     model_path = fine_tune_model(
         base_model_name=base_model,
-        train_dataset=training_dataset, # Pass the dataset object
+        train_dataset=training_dataset,
         output_dir=output_dir,
         epochs=epochs,
         batch_size=batch_size,

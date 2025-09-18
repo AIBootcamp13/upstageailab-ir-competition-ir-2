@@ -43,7 +43,7 @@ class UtilitiesMenu(BaseMenuModule):
                 },
                 {
                     "name": "List All Scripts",
-                    "command": "poetry run python scripts/list_scripts.py",
+                    "command": "poetry run python scripts/maintenance/list_scripts.py",
                     "description": "List all available scripts with descriptions",
                     "needs_params": False,
                 },
@@ -97,7 +97,7 @@ class UtilitiesMenu(BaseMenuModule):
                 },
                 {
                     "name": "Launch Streamlit UI",
-                    "command": "poetry run streamlit run scripts/visualize_submissions.py",
+                    "command": "poetry run streamlit run scripts/visualization/visualize_submissions.py",
                     "description": "Launch the Streamlit UI for visualizing RAG submission results",
                     "needs_params": False,
                     "run_in_background": True,
@@ -133,8 +133,8 @@ class UtilitiesMenu(BaseMenuModule):
 
         # Check utility scripts
         utility_scripts = [
-            "scripts/list_scripts.py",
-            "scripts/visualize_submissions.py",
+            "scripts/maintenance/list_scripts.py",
+            "scripts/visualization/visualize_submissions.py",
         ]
         results["utility_scripts_exist"] = all(
             (self.project_root / script).exists() for script in utility_scripts
@@ -149,7 +149,7 @@ class UtilitiesMenu(BaseMenuModule):
         )
 
         # Check script listing functionality
-        list_script = self.project_root / "scripts" / "list_scripts.py"
+        list_script = self.project_root / "scripts" / "maintenance" / "list_scripts.py"
         results["script_listing_available"] = list_script.exists()
 
         # Check configuration switcher
@@ -223,7 +223,7 @@ class UtilitiesMenu(BaseMenuModule):
             "PYTHONPATH=src poetry run python scripts/test_huggingface_integration.py",
             "",
             "# List all available scripts",
-            "poetry run python scripts/list_scripts.py",
+            "poetry run python scripts/maintenance/list_scripts.py",
             "",
             "# Show current configuration",
             "PYTHONPATH=src poetry run python scripts/indexing/switch_config.py show",
@@ -238,7 +238,7 @@ class UtilitiesMenu(BaseMenuModule):
             "./scripts/infra/cleanup-distros.sh",
             "",
             "# Launch Streamlit UI",
-            "poetry run streamlit run scripts/visualize_submissions.py",
+            "poetry run streamlit run scripts/visualization/visualize_submissions.py",
         ]
 
 

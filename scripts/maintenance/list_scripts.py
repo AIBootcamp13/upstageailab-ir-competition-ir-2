@@ -2,7 +2,7 @@
 """
 List all scripts in the scripts/ directory with descriptions.
 
-Usage: poetry run python scripts/list_scripts.py
+Usage: poetry run python scripts/maintenance/list_scripts.py
 """
 
 import os
@@ -47,8 +47,8 @@ SCRIPT_DESCRIPTIONS = {
     "data/update_progress.py": "Updates progress tracking for data processing.",
 
     # Fine-tuning scripts
-    "fine_tune_retrieval.py": "Fine-tunes embedding and reranker models using enhanced validation data.",
-    "test_fine_tuned_models.py": "Tests and evaluates fine-tuned retrieval models.",
+    "fine_tuning/fine_tune_retrieval.py": "Fine-tunes embedding and reranker models using enhanced validation data.",
+    "fine_tuning/test_fine_tuned_models.py": "Tests and evaluates fine-tuned retrieval models.",
 
     # Infrastructure scripts
     "infra/start-elasticsearch.sh": "Downloads and starts local Elasticsearch.",
@@ -82,7 +82,7 @@ SCRIPT_DESCRIPTIONS = {
     "translation/translate_validation.py": "Translates validation datasets between languages.",
 
     # Validation scripts
-    "validation/visualize_submissions.py": "Visualizes and analyzes submission results.",
+    "visualization/visualize_submissions.py": "Visualizes and analyzes submission results.",
 }
 
 

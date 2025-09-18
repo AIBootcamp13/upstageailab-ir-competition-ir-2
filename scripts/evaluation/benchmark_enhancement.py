@@ -13,7 +13,7 @@ import sys
 import time
 import json
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, asdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
@@ -99,7 +99,7 @@ class QueryEnhancementBenchmarker:
         self,
         queries: List[str],
         technique: str,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[Callable[[BenchmarkResult], None]] = None
     ) -> List[BenchmarkResult]:
         """Benchmark a specific technique on a set of queries."""
 
