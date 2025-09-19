@@ -16,3 +16,6 @@ pycache/
 
 # Configuration backups
 *.backup
+docs/
+.ai/
+.jpg

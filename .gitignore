@@ -77,8 +77,11 @@ redis-*/
 deprecated/
 *en.md
 docs/notes/debug/
+.ai/
+checkpoints/
+
 # Data
-# /data/
+/data/
 outputs/
 notebooks/
 *.ipynb
@@ -99,3 +102,11 @@ query_enhancement_examples.md
 
 debug_submission_performance.md
 query-enhancement-manager.md
+
+# docs
+docs/
+docs/cuurently-work
+docs/development/
+!docs/assets/
+!docs/usage/
+
