@@ -103,10 +103,16 @@ debug_submission_performance.md
 query-enhancement-manager.md
 
 # docs
+docs/notes/debug/
+docs/assets/wandb/
+docs/unpublished/
 docs/
-!docs/assets/diagrams/
-docs/assets/*
+!docs/assets/*/
 !docs/assets/images/
+!docs/assets/diagrams/
+!docs/current-work/
+!docs/notes/
+!docs/usage/
 !docs/usage/
 !docs/current-work/
 !docs/notes/
