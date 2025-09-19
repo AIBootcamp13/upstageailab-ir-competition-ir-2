@@ -105,8 +105,7 @@ query-enhancement-manager.md
 
 # docs
 docs/
-docs/cuurently-work
-docs/development/
 !docs/assets/
-!docs/usage/
+docs/assets/*
+!docs/assets/images/
 
