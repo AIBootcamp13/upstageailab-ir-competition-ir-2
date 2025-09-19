@@ -77,7 +77,6 @@ redis-*/
 deprecated/
 *en.md
 docs/notes/debug/
-.ai/
 checkpoints/
 
 # Data
@@ -108,4 +107,4 @@ docs/
 !docs/assets/
 docs/assets/*
 !docs/assets/images/
-
+!docs/usage/
