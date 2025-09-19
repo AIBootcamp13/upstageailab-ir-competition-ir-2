@@ -31,7 +31,7 @@
         <td align="center"><a href="https://github.com/SuWuKIM">AI13_이상원</a></td>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_김효석</a></td>
         <td align="center"><a href="https://github.com/Wchoi189">AI13_최용비</a></td>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_강연경</a></td>
+        <td align="center"><a href="https://github.com/YeonkyungKang">AI13_강연경</a></td>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_정재훈</a></td>
     </tr>
     <tr>
