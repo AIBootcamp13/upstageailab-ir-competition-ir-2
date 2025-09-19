@@ -2,7 +2,13 @@
 name = "information_retrieval_rag"
 version = "0.1.0"
 description = "Modular RAG infra for experiments and submissions"
-authors = ["wchoi189 <wchoi189@gmail.com>"]
+authors = [
+    "Lee Sang-Won <refelicity6077@gmail.com>",
+    "Kang Yeon-Kyung <yeon97@gmail.com>",
+    "Kim Hyo-Seok <hskimh1982@gmail.com>",
+    "Jung Jae-Hoon <rpajhc@gmail.com>",
+    "Choi Woong-Bi <wchoi189@gmail.com>"
+]
 packages = [
 	{ include = "ir_core", from = "src" }
 ]
