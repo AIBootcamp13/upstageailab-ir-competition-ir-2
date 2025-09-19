@@ -23,12 +23,12 @@
     <tr>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
-        <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
+        <td align="center"><img src="https://github.com/Wchoi189/document-classifier/blob/dev-hydra/docs/images/team/AI13_%EC%B5%9C%EC%9A%A9%EB%B9%84.png?raw=true" width="180" height="180"/>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
         <td align="center"><img src="https://avatars.githubusercontent.com/u/156163982?v=4" width="180" height="180"/></td>
     </tr>
     <tr>
-        <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_이상원</a></td>
+        <td align="center"><a href="https://github.com/SuWuKIM">AI13_이상원</a></td>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_김효석</a></td>
         <td align="center"><a href="https://github.com/Wchoi189">AI13_최용비</a></td>
         <td align="center"><a href="https://github.com/YOUR_GITHUB">AI13_강연경</a></td>
@@ -37,7 +37,7 @@
     <tr>
         <td align="center">검색 알고리즘 최적화</td>
         <td align="center">툴 연동, 평가 검증</td>
-        <td align="center">베이스라인 제작, readme 작성</td>
+        <td align="center">베이스라인, readme 작성</td>
         <td align="center">모델 최적화, 프롬트 엔지니어링</td>
         <td align="center">API 개발, Steamlit UI</td>
     </tr>
@@ -374,7 +374,7 @@ PYTHONPATH=src poetry run python switch_config.py show
 | `solar` | solar-embedding-1-large | 4096D | documents_solar_with_embeddings_new | documents_bilingual.jsonl |
 
 > 📖 **자세한 사용법**: [Configuration Switcher 가이드](docs/usage/switch-config.md)
-()
+
 ---
 
 ## 📊 결과
@@ -445,13 +445,6 @@ PYTHONPATH=src poetry run python switch_config.py show
   <img src="docs/assets/images/leaderboard_w1000.png" alt="Competition Leaderboard Results" width="1000">
 </p>
 
-**📊 순위 분석:**
-- **1위**: 우리의 RAG 시스템
-- **평가 지표**: MAP, MRR 기반 종합 평가
-- **데이터셋**: Private + Public 리더보드 결과
-
-> 리더보드 상세 결과 및 비교 분석은 위 차트를 참고하세요.
----
 
 ## 📄 라이선스
 
