@@ -1,7 +1,6 @@
 
 <div align="center">
 
-<!-- **🚀 Made with ❤️ by Team Information Retrieval** -->
 
 [![CI](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2/actions/workflows/ci.yml/badge.svg)](https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2/actions)
 [![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://python.org)
@@ -56,7 +55,7 @@
 - [설치 및 실행](#-설치-및-실행)
 - [사용법](#-사용법)
 - [결과](#-결과)
-- [현재 작업](#-현재-작업)
+<!-- - [현재 작업](#-현재-작업) -->
 
 ---
 
@@ -393,8 +392,6 @@ PYTHONPATH=src poetry run python switch_config.py show
 |--------|------|------|
 | **MAP** | `0.8455` | ✅ **Good Performance** |
 | **MRR** | `0.8500` | ✅ **Solid Result** |
-<!-- | **MRR** | 0.XXX | Mean Reciprocal Rank |
-| **Precision@10** | 0.XXX | 상위 10개 결과 정확도 | -->
 
 ### 📈 리더보드
 
@@ -404,7 +401,7 @@ PYTHONPATH=src poetry run python switch_config.py show
 </p>
 
 **📊 순위 분석:**
-- **1위**: 우리의 RAG 시스템
+- **3위**: 우리의 RAG 시스템
 - **평가 지표**: MAP, MRR 기반 종합 평가
 - **데이터셋**: Private + Public 리더보드 결과
 
@@ -425,19 +422,35 @@ PYTHONPATH=src poetry run python switch_config.py show
 ### 📖 문서
 
 - [프로젝트 상세 개요](docs/notes/project-overview.md)
-- [Docker 없는 개발 환경](docs/docker-less.md)
-- [스모크 테스트 가이드](docs/usage/smoke-test.md)
-- [트러블슈팅 가이드](docs/usage/troubleshooting.md)
-- [현재 작업 스크린샷](docs/current-work/screenshots.md)
-- [개발 계획 및 로드맵](docs/current-work/overall-plan-example-roadmap.md)
-- [현재 작업 개요](docs/current-work/README.md)
+## 📊 결과
 
-### 🔗 유용한 링크
+### 🏅 성능 지표
 
-- [Elasticsearch 공식 문서](https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index.html)
-- [Redis 공식 문서](https://redis.io/documentation)
-- [HuggingFace Transformers](https://huggingface.co/docs/transformers/index)
+#### 📊 Private Dataset Results
+| 메트릭 | 점수 | 상태 |
+|--------|------|------|
+| **MAP** | `0.9000` | 🏆 **Best Performance** |
+| **MRR** | `0.9030` | ⭐ **Excellent** |
 
+#### 🌐 Public Dataset Results
+| 메트릭 | 점수 | 상태 |
+|--------|------|------|
+| **MAP** | `0.8455` | ✅ **Good Performance** |
+| **MRR** | `0.8500` | ✅ **Solid Result** |
+
+### � 리더보드
+
+#### 🏆 대회 최종 순위
+<p align="center">
+  <img src="docs/assets/images/leaderboard_w1000.png" alt="Competition Leaderboard Results" width="1000">
+</p>
+
+**📊 순위 분석:**
+- **1위**: 우리의 RAG 시스템
+- **평가 지표**: MAP, MRR 기반 종합 평가
+- **데이터셋**: Private + Public 리더보드 결과
+
+> 리더보드 상세 결과 및 비교 분석은 위 차트를 참고하세요.
 ---
 
 ## 📄 라이선스
