@@ -80,7 +80,7 @@ docs/notes/debug/
 checkpoints/
 
 # Data
-/data/
+data/
 outputs/
 notebooks/
 *.ipynb
@@ -104,7 +104,9 @@ query-enhancement-manager.md
 
 # docs
 docs/
-!docs/assets/
+!docs/assets/diagrams/
 docs/assets/*
 !docs/assets/images/
 !docs/usage/
+!docs/current-work/
+!docs/notes/

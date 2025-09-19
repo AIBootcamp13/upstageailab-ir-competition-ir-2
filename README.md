@@ -222,7 +222,6 @@ flowchart TD
 ```bash
 git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
-git checkout 06_debug/low_score
 ```
 
 ### 2️⃣ 의존성 설치
@@ -375,23 +374,41 @@ PYTHONPATH=src poetry run python switch_config.py show
 | `bilingual` | KR-SBERT-V40K-klueNLI-augSTS | 768D | documents_bilingual_with_embeddings_new | documents_bilingual.jsonl |
 | `solar` | solar-embedding-1-large | 4096D | documents_solar_with_embeddings_new | documents_bilingual.jsonl |
 
-> 📖 **자세한 사용법**: [Configuration Switcher 가이드](docs/README_switch_config.md)
-
+> 📖 **자세한 사용법**: [Configuration Switcher 가이드](docs/usage/switch-config.md)
+()
 ---
 
 ## 📊 결과
 
 ### 🏅 성능 지표
 
-| 메트릭 | 점수 | 비고 |
+#### 📊 Private Dataset Results
+| 메트릭 | 점수 | 상태 |
 |--------|------|------|
-| **MAP** | 0.90 | Mean Average Precision |
+| **MAP** | `0.9000` | 🏆 **Best Performance** |
+| **MRR** | `0.9030` | ⭐ **Excellent** |
+
+#### 🌐 Public Dataset Results
+| 메트릭 | 점수 | 상태 |
+|--------|------|------|
+| **MAP** | `0.8455` | ✅ **Good Performance** |
+| **MRR** | `0.8500` | ✅ **Solid Result** |
 <!-- | **MRR** | 0.XXX | Mean Reciprocal Rank |
 | **Precision@10** | 0.XXX | 상위 10개 결과 정확도 | -->
 
 ### 📈 리더보드
 
-> 리더보드 스크린샷 및 순위 정보를 여기에 추가하세요.
+#### 🏆 대회 최종 순위
+<p align="center">
+  <img src="docs/assets/images/leaderboard_w1000.png" alt="Competition Leaderboard Results" width="1000">
+</p>
+
+**📊 순위 분석:**
+- **1위**: 우리의 RAG 시스템
+- **평가 지표**: MAP, MRR 기반 종합 평가
+- **데이터셋**: Private + Public 리더보드 결과
+
+> 리더보드 상세 결과 및 비교 분석은 위 차트를 참고하세요.
 
 ### 🎯 주요 성과
 
@@ -401,57 +418,7 @@ PYTHONPATH=src poetry run python switch_config.py show
 - ✅ **확장 가능성**: 새로운 임베딩 모델 및 검색 전략 쉽게 추가 가능
 
 ---
-<!--
-## 🚧 현재 작업
 
-### 📋 진행 중인 작업
-
-<details>
-<summary><strong>🔄 리팩토링 및 정리 작업</strong></summary>
-
-현재 프로젝트의 구조를 개선하고 문서를 정리하는 작업을 진행 중입니다:
-
-- ✅ **스크립트 재구성**: 로컬 서비스 관리 스크립트들을 적절한 디렉토리로 재배치
-- ✅ **문서 정리**: 중복된 문서 제거 및 최신 정보로 업데이트
-- ✅ **다이어그램 개선**: 시스템 아키텍처 다이어그램의 명확성 향상
-- 🔄 **README 최적화**: 사용자 경험 개선을 위한 문서 구조 개선
-
-</details>
-
-<details>
-<summary><strong>📊 성능 최적화</strong></summary>
-
-시스템 성능 향상을 위한 다양한 최적화 작업을 계획 중입니다:
-
-- 🔄 **병렬 처리 개선**: 대용량 데이터 처리 시 성능 최적화
-- 🔄 **캐싱 전략 강화**: Redis 활용도 극대화
-- 🔄 **메모리 사용 최적화**: Elasticsearch 및 임베딩 모델 메모리 효율성 개선
-
-</details>
-
-<details>
-<summary><strong>🔧 개발 환경 개선</strong></summary>
-
-개발자 경험 향상을 위한 환경 개선 작업:
-
-- ✅ **로컬 개발 환경**: Docker 없는 완전한 로컬 개발 환경 구축
-- 🔄 **CI/CD 파이프라인**: 자동화된 테스트 및 배포 프로세스 구축
-- 🔄 **모니터링 도구**: 시스템 상태 모니터링 및 로깅 개선
-
-</details>
-
-### 📸 스크린샷 및 시각화
-
-> 현재 작업 중인 기능과 개선사항에 대한 스크린샷은 [작업 진행 상황](docs/current-work/screenshots.md)에서 확인하실 수 있습니다.
-
-### 📝 상세 계획
-
-> 앞으로의 개발 계획과 로드맵은 [개발 계획](docs/current-work/development-plans.md)에서 확인하실 수 있습니다. -->
-
----
-
-
----
 
 ## 📚 참고 자료
 
@@ -462,7 +429,7 @@ PYTHONPATH=src poetry run python switch_config.py show
 - [스모크 테스트 가이드](docs/usage/smoke-test.md)
 - [트러블슈팅 가이드](docs/usage/troubleshooting.md)
 - [현재 작업 스크린샷](docs/current-work/screenshots.md)
-- [개발 계획 및 로드맵](docs/current-work/development-plans.md)
+- [개발 계획 및 로드맵](docs/current-work/overall-plan-example-roadmap.md)
 - [현재 작업 개요](docs/current-work/README.md)
 
 ### 🔗 유용한 링크
