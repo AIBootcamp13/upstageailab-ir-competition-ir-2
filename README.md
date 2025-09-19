@@ -417,34 +417,23 @@ PYTHONPATH=src poetry run python switch_config.py show
 ---
 
 
+
 ## 📚 참고 자료
 
 ### 📖 문서
 
 - [프로젝트 상세 개요](docs/notes/project-overview.md)
-## 📊 결과
+- [Docker 없는 개발 환경](docs/docker-less.md)
+- [스모크 테스트 가이드](docs/usage/smoke-test.md)
+- [트러블슈팅 가이드](docs/usage/troubleshooting.md)
 
-### 🏅 성능 지표
+### 🔗 유용한 링크
 
-#### 📊 Private Dataset Results
-| 메트릭 | 점수 | 상태 |
-|--------|------|------|
-| **MAP** | `0.9000` | 🏆 **Best Performance** |
-| **MRR** | `0.9030` | ⭐ **Excellent** |
+- [Elasticsearch 공식 문서](https://www.elastic.co/guide/en/elasticsearch/reference/8.9/index.html)
+- [Redis 공식 문서](https://redis.io/documentation)
+- [HuggingFace Transformers](https://huggingface.co/docs/transformers/index)
 
-#### 🌐 Public Dataset Results
-| 메트릭 | 점수 | 상태 |
-|--------|------|------|
-| **MAP** | `0.8455` | ✅ **Good Performance** |
-| **MRR** | `0.8500` | ✅ **Solid Result** |
-
-### � 리더보드
-
-#### 🏆 대회 최종 순위
-<p align="center">
-  <img src="docs/assets/images/leaderboard_w1000.png" alt="Competition Leaderboard Results" width="1000">
-</p>
-
+---
 
 ## 📄 라이선스
 
