@@ -30,9 +30,9 @@ RERANK_K: 10                  # Number of documents to rerank with dense retriev
 
 # Embedding Configuration
 # ----------------------
-EMBEDDING_MODEL: EleutherAI/polyglot-ko-1.3b            # Polyglot-Ko model for Korean embeddings
+EMBEDDING_MODEL: jhgan/ko-sroberta-multitask            # Korean SentenceTransformer model for testing
 EMBEDDING_DIMENSION: 2048     # Vector dimension (768 for Korean, 384 for English, 4096 for Solar)
-EMBEDDING_PROVIDER: polyglot           # Provider type: 'huggingface' or 'solar' or 'polyglot'
+EMBEDDING_PROVIDER: sentence_transformers           # Provider type: 'huggingface' or 'solar' or 'polyglot' or 'sentence_transformers'
 EMBEDDING_BATCH_SIZE: 32        # Batch size for encoding texts
 EMBEDDING_MAX_LENGTH: 512       # Maximum sequence length for tokenizer
 EMBEDDING_DEVICE: auto           # Device for model: 'auto', 'cuda', 'cpu'

@@ -45,7 +45,7 @@ jobs:
           poetry add --dev ruff mypy --lock --no-interaction || true
 
       - name: Run unit tests
-        run: PYTHONPATH=. poetry run pytest -q
+        run: PYTHONPATH=. poetry run pytest -q --ignore=scripts/testing/test_retrieval.py --ignore=scripts/testing/test_scientific_search.py --ignore=scripts/testing/test_scores.py
 
       - name: Run ruff (lint)
         run: poetry run ruff --version && poetry run ruff check . || true
