@@ -116,7 +116,7 @@ poetry run python cli_menu.py
 ### 📅 일정
 
 * **시작 날짜**: 2025-09-08
-* **최종 제출**: 2025-09-18 (19:00)
+* **최종 제출**: 2025-09-18 (완료)
 
 ### 📈 평가 지표
 
@@ -131,38 +131,22 @@ poetry run python cli_menu.py
 ├── 📄 poetry.lock
 ├── 📄 poetry.toml
 ├── 📄 pytest.ini
-├── 📂 .ai/                     # 🤖 AI assistant documentation & instructions
-│   ├── 📄 README.md
-│   ├── 📂 assistant-instructions/
-│   └── 📂 context/
-├── 📂 conf/
-├── 📂 data/
-├── 📂 docs/
-│   ├── 📂 assets/
-│   ├── 📂 notes/
-│   ├── 📂 planning/
-│   ├── 📂 usage/
-│   └── 📂 current-work/
-│       ├── 📄 README.md
-│       ├── 📄 screenshots.md
-│       └── 📄 development-plans.md
-└── 📂 scripts/
-        ├── 📂 cli/                    # Command-line interfaces
-        ├── 📂 debugging/             # Performance analysis & debugging
-        ├── 📂 indexing/              # Document indexing & configuration
-        ├── 📂 testing/               # Component testing & validation
-        ├── 📂 evaluation/            # Model evaluation & validation
-        ├── 📂 execution/             # Core pipeline execution
-        ├── 📂 data/                  # Dataset processing & analysis
-        ├── 📂 maintenance/           # System maintenance & utilities
-        ├── 📂 infra/                 # Infrastructure management
-        ├── 📂 integration/           # Cross-component integration tests
-        ├── 📂 translation/           # Language translation utilities
-        └── 📂 validation/            # Result validation & visualization
-
-├── 📂 src/
-├── 📂 tests/
-└── ... (other standard dirs)
+├── 📂 conf/                    # 설정 파일들
+├──  data/                    # 데이터셋 및 실험 결과
+├── 📂 deprecated/              # deprecated 코드
+├── 📂 docs/                    # 문서 및 가이드
+├── 📂 models/                  # 모델 파일들
+├── 📂 notebooks/               # Jupyter 노트북
+├── 📂 outputs/                 # 출력 파일들
+├── 📂 scripts/                 # 스크립트들
+├── 📂 src/                     # 소스 코드
+├── 📂 tests/                   # 테스트 코드
+├── 📂 tools/                   # 도구들
+├── 📂 wandb/                   # Weights & Biases 로그
+├── 📂 elasticsearch-8.9.0/     # Elasticsearch 바이너리
+├── 📂 redis-7.2.0/            # Redis 바이너리
+├── 📂 __pycache__/            # Python 캐시
+└── 기타 설정 파일들
 ```
 #### **🔧 주요 컴포넌트**
 
@@ -238,7 +222,7 @@ flowchart TD
 ```bash
 git clone https://github.com/AIBootcamp13/upstageailab-ir-competition-upstageailab-information-retrieval_2.git
 cd upstageailab-ir-competition-upstageailab-information-retrieval_2
-git checkout 05_feature/kibana
+git checkout 06_debug/low_score
 ```
 
 ### 2️⃣ 의존성 설치
@@ -319,28 +303,28 @@ poetry run python cli_menu.py
 프로젝트 인프라 설정 및 관리 기능을 제공합니다. 의존성 설치, 환경 설정, 로컬 서비스(Elasticsearch, Redis) 시작/중지 등의 작업을 수행할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-setup-infrastructure-option.png" alt="Setup & Infrastructure Menu" width="600">
+  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-setup-infrastructure-option.png" alt="Setup & Infrastructure Menu" width="1000">
 </p>
 
 #### 2. Data Management
 문서 데이터의 색인, 분석, 중복 검사 등의 데이터 관리 작업을 지원합니다. Elasticsearch에 문서를 효율적으로 색인하고 데이터 품질을 검증할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-data-management-options.png" alt="Data Management Menu" width="600">
+  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-data-management-options.png" alt="Data Management Menu" width="1000">
 </p>
 
 #### 3. Experiments & Validation
 검색 성능 검증 및 실험을 위한 다양한 옵션을 제공합니다. 기본 검증부터 Ollama 모델을 활용한 고급 실험까지 지원하며 병렬 처리도 가능합니다.
 
 <p align="center">
-  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-experiments-validation.png" alt="Experiments & Validation Menu" width="600">
+  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-experiments-validation.png" alt="Experiments & Validation Menu" width="1000">
 </p>
 
 #### 4. Evaluation & Submission
 대회 제출용 파일 생성 및 평가 작업을 수행합니다. 다양한 모델(OpenAI, Qwen2, Llama 등)을 선택하여 최적의 제출 파일을 생성할 수 있습니다.
 
 <p align="center">
-  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="600">
+  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-evaluation-submissions.png" alt="Evaluation & Submission Menu" width="1000">
 </p>
 
 #### 5. Translation
@@ -356,7 +340,7 @@ poetry run python cli_menu.py
 시스템 상태 확인, 스크립트 목록 조회, Streamlit UI 실행 등의 유틸리티 기능을 제공합니다. 프로젝트 유지보수 및 모니터링에 유용합니다.
 
 <p align="center">
-  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="600">
+  <img src="docs/assets/images/04_refactor_visualizations/cli-menu/cli-menu-utilities-streamlit-menu.png" alt="Utilities Menu" width="1000">
 </p>
 
 ### 🔧 Configuration Management
@@ -401,9 +385,9 @@ PYTHONPATH=src poetry run python switch_config.py show
 
 | 메트릭 | 점수 | 비고 |
 |--------|------|------|
-| **MAP** | 0.XXX | Mean Average Precision |
-| **MRR** | 0.XXX | Mean Reciprocal Rank |
-| **Precision@10** | 0.XXX | 상위 10개 결과 정확도 |
+| **MAP** | 0.90 | Mean Average Precision |
+<!-- | **MRR** | 0.XXX | Mean Reciprocal Rank |
+| **Precision@10** | 0.XXX | 상위 10개 결과 정확도 | -->
 
 ### 📈 리더보드
 
