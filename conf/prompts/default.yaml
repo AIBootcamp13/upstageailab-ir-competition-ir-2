@@ -1,0 +1,24 @@
+# conf/prompts/default.yaml
+
+# =================================================================
+# 프롬프트 경로 설정 (Prompt Path Configurations)
+# =================================================================
+
+# 답변 생성에 사용될 기본 프롬프트
+generation_qa: "prompts/scientific_qa_v1.jinja2"
+
+# 페르소나/시스템 메시지 파일 경로
+persona: "prompts/persona/persona_qa.txt"
+
+# 대화형 답변 생성 프롬프트
+conversational: "prompts/conversational_v1.jinja2"
+
+# 질의 재구성 프롬프트
+rephrase_query: "prompts/rewrite_query3.jinja2" # Updated to use existing file
+
+# 검증셋 질문 생성 프롬프트
+question_generation: "prompts/question_generation_v1.jinja2"
+
+# Tool-calling LLM에게 제공될 도구의 설명 파일 경로
+tool_description: "prompts/tool_desc_recall_v1.txt" # "prompts/tool_desc_baseline.txt"
+

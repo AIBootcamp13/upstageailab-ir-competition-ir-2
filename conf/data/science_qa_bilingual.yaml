@@ -1,0 +1,14 @@
+# conf/data/science_qa_bilingual.yaml
+
+# =================================================================
+# Bilingual 데이터 경로 설정 (Bilingual Data Path Configurations)
+# =================================================================
+# 이 파일은 프로젝트에서 사용하는 bilingual 데이터 파일 및 출력 경로를 관리합니다.
+
+# --- 입력 데이터 (Input Data) ---
+documents_path: "data/documents_bilingual.jsonl"       # Bilingual 문서 파일 경로
+validation_path: "data/validation_balanced.jsonl"    # 한국어 검증 데이터셋 경로
+evaluation_path: "data/eval.jsonl"          # 한국어 평가 데이터셋 경로
+
+# --- 출력 데이터 (Output Data) ---
+output_path: "outputs/submission_bilingual.csv"     # Bilingual 제출 파일이 저장될 경로

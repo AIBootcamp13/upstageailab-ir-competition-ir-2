@@ -1,0 +1,37 @@
+# conf/pipeline/default.yaml
+
+# =================================================================
+# 파이프라인 모델 설정 (Pipeline Model Configurations)
+# =================================================================
+
+# RAG 파이프라인의 Tool Calling 및 질의 재구성에 사용할 모델
+tool_calling_model: "gpt-3.5-turbo-1106"
+
+# 질의 재구성에 사용할 모델 (더 강력한 모델을 사용할 수 있음)
+rewriter_model: "gpt-4o-mini"
+
+# 질의 재구성기 유형 (현재는 openai만 지원)
+query_rewriter_type: "openai"
+
+# 질의 재구성기 설정
+rewriter:
+  max_tokens: 200
+  temperature: 0.0
+
+# 최종 답변 생성에 사용할 모델 유형 및 이름
+generator_type: "openai"
+generator_model_name: "gpt-3.5-turbo"
+
+
+
+# HuggingFace 모델을 사용하려면 아래 주석을 해제하고, generator_type과 generator_model_name을 설정합니다.
+# generator_type: "huggingface"
+# generator_model_name: "klue/roberta-large"
+
+# HuggingFace 생성기 설정
+huggingface:
+  max_tokens: 512
+  temperature: 0.1
+
+# 검색 도구(scientific_search)에서 반환할 문서의 기본 개수
+default_top_k: 5

@@ -1,0 +1,1 @@
+scripts/indexing/switch_config.py

@@ -1,83 +1,103 @@
-"""Embeddings implementation moved into subpackage.
-
-This file contains the concrete implementations previously in
-`src/ir_core/embeddings.py`.
-"""
+# src/ir_core/embeddings/core.py
 from typing import List, Optional
-
 import numpy as np
-import torch
-from transformers import AutoModel, AutoTokenizer
 
 from ..config import settings
+from .base import BaseEmbeddingProvider
+from .huggingface import HuggingFaceEmbeddingProvider
+from .solar import SolarEmbeddingProvider
+from .polyglot import PolyglotKoEmbeddingProvider
+from .sentence_transformers import SentenceTransformerEmbeddingProvider
 
-_tokenizer = None
-_model = None
-_device = None
+# Global provider instance
+_provider = None
+_current_provider_type = None
 
-
-def _get_device():
-    global _device
-    if _device is None:
-        _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return _device
-
-
-def load_model(name: Optional[str] = None):
-    """Load tokenizer and model.
+def get_embedding_provider(provider_type: Optional[str] = None) -> BaseEmbeddingProvider:
+    """
+    Get or create embedding provider based on type.
 
     Args:
-        name: model name (HuggingFace). Defaults to settings.EMBEDDING_MODEL.
+        provider_type: Type of provider ('huggingface' or 'solar'). If None, uses settings.
+
     Returns:
-        (tokenizer, model)
+        BaseEmbeddingProvider instance
     """
-    global _tokenizer, _model
-    model_name = name or settings.EMBEDDING_MODEL
-    if _tokenizer is None or _model is None:
-        _tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-        _model = AutoModel.from_pretrained(model_name)
-        _model.to(_get_device())
-        _model.eval()
-    return _tokenizer, _model
+    global _provider, _current_provider_type
+
+    # Determine provider type
+    if provider_type is None:
+        provider_type = getattr(settings, 'EMBEDDING_PROVIDER', 'huggingface')
+
+    # Create new provider if type changed
+    if _current_provider_type != provider_type or _provider is None:
+        if provider_type == 'huggingface':
+            _provider = HuggingFaceEmbeddingProvider()
+        elif provider_type == 'solar':
+            _provider = SolarEmbeddingProvider()
+        elif provider_type == 'polyglot':
+            _provider = PolyglotKoEmbeddingProvider()
+        elif provider_type == 'sentence_transformers':
+            _provider = SentenceTransformerEmbeddingProvider()
+        else:
+            raise ValueError(f"Unknown embedding provider type: {provider_type}")
+
+        _current_provider_type = provider_type
+
+    return _provider
+
+def load_model(name: Optional[str] = None):
+    """
+    Load model for backward compatibility.
+    This function is kept for backward compatibility but now delegates to provider.
+    """
+    provider = get_embedding_provider()
+    if isinstance(provider, HuggingFaceEmbeddingProvider):
+        # For HuggingFace, we still need to load the model
+        return provider._tokenizer, provider._model
+    else:
+        # For API providers, return None
+        return None, None
 
 
-def _mean_pool(last_hidden, attention_mask):
-    mask = attention_mask.unsqueeze(-1).expand(last_hidden.size()).float()
-    summed = torch.sum(last_hidden * mask, dim=1)
-    counts = torch.clamp(mask.sum(dim=1), min=1e-9)
-    return summed / counts
+def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] = None, model_name: Optional[str] = None, provider_type: Optional[str] = None) -> np.ndarray:
+    """
+    Encode texts into embeddings using the configured provider.
 
+    Args:
+        texts: List of text strings to encode
+        batch_size: Batch size (for HuggingFace provider)
+        device: Device for computation (for HuggingFace provider)
+        model_name: Model name (for HuggingFace provider)
+        provider_type: Force specific provider type
 
-def encode_texts(texts: List[str], batch_size: int = 32, device: Optional[str] = None) -> np.ndarray:
-    if not texts:
-        try:
-            _, m = load_model()
-            dim = m.config.hidden_size
-        except Exception:
-            dim = 768
-        return np.zeros((0, dim), dtype=np.float32)
+    Returns:
+        numpy array of shape (len(texts), embedding_dim)
+    """
+    provider = get_embedding_provider(provider_type)
 
-    tokenizer, model = load_model()
-    dev = torch.device(device) if device else _get_device()
+    # Pass provider-specific kwargs
+    kwargs = {}
+    if isinstance(provider, HuggingFaceEmbeddingProvider):
+        kwargs.update({
+            'batch_size': batch_size,
+            'device': device,
+            'model_name': model_name
+        })
 
-    all_embs = []
-    with torch.no_grad():
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            encoded = tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
-            for k, v in encoded.items():
-                encoded[k] = v.to(dev)
-            out = model(**encoded)
-            last_hidden = out.last_hidden_state
-            emb = _mean_pool(last_hidden, encoded["attention_mask"])  # (batch, dim)
-            emb = emb.cpu().numpy()
-            norms = np.linalg.norm(emb, axis=1, keepdims=True)
-            norms[norms == 0] = 1.0
-            emb = emb / norms
-            all_embs.append(emb.astype(np.float32))
-    return np.vstack(all_embs)
+    return provider.encode_texts(texts, **kwargs)
 
 
 def encode_query(text: str, **kwargs) -> np.ndarray:
-    arr = encode_texts([text], **kwargs)
-    return arr[0]
+    """
+    Encode a single query into an embedding.
+
+    Args:
+        text: Query string to encode
+        **kwargs: Additional parameters passed to provider
+
+    Returns:
+        numpy array of shape (embedding_dim,)
+    """
+    provider = get_embedding_provider(kwargs.get('provider_type'))
+    return provider.encode_query(text, **kwargs)

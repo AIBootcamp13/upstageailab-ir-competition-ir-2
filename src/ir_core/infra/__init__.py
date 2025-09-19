@@ -9,8 +9,21 @@ from ..config import settings
 
 
 def get_es():
-	"""Return an Elasticsearch client configured from settings."""
-	return Elasticsearch(settings.ES_HOST)
+	"""Return an Elasticsearch client configured from settings.
+
+	Use conservative timeouts to avoid the client appearing to hang when
+	Elasticsearch isn't available. These settings are safe defaults for
+	local development.
+	"""
+	return Elasticsearch(
+		settings.ES_HOST,
+		# Fail fast on connection problems in test runs. Keeping retries very low
+		# and disabling retry_on_timeout prevents the underlying transport from
+		# emitting thousands of repeated attempts when ES is down.
+		request_timeout=5,
+		max_retries=0,
+		retry_on_timeout=False,
+	)
 
 
 def count_docs_with_embeddings(es=None, index=None):

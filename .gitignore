@@ -70,12 +70,32 @@ elasticsearch-*/
 
 # Redis runtime artifacts
 redis-*/
-
+*.rdb
 # Misc
 *.swp
 *~
 deprecated/
-
+*en.md
+docs/notes/debug/
 # Data
-data/
+# /data/
+outputs/
+notebooks/
+*.ipynb
+dump.rdb
+multirun/
+# WanDB
+wandb/
+multirun/
 
+# Kibana
+.local_kibana
+
+# debug
+debug_performance.py
+test_techniques.py
+bash-direct-retrieval-examples.md
+query_enhancement_examples.md
+
+debug_submission_performance.md
+query-enhancement-manager.md
