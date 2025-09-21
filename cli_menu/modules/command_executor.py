@@ -373,6 +373,11 @@ class CommandExecutor:
             True if successful
         """
         command = command_dict["command"]
+
+        # If command is callable (like a lambda), call it to get the actual command string
+        if callable(command):
+            command = command()
+
         description = command_dict["description"]
 
         if command_dict.get("needs_params", False):
@@ -460,7 +465,7 @@ class CommandExecutor:
             "dd if=",
             "mkfs",
             "fdisk",
-            "format",
+            "format ",  # Note: space after format to avoid matching paths
             "del /",
             "deltree",
             "shutdown",

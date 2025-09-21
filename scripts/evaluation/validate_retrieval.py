@@ -17,6 +17,13 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 import wandb
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, continue without it
+
 # ------------------------------------
 
 # Suppress httpx INFO logs to prevent BrokenPipeError with tqdm in multi-threaded environment

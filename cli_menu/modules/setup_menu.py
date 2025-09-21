@@ -36,29 +36,29 @@ class SetupMenu(BaseMenuModule):
                     "needs_params": False,
                 },
                 {
-                    "name": "Setup Environment",
-                    "command": "cp .env.example .env",
-                    "description": "Copy environment template file",
+                    "name": "Run Smoke Test",
+                    "command": f"{self.get_command_path('scripts/evaluation/smoke_test.py')}",
+                    "description": "Run smoke tests to verify system health",
                     "needs_params": False,
                 },
-                {
-                    "name": "Start Local Services",
-                    "command": "./scripts/execution/run-local.sh start",
-                    "description": "Start(or Install) Elasticsearch, Redis, and Kibana locally",
-                    "needs_params": False,
-                },
+                # {
+                #     "name": "Start Local Services",
+                #     "command": "./scripts/execution/run-local.sh start",
+                #     "description": "Start Elasticsearch, Redis, and Kibana locally (skips if already running)",
+                #     "needs_params": False,
+                # },
                 {
                     "name": "Check Service Status",
                     "command": "./scripts/execution/run-local.sh status",
                     "description": "Check status of local services (Elasticsearch, Redis, Kibana)",
                     "needs_params": False,
                 },
-                {
-                    "name": "Stop Local Services",
-                    "command": "./scripts/execution/run-local.sh stop",
-                    "description": "Stop local Elasticsearch, Redis, and Kibana",
-                    "needs_params": False,
-                },
+                # {
+                #     "name": "Stop Local Services",
+                #     "command": "./scripts/execution/run-local.sh stop",
+                #     "description": "Stop local Elasticsearch, Redis, and Kibana",
+                #     "needs_params": False,
+                # }
             ]
         }
 

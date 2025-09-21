@@ -149,7 +149,7 @@ class Menu:
                 return True
 
             command_names = [cmd["name"]
-                             for cmd in commands] + ["Back to Main Menu"]
+                             for cmd in commands] + ["Exit to Main Menu"]
 
             command_name = questionary.select(
                 f"Select a command from {category}:",
@@ -159,7 +159,7 @@ class Menu:
 
             if command_name is None:
                 return True  # User cancelled, back to main
-            elif command_name == "Back to Main Menu":
+            elif command_name == "Exit to Main Menu":
                 return True
 
             # Find and execute the command
@@ -202,8 +202,21 @@ class Menu:
         """Check if a command needs user confirmation before execution."""
         destructive_keywords = [
             'delete', 'remove', 'drop', 'clear', 'reset', 'stop', 'kill',
-            'uninstall', 'purge', 'clean', 'format', 'wipe'
+            'uninstall', 'purge', 'format', 'wipe'
         ]
+
+        # Commands that are read-only and safe
+        safe_command_names = [
+            'analyze data', 'run smoke test', 'check service status',
+            'list all scripts', 'show current configuration',
+            'check current configuration', 'validate retrieval (openai)', 'validate retrieval (qwen2:7b full)',
+            'validate retrieval (llama3.1:8b full)', 'validate retrieval (ollama hybrid)',
+            'validate retrieval (custom)', 'multi-run experiments', 'test huggingface integration'
+        ]
+
+        command_name = command.get("name", "").lower()
+        if command_name in safe_command_names:
+            return False
 
         command_text = (command.get("command", "") + " " +
                         command.get("description", "")).lower()
@@ -233,7 +246,7 @@ class Menu:
         try:
             choice = questionary.select(
                 f"Do you want to continue in the '{category}' category?",
-                choices=["Continue in this category", "Back to Main Menu"],
+                choices=["Continue in this category", "Exit to Main Menu"],
                 use_shortcuts=True,
             ).ask()
 

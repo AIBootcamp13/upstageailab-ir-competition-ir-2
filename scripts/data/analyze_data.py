@@ -14,7 +14,7 @@ def _add_src_to_path():
         sys.path.insert(0, src_dir)
 
 
-def analyze(file_path: str = "data/documents.jsonl"):
+def analyze(file_path: str = None):
     """
     Analyzes a JSONL document file to provide statistics on token counts.
 
@@ -23,10 +23,15 @@ def analyze(file_path: str = "data/documents.jsonl"):
 
     Args:
         file_path: Path to the .jsonl file containing the documents.
+                  If None, uses the current documents path from config.
     """
     _add_src_to_path()
-    from ir_core.utils.core import read_jsonl
+    from ir_core.utils import get_current_documents_path, read_jsonl
     from ir_core.embeddings.core import load_model
+
+    # Use centralized config if no path provided
+    if file_path is None:
+        file_path = get_current_documents_path()
 
     print("--- Starting Dataset Analysis ---")
 

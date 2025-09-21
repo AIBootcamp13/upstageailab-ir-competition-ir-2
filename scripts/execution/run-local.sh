@@ -77,40 +77,64 @@ ensure_dirs(){
 }
 
 start_es(){
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "Error: Docker is not installed or not available"
-    return 1
-  fi
-  if docker ps --filter "name=elasticsearch" --filter "status=running" | grep -q elasticsearch; then
+  # Check if Elasticsearch is already running (Docker container or accessible)
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=elasticsearch" --filter "status=running" | grep -q elasticsearch; then
     echo "Elasticsearch already running (Docker container)"
     return 0
+  elif curl -s --max-time 5 http://elasticsearch:9200/_cluster/health >/dev/null 2>&1; then
+    echo "Elasticsearch already running (accessible on elasticsearch:9200)"
+    return 0
   fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    echo "Please install Docker or start Elasticsearch manually"
+    return 1
+  fi
+
   echo "Starting Elasticsearch via Docker Compose..."
   docker-compose up -d elasticsearch
 }
 
 start_redis(){
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "Error: Docker is not installed or not available"
-    return 1
-  fi
-  if docker ps --filter "name=redis" --filter "status=running" | grep -q redis; then
+  # Check if Redis is already running (Docker container or accessible)
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=redis" --filter "status=running" | grep -q redis; then
     echo "Redis already running (Docker container)"
     return 0
+  elif redis-cli -h redis -p 6379 ping 2>/dev/null | grep -q PONG; then
+    echo "Redis already running (accessible on redis:6379)"
+    return 0
+  elif uv run python -c "import redis; redis.Redis(host='redis', port=6379).ping()" 2>/dev/null; then
+    echo "Redis already running (accessible on redis:6379 via Python)"
+    return 0
   fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    echo "Please install Docker or start Redis manually"
+    return 1
+  fi
+
   echo "Starting Redis via Docker Compose..."
   docker-compose up -d redis
 }
 
 start_kibana(){
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "Error: Docker is not installed or not available"
-    return 1
-  fi
-  if docker ps --filter "name=kibana" --filter "status=running" | grep -q kibana; then
+  # Check if Kibana is already running (Docker container or accessible)
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=kibana" --filter "status=running" | grep -q kibana; then
     echo "Kibana already running (Docker container)"
     return 0
+  elif curl -s --max-time 5 http://kibana:5601/api/status >/dev/null 2>&1; then
+    echo "Kibana already running (accessible on kibana:5601)"
+    return 0
   fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    echo "Please install Docker or start Kibana manually"
+    return 1
+  fi
+
   echo "Starting Kibana via Docker Compose..."
   docker-compose up -d kibana
 }
@@ -188,9 +212,19 @@ status(){
 case "$action" in
   start)
     start_es
+    es_result=$?
     start_redis
+    redis_result=$?
     start_kibana
-    echo "Started services via Docker Compose. Use 'scripts/execution/run-local.sh status' to check."
+    kibana_result=$?
+
+    if [ $es_result -eq 0 ] && [ $redis_result -eq 0 ] && [ $kibana_result -eq 0 ]; then
+      echo "All services are running. Use 'scripts/execution/run-local.sh status' to check."
+      exit 0
+    else
+      echo "Some services failed to start. Check the output above."
+      exit 1
+    fi
     ;;
   stop)
     stop_redis

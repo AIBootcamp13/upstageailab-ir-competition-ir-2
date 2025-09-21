@@ -91,6 +91,15 @@ source ~/.bashrc
 # - python3 → uv run python3
 # - pip → uv pip (but not recommended)
 
+# Optional: Load project-specific aliases for convenience
+source scripts/project-aliases.sh
+
+# This adds:
+# - menu → uv run cli_menu.py (main project interface)
+# - cli → uv run scripts/cli.py (command-line interface)
+# - sc → uv run switch_config.py (configuration switcher)
+# - sd → uv run switch_data_config.py (data config switcher)
+
 # Test the setup
 python --version  # Should show Python 3.10.x
 which python      # Should show .venv/bin/python

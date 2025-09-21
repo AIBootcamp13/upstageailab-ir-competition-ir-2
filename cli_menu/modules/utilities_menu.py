@@ -30,14 +30,8 @@ class UtilitiesMenu(BaseMenuModule):
         return {
             "Utilities": [
                 {
-                    "name": "Run Smoke Tests",
-                    "command": f"{self.get_command_path('scripts/evaluation/smoke_test.py')}",
-                    "description": "Run smoke tests to verify system health",
-                    "needs_params": False,
-                },
-                {
                     "name": "Test HuggingFace Integration",
-                    "command": f"{self.get_command_path('scripts/test_huggingface_integration.py')}",
+                    "command": f"{self.get_command_path('scripts/integration/test_huggingface_integration.py')}",
                     "description": "Test HuggingFace model integration for retrieval and generation",
                     "needs_params": False,
                 },
@@ -125,7 +119,7 @@ class UtilitiesMenu(BaseMenuModule):
         # Check test scripts
         test_scripts = [
             "scripts/evaluation/smoke_test.py",
-            "scripts/test_huggingface_integration.py",
+            "scripts/integration/test_huggingface_integration.py",
         ]
         results["test_scripts_exist"] = all(
             (self.project_root / script).exists() for script in test_scripts
@@ -220,7 +214,7 @@ class UtilitiesMenu(BaseMenuModule):
             "PYTHONPATH=src uv run python scripts/evaluation/smoke_test.py",
             "",
             "# Test HuggingFace integration",
-            "PYTHONPATH=src uv run python scripts/test_huggingface_integration.py",
+            "PYTHONPATH=src uv run python scripts/integration/test_huggingface_integration.py",
             "",
             "# List all available scripts",
             "uv run python scripts/maintenance/list_scripts.py",

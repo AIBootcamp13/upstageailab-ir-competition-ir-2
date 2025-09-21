@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for HuggingFace integration with KLUE-RoBERTa models.
+Test script for HuggingFace integration with nlpai-lab/KURE-v1 models.
 Tests both retrieval (embeddings) and generation components.
 """
 
@@ -8,13 +8,11 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-import torch
-from ir_core.embeddings.core import encode_query, encode_texts
-from ir_core.generation import get_generator
-from omegaconf import OmegaConf
+import argparse
 
 def test_gpu_resources():
     """Test GPU availability and resources."""
+    import torch
     print("=== GPU Resources Test ===")
     print(f"CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
@@ -28,7 +26,10 @@ def test_gpu_resources():
     print()
 
 def test_embeddings():
-    """Test embedding generation with KLUE-RoBERTa."""
+    """Test embedding generation with nlpai-lab/KURE-v1."""
+    import torch
+    from ir_core.embeddings.core import encode_query, encode_texts
+
     print("=== Embeddings Test ===")
     try:
         # Test query encoding
@@ -55,32 +56,35 @@ def test_embeddings():
     print()
     return True
 
-def test_generation():
-    """Test text generation with KLUE-RoBERTa."""
+def test_generation(config_path=None, config_name="settings"):
+    """Test text generation with HuggingFace models."""
+    from omegaconf import OmegaConf
+    import hydra
+    from hydra import compose, initialize_config_dir
+    from ir_core.generation import get_generator
+
     print("=== Generation Test ===")
     try:
-        # Create mock config for testing
-        config_dict = {
-            'pipeline': {
-                'generator_type': 'huggingface',
-                'generator_model_name': 'microsoft/DialoGPT-medium',  # Use a model that can actually generate text
-                'huggingface': {
-                    'max_tokens': 50,
-                    'temperature': 0.1
-                }
-            },
-            'prompts': {
-                'generation_qa': 'prompts/scientific_qa/scientific_qa_v1.jinja2'
-            }
-        }
-        cfg = OmegaConf.create(config_dict)
+        # Load configuration using Hydra
+        config_dir = config_path or os.path.join(os.path.dirname(__file__), '..', '..', 'conf')
+        with initialize_config_dir(config_dir=config_dir, version_base=None):
+            cfg = compose(config_name=config_name)
 
-        print("Initializing HuggingFace generator...")
+        # Override for HuggingFace testing if not already set
+        if cfg.pipeline.generator_type != 'huggingface':
+            print("Overriding generator to use HuggingFace for testing...")
+            cfg.pipeline.generator_type = 'huggingface'
+            cfg.pipeline.generator_model_name = 'nlpai-lab/KURE-v1'
+
+        print(f"Using generator: {cfg.pipeline.generator_type}")
+        print(f"Model: {cfg.pipeline.generator_model_name}")
+
+        print("Initializing generator...")
         generator = get_generator(cfg)
 
         query = "What are proteins?"
         context_docs = [
-            "Proteins are large biomolecules consisting of amino acids.",
+            "Proteins are large bio molecules consisting of amino acids.",
             "They perform crucial roles in organisms and viruses."
         ]
 
@@ -101,13 +105,18 @@ def test_generation():
 
 def main():
     """Run all tests."""
-    print("Testing HuggingFace KLUE-RoBERTa Integration")
+    parser = argparse.ArgumentParser(description="Test HuggingFace integration")
+    parser.add_argument("--config-dir", type=str, help="Path to config directory (default: conf/)")
+    parser.add_argument("--config-name", type=str, default="settings", help="Config name to use (default: settings)")
+    args = parser.parse_args()
+
+    print("Testing HuggingFace Integration")
     print("=" * 50)
 
     test_gpu_resources()
 
     embeddings_ok = test_embeddings()
-    generation_ok = test_generation()
+    generation_ok = test_generation(args.config_dir, args.config_name)
 
     print("=" * 50)
     if embeddings_ok and generation_ok:

@@ -72,6 +72,13 @@
 ```bash
 # 프로젝트 루트에서 실행
 uv run python cli_menu.py
+
+# 또는 편의를 위해 프로젝트 별칭 사용 (선택사항)
+source scripts/project-aliases.sh
+menu  # cli_menu.py 실행
+cli   # scripts/cli.py 실행
+sc    # switch_config.py 실행
+sd    # switch_data_config.py 실행
 ```
 
 메뉴를 통해 다음 작업들을 수행할 수 있습니다:
