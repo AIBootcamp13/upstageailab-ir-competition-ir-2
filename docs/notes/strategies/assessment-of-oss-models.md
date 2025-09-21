@@ -50,7 +50,7 @@ This is a more complex question with significant trade-offs. The answer is **yes
     * **Trade-offs:** These models are large. Running them efficiently requires significant VRAM and careful optimization.
 
 * **Tier 2: Balanced Performance (Smaller, Quantized Models)**
-    * **Recommendation:** To run on your local hardware (RTX 2090 24GB), you will need to use quantized versions of these models (e.g., GGUF, AWQ).
+    * **Recommendation:** To run on your local hardware (RTX 3060 12GB), you will need to use quantized versions of these models (e.g., GGUF, AWQ).
     * **Example Candidates:** 7B or 8B parameter models are the sweet spot for a 24GB card. A quantized version of a smaller SOLAR or a Korean Llama 3 8B model would be appropriate.
     * **Trade-offs:** Quantization can slightly reduce model performance. Inference will still be noticeably slower than a highly optimized API endpoint like OpenAI's.
 

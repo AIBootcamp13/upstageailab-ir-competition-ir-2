@@ -4,7 +4,7 @@ This plan turns the “useful extras to collect next” list into concrete, chec
 
 Scope notes
 - Repo: `information_retrieval_rag` (branch: 05_feature/kibana)
-- Runner: Poetry only. Prefer `PYTHONPATH=src poetry run python …` for scripts that import `ir_core`.
+- Runner: Poetry only. Prefer `PYTHONPATH=src uv run python …` for scripts that import `ir_core`.
 - Primary script to extend: `scripts/data/profile_documents.py` (add flags and writers as needed). Reuse utilities in `src/ir_core` when helpful.
 - Artifacts directory: `outputs/reports/data_profile/` with `latest -> <timestamp>` symlink.
 
@@ -24,7 +24,7 @@ Definition of Done: profiler runs end‑to‑end on `data/documents.jsonl` and w
 Optional run
 ```bash
 # Baseline run
-poetry run python scripts/data/profile_documents.py \
+uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl \
   --out_dir outputs/reports/data_profile \
   --save 1
@@ -209,14 +209,14 @@ Minimal checks per run
 
 Quality gates (optional)
 - [ ] `poetry run pytest -q` passes
-- [ ] `PYTHONPATH=src poetry run python scripts/evaluation/smoke_test.py` passes
+- [ ] `PYTHONPATH=src uv run python scripts/evaluation/smoke_test.py` passes
 
 ## How to run (patterns)
 
 Examples (toggle features as needed)
 ```bash
 # With keywords, stopwords, near-dups, and vocab overlap
-poetry run python scripts/data/profile_documents.py \
+uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl \
   --out_dir outputs/reports/data_profile \
   --save 1 --keywords_top_k 20 --min_df 2 --max_features 20000 \
@@ -225,12 +225,12 @@ poetry run python scripts/data/profile_documents.py \
   --vocab_overlap 1
 
 # Embedding health (sampled)
-PYTHONPATH=src poetry run python scripts/data/profile_documents.py \
+PYTHONPATH=src uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl --save 1 \
   --embedding_health 1 --embedding_model <name> --embed_sample_size 2000
 
 # Scientific term extraction (local LLM)
-poetry run python scripts/data/extract_scientific_terms.py \
+uv run python scripts/data/extract_scientific_terms.py \
   --input_file outputs/reports/data_profile/latest/keywords_per_src.json \
   --model qwen2:7b
 ```

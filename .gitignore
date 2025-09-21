@@ -91,6 +91,12 @@ multirun/
 # Kibana
 .local_kibana
 
+# docs for devlopment and debugging
+docs/
+!docs/assets/
+!docs/user-guides/
+
+
 # debug
 debug_performance.py
 test_techniques.py
@@ -99,3 +105,9 @@ query_enhancement_examples.md
 
 debug_submission_performance.md
 query-enhancement-manager.md
+/ml-dev-bootstrap/
+DEPRECATED_DOCKER/
+requirements.txt
+
+# setuptools
+cuda*

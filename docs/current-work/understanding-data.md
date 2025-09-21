@@ -112,7 +112,7 @@ To improve MAP and reduce LLM compute, I suggest capturing these reusable signal
 
 - From repo root:
 ```bash
-poetry run python scripts/data/profile_documents.py --file_path data/documents.jsonl
+uv run python scripts/data/profile_documents.py --file_path data/documents.jsonl
 ```
 
 This generates a timestamped report under data_profile and prints a concise summary including the unique src list.

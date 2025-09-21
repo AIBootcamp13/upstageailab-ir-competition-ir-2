@@ -9,7 +9,7 @@ Test script for Polyglot-Ko embedding provider with memory optimization.
 
 **Usage:**
 ```bash
-PYTHONPATH=src poetry run python scripts/testing/test_polyglot_optimized.py
+PYTHONPATH=src uv run python scripts/testing/test_polyglot_optimized.py
 ```
 
 ### `test_techniques.py`
@@ -17,7 +17,7 @@ Test script for various retrieval and generation techniques.
 
 **Usage:**
 ```bash
-PYTHONPATH=src poetry run python scripts/testing/test_techniques.py
+PYTHONPATH=src uv run python scripts/testing/test_techniques.py
 ```
 
 ### `test_metadata.jsonl`

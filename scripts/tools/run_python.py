@@ -22,7 +22,7 @@ from pathlib import Path
 def run_poetry_python(args):
     """Run Python command using Poetry."""
     try:
-        # Build the poetry run python command
+        # Build the uv run python command
         cmd = ['poetry', 'run', 'python'] + args
 
         # Run the command
@@ -51,7 +51,7 @@ def main():
     script_args = sys.argv[1:]
 
     print("🚀 Running with Poetry Python...")
-    print(f"📝 Command: poetry run python {' '.join(script_args)}")
+    print(f"📝 Command: uv run python {' '.join(script_args)}")
     print("-" * 50)
 
     # Run the command

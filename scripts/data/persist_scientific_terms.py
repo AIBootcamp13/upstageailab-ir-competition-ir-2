@@ -7,8 +7,8 @@ By default, reads the latest artifact at
 and writes a curated, deduplicated list to conf/scientific_terms.json.
 
 Usage examples:
-  poetry run python scripts/data/persist_scientific_terms.py
-  poetry run python scripts/data/persist_scientific_terms.py \
+  uv run python scripts/data/persist_scientific_terms.py
+  uv run python scripts/data/persist_scientific_terms.py \
     --input outputs/reports/data_profile/20250914_120000/scientific_terms_extracted.json \
     --merge-base 1
 

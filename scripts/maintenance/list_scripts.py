@@ -2,7 +2,7 @@
 """
 List all scripts in the scripts/ directory with descriptions.
 
-Usage: poetry run python scripts/maintenance/list_scripts.py
+Usage: uv run python scripts/maintenance/list_scripts.py
 """
 
 import os

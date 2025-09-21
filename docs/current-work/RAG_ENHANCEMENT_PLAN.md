@@ -70,7 +70,7 @@ This document outlines a comprehensive plan to integrate translation features in
 1. **Created Translation Menu Module** - Built `scripts/cli_menu/modules/translation_menu.py` with comprehensive translation command structure
 2. **Integrated into CLI Menu** - Added "Translation" category with 9 commands to the main CLI menu
 3. **Updated Documentation** - Modified README.md to include translation features and menu options
-4. **Fixed Command Patterns** - Ensured all Python commands use `poetry run python` instead of bare `python`
+4. **Fixed Command Patterns** - Ensured all Python commands use `uv run python` instead of bare `python`
 5. **Tested Integration** - Verified that translation commands are properly accessible via CLI menu
 6. **End-to-End Validation** - Successfully ran full validation pipeline with translated queries achieving **80% MAP score**
 
@@ -94,7 +94,7 @@ This document outlines a comprehensive plan to integrate translation features in
 - Fixed PYTHONPATH environment variable passing to subprocess calls
 - Resolved import path issues in validation scripts
 - Ensured proper module loading for translation components
-- Updated all documentation to use consistent `poetry run python` commands
+- Updated all documentation to use consistent `uv run python` commands
 - **Fixed Translation Test Script** - Updated `test_translation.py` to use actual OllamaTranslator and GoogleTranslator classes with proper error handling and batch testing
 
 ### Next Steps:
@@ -336,7 +336,7 @@ Ready to proceed to **Phase 3: Streamlit Migration Assessment** or **Phase 4: RE
 ### Getting Started with Phase 2
 1. Review modular architecture in `scripts/cli_menu/modules/`
 2. Examine `BaseMenuModule` and `MenuBuilder` classes
-3. Test modular CLI: `poetry run python cli_menu.py`
+3. Test modular CLI: `uv run python cli_menu.py`
 4. Add new menu modules following established patterns
 5. Create unit tests for new modules
 
@@ -349,22 +349,22 @@ poetry install
 ./scripts/execution/run-local.sh start
 
 # Test modular CLI menu
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 ### Testing Commands
 ```bash
 # Test translation integration
-poetry run python scripts/translation/integrate_translation.py --help
+uv run python scripts/translation/integrate_translation.py --help
 
 # Test modular CLI menu (Phase 2)
-poetry run python cli_menu.py
+uv run python cli_menu.py
 
 # Test Streamlit UI (Phase 3)
 poetry run streamlit run scripts/visualize_submissions.py
 
 # Test individual menu modules
-PYTHONPATH=src poetry run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
+PYTHONPATH=src uv run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
 ```
 
 ---
@@ -412,13 +412,13 @@ wc -l scripts/cli_menu.py
 ls -la scripts/cli_menu/modules/
 
 # Test modular imports
-PYTHONPATH=src poetry run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
+PYTHONPATH=src uv run python -c "from scripts.cli_menu.modules import MenuBuilder; print('Modules working')"
 
 # List translation scripts
 ls -la scripts/translation/
 
 # Test translation functionality
-poetry run python scripts/translation/integrate_translation.py --help
+uv run python scripts/translation/integrate_translation.py --help
 
 # Run existing Streamlit UI
 poetry run streamlit run scripts/visualize_submissions.py

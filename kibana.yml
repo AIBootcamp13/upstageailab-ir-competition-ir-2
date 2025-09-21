@@ -1,0 +1,11 @@
+# Minimal Kibana configuration for Docker
+
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch connection will be set via environment variable ELASTICSEARCH_HOSTS
+# elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Basic settings only - let Kibana handle defaults in development mode
+logging.root.level: info

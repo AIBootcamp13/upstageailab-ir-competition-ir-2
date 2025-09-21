@@ -7,7 +7,7 @@ This script supports fine-tuning:
 2. Cross-encoder reranker models for improved ranking
 
 Usage:
-    PYTHONPATH=src poetry run python scripts/fine_tuning/fine_tune_retrieval.py --config-path ../../conf --config-name settings
+    PYTHONPATH=src uv run python scripts/fine_tuning/fine_tune_retrieval.py --config-path ../../conf --config-name settings
 """
 
 import os

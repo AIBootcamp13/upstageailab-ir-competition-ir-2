@@ -1,0 +1,50 @@
+# Production Dockerfile - minimal and secure
+FROM python:3.10-slim AS builder
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Set environment
+ENV UV_LINK_MODE=copy
+ENV PYTHONUNBUFFERED=1
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-install-project --no-dev
+
+# Production stage
+FROM python:3.10-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash app
+
+# Copy dependencies from builder
+COPY --from=builder --chown=app:app /root/.cache/uv /home/app/.cache/uv
+COPY --from=builder --chown=app:app /root/.local/lib/python3.10/site-packages /home/app/.local/lib/python3.10/site-packages
+
+# Set environment
+ENV PATH="/home/app/.local/bin:$PATH"
+ENV PYTHONPATH="/home/app/.local/lib/python3.10/site-packages"
+USER app
+WORKDIR /home/app
+
+# Copy application code
+COPY --chown=app:app src/ ./src/
+COPY --chown=app:app scripts/ ./scripts/
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "src.ir_core.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -60,7 +60,7 @@ export SCIENTIFIC_TERMS_MODE=merge  # Default behavior now
 ### For Long-term Validation (Best Practice)
 ```bash
 # Use the balanced validation set for future evaluations
-poetry run python scripts/evaluation/validate_retrieval.py \
+uv run python scripts/evaluation/validate_retrieval.py \
   --config-name config \
   --data.validation_path data/validation_balanced.jsonl
 ```
@@ -122,17 +122,17 @@ poetry run python scripts/evaluation/validate_retrieval.py \
 ```bash
 # The hybrid approach is now the default
 # Just run your normal validation pipeline
-poetry run python scripts/evaluation/validate_retrieval.py
+uv run python scripts/evaluation/validate_retrieval.py
 ```
 
 ### Advanced Usage
 ```bash
 # Use balanced validation set
-poetry run python scripts/evaluation/validate_retrieval.py \
+uv run python scripts/evaluation/validate_retrieval.py \
   --data.validation_path data/validation_balanced.jsonl
 
 # Generate new balanced sets with different sizes
-poetry run python scripts/evaluation/create_balanced_validation.py \
+uv run python scripts/evaluation/create_balanced_validation.py \
   --num-queries 200 \
   --output-path data/validation_large.jsonl
 ```

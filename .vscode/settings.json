@@ -10,14 +10,13 @@
     "**/.local_kibana/**": true,
     "**/elasticsearch-*/**": true,
     "**/redis-*/**": true,
-    "*.rdb": true,
+    "*.rdb": true
   },
   "search.exclude": {
     "wandb": true,
     "outputs/**": true,
-    "elasticsearch-8.9.0/**": true,
-    "redis-7.2.0/**": true,
-    ".local_kibana/**": true
+    "elasticsearch-*/**": true,
+    "redis-*/**": true
   },
   "python.analysis.exclude": [
     "**/wandb/**",
@@ -31,19 +30,18 @@
     "**/multirun/**",
     "**/notebooks/**",
     "**/prompts/**",
-    "**/confg/**",
-    "**/.local_kibana/**"
+    "**/confg/**"
   ],
   "python.analysis.extraPaths": [".", "src", "scripts"],
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
-  "python.defaultInterpreterPath": "${env:HOME}/.cache/pypoetry/virtualenvs/information-retrieval-rag-Sdp3gFZr-py3.10/bin/python",
-  "python.terminal.activateEnvironment": true,
-  "python.terminal.activateEnvInCurrentTerminal": true,
-  "python.terminal.launchArgs": ["-m", "poetry", "run", "python"],
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": false,
+  "python.terminal.activateEnvInCurrentTerminal": false,
   "python.createEnvironment.contentButton": "hide",
   "poetry.terminal.activateEnvironment": true,
   "editor.fontSize": 16,
   "workbench.colorTheme": "Default Dark Modern",
-  "editor.defaultFormatter": "GitHub.copilot-chat"
+  "editor.defaultFormatter": "GitHub.copilot-chat",
+  "terminal.integrated.shell.linux": "/usr/bin/zsh"
 }

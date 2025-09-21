@@ -1,0 +1,77 @@
+# CPU-only development Dockerfile (no CUDA)
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+ENV PYTHONUNBUFFERED=1
+ENV UV_LINK_MODE=copy
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    sudo \
+    curl \
+    wget \
+    vim \
+    git \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libffi-dev \
+    liblzma-dev \
+    locales \
+    htop \
+    tmux \
+    jq \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set locale
+RUN locale-gen en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+# Create vscode user
+RUN groupadd -g 1000 vscode && \
+    useradd -u 1000 -g vscode -m -s /bin/bash vscode && \
+    echo "vscode ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Install uv
+USER vscode
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/home/vscode/.cargo/bin:$PATH"
+
+# Set up project directory
+USER root
+RUN mkdir -p /workspaces && chown vscode:vscode /workspaces
+USER vscode
+WORKDIR /workspaces
+
+# Copy dependency files first for better caching
+COPY --chown=vscode:vscode pyproject.toml uv.lock ./
+
+# Install Python dependencies (CPU-only torch)
+RUN uv sync --frozen
+
+# Copy source code
+COPY --chown=vscode:vscode . .
+
+# Set up development environment
+RUN echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc && \
+    echo 'alias python="uv run python"' >> ~/.bashrc && \
+    echo 'alias python3="uv run python3"' >> ~/.bashrc && \
+    echo 'alias pytest="uv run pytest"' >> ~/.bashrc
+
+# Expose ports
+EXPOSE 8000 8501
+
+CMD ["/bin/bash"]

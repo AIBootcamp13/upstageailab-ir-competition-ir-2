@@ -5,7 +5,7 @@ Elasticsearch index mapping for the `embeddings` dense_vector field. Also can
 verify that Nori analyzer is configured for Korean text fields.
 
 Usage:
-  PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py \
+  PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py \
     --index <INDEX_NAME> [--provider <auto|polyglot|huggingface|solar|sentence_transformers>] [--expect-dims <int>] [--check-analyzer]
 
 Exit codes:

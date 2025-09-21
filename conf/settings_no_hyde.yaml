@@ -55,8 +55,8 @@ POLYGLOT_MAX_THREADS: 8        # Maximum threads for Polyglot-Ko processing
 
 # Infrastructure Configuration
 # ---------------------------
-ES_HOST: http://localhost:9200  # Elasticsearch endpoint
-REDIS_URL: redis://localhost:6379/0  # Redis cache endpoint
+ES_HOST: http://elasticsearch:9200  # Elasticsearch endpoint
+REDIS_URL: redis://redis:6379/0  # Redis cache endpoint
 
 # Index Management
 # ---------------

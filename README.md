@@ -7,8 +7,8 @@
 [![Python](https://img.shields.io/badge/Python-3.10-blue.svg)](https://python.org)
 [![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.9.0-yellow.svg)](https://elastic.co)
 [![Redis](https://img.shields.io/badge/Redis-Latest-red.svg)](https://redis.io)
-[![Kibana](https://img.shields.io/badge/Kibana-8.9.0-pink.svg)](https://elastic.co/kibana)
-[![Poetry](https://img.shields.io/badge/Poetry-Dependency%20Management-green.svg)](https://python-poetry.org)
+[![Kibana](https://img.shields.io/badge/Kibana-8.15.0-pink.svg)](https://elastic.co/kibana)
+[![uv](https://img.shields.io/badge/uv-Dependency%20Management-blue.svg)](https://github.com/astral-sh/uv)
 
 </div>
 
@@ -45,6 +45,7 @@
  </table>
 
 
+
 ---
 
 ## 📋 목차
@@ -70,7 +71,7 @@
 
 ```bash
 # 프로젝트 루트에서 실행
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 메뉴를 통해 다음 작업들을 수행할 수 있습니다:
@@ -94,7 +95,7 @@ poetry run python cli_menu.py
 | 구분 | 사양 |
 | OS | Ubuntu 20.04 (권장) |
 | Python | 3.10 |
-| 의존성 관리 | Poetry |
+| 의존성 관리 | uv |
 | 필수 도구 | curl, tar, make, gcc |
 
 ### 주요 기능
@@ -128,8 +129,7 @@ poetry run python cli_menu.py
 📦 프로젝트 루트
 ├── 📄 README.md
 ├── 📄 pyproject.toml
-├── 📄 poetry.lock
-├── 📄 poetry.toml
+├── 📄 uv.lock
 ├── 📄 pytest.ini
 ├── 📂 conf/                    # 설정 파일들
 ├──  data/                    # 데이터셋 및 실험 결과
@@ -228,16 +228,33 @@ git checkout 06_debug/low_score
 ### 2️⃣ 의존성 설치
 
 ```bash
-# Poetry를 사용한 의존성 설치
-poetry install
+# uv를 사용한 의존성 설치
+uv sync
+
+# UV 환경 설정 (하드링크 경고 방지)
+source setup-uv-env.sh
 ```
+
+**참고:** `UV_LINK_MODE=copy` 환경 변수가 설정되어 하드링크 관련 경고가 표시되지 않습니다.
+
+### 2.5️⃣ 환경 설정
+
+```bash
+# UV 환경 설정 (하드링크 경고 방지)
+source setup-uv-env.sh
+
+# Elastic Stack 바이너리 PATH 설정 (선택사항)
+source scripts/setup-path.sh
+```
+
+이렇게 하면 `elasticsearch`, `kibana`, `redis-server` 명령어를 직접 사용할 수 있습니다.
 
 ### 3️⃣ 서비스 시작
 
 로컬 Elasticsearch와 Redis를 시작하려면 대화형 CLI 메뉴의 **Setup & Infrastructure** 카테고리를 사용하세요:
 
 ```bash
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 메뉴에서 다음 옵션들을 선택할 수 있습니다:
@@ -250,7 +267,7 @@ poetry run python cli_menu.py
 데이터 색인은 대화형 CLI 메뉴의 **Data Management** 카테고리를 통해 수행합니다:
 
 ```bash
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 **Reindex Documents** 옵션을 선택하여 Elasticsearch에 문서를 색인할 수 있습니다.
@@ -265,7 +282,7 @@ poetry run python cli_menu.py
 데이터 재색인은 CLI 메뉴의 **Data Management** 카테고리에서 **Reindex Documents** 옵션을 통해 쉽게 수행할 수 있습니다. 수동으로 실행해야 하는 경우:
 
 ```bash
-PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl --index documents_ko_with_embeddings_new --batch-size 500
+PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents.jsonl --index documents_ko_with_embeddings_new --batch-size 500
 ```
 
 팁:
@@ -278,7 +295,7 @@ PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.j
 제출 파일 생성은 CLI 메뉴의 **Evaluation & Submission** 카테고리를 통해 수행합니다:
 
 ```bash
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 다양한 모델 옵션(OpenAI, Qwen2, Llama 등)을 선택하여 제출 파일을 생성할 수 있습니다.
@@ -351,19 +368,19 @@ poetry run python cli_menu.py
 
 ```bash
 # 한국어 설정으로 전환 (768D 임베딩)
-PYTHONPATH=src poetry run python switch_config.py korean
+PYTHONPATH=src uv run python switch_config.py korean
 
 # 영어 설정으로 전환 (768D 임베딩)
-PYTHONPATH=src poetry run python switch_config.py english
+PYTHONPATH=src uv run python switch_config.py english
 
 # 다국어 설정으로 전환 (768D 임베딩)
-PYTHONPATH=src poetry run python switch_config.py bilingual
+PYTHONPATH=src uv run python switch_config.py bilingual
 
 # Solar API 설정으로 전환 (4096D 임베딩)
-PYTHONPATH=src poetry run python switch_config.py solar
+PYTHONPATH=src uv run python switch_config.py solar
 
 # 현재 설정 확인
-PYTHONPATH=src poetry run python switch_config.py show
+PYTHONPATH=src uv run python switch_config.py show
 ```
 
 #### Available Configurations

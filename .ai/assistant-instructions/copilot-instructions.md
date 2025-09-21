@@ -4,7 +4,7 @@
 This is a modular RAG (Retrieval-Augmented Generation) system for scientific question answering. The codebase implements a clean architecture with separate concerns for retrieval, generation, orchestration, and tooling.
 
 CRITICAL rules for assistants
-- ALWAYS run scripts via Poetry: use `poetry run python ...` (never bare python)
+- ALWAYS run scripts via Poetry: use `uv run python ...` (never bare python)
 - Elasticsearch index MUST predefine `embeddings` as `dense_vector` with correct `dims` (no dynamic mapping)
 - Use Nori analyzer for Korean text fields; index creation helpers already configure this
 - Before running evaluations or reindex: run the pre-flight validator (see below)
@@ -37,17 +37,17 @@ cp .env.example .env
 ./scripts/execution/run-local.sh start
 
 # Use interactive CLI for operations
-poetry run python cli_menu.py
+uv run python cli_menu.py
 ```
 
 ### Running Scripts
 ```bash
 # ALWAYS use Poetry for script execution to avoid dependency errors
-# Pattern: poetry run python scripts/... (NOT just python)
-poetry run python scripts/evaluation/validate_retrieval.py
+# Pattern: uv run python scripts/... (NOT just python)
+uv run python scripts/evaluation/validate_retrieval.py
 
 # For scripts requiring PYTHONPATH
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py
+PYTHONPATH=src uv run python scripts/evaluation/validate_retrieval.py
 ```
 
 **Critical**: Never use bare `python` commands - always prefix with `poetry run` to ensure proper virtual environment activation and dependency resolution.
@@ -65,11 +65,11 @@ This project supports multiple embedding providers with different dimensions. Al
 #### Pre-flight Validator (must-run)
 ```bash
 # Validate provider dimension vs index mapping (fails fast on mismatch)
-PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index "$INDEX" \
+PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index "$INDEX" \
     --provider "${EMBEDDING_PROVIDER:-auto}"
 
 # Example (current default: Polyglot-Ko 2048d)
-PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918
+PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918
 ```
 
 #### Current default
@@ -85,33 +85,33 @@ PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py -
 #### Best Practices to Avoid Wasted Resources
 1. **Check current configuration** before starting work:
    ```bash
-   PYTHONPATH=src poetry run python switch_config.py status
+   PYTHONPATH=src uv run python switch_config.py status
    ```
 
 2. **Create required indexes** with correct embedding model:
    ```bash
    # Korean index (768d)
-   PYTHONPATH=src poetry run python switch_config.py korean
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings_new
+   PYTHONPATH=src uv run python switch_config.py korean
+   PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings_new
 
    # English index (384d)
-   PYTHONPATH=src poetry run python switch_config.py english
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings_new
+   PYTHONPATH=src uv run python switch_config.py english
+   PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_en_with_embeddings_new
 
    # Bilingual index (768d)
-   PYTHONPATH=src poetry run python switch_config.py bilingual
-   PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings_new
+   PYTHONPATH=src uv run python switch_config.py bilingual
+   PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents_bilingual.jsonl --index documents_bilingual_with_embeddings_new
    ```
 
 3. **Verify provider/index BEFORE evaluation**:
     ```bash
     # Quick dims + analyzer check
-    PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+    PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
     ```
 
 4. **Use debug mode** for quick validation before full runs:
    ```bash
-   PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py --config-dir conf pipeline=qwen-full model.alpha=0.4 limit=5
+   PYTHONPATH=src uv run python scripts/evaluation/evaluate.py --config-dir conf pipeline=qwen-full model.alpha=0.4 limit=5
    ```
 
 ### Script Discovery
@@ -239,7 +239,7 @@ class ScientificSearchArgs(BaseModel):
 - **OS**: Ubuntu 20.04
 - **Setup**: Ephemeral Docker development environment hosted remotely
 - **Privileges**: Limited sudo access (cannot run Docker containers, modify system kernels, etc.)
-- **Hardware**: RTX 24GB VRAM GPU, Threadripper 397x CPU (high-performance workstation)
+- **Hardware**: RTX 3060 12GB VRAM GPU, Threadripper 397x CPU (high-performance workstation)
 
 ### Performance Priorities
 - **Vectorization**: Prefer NumPy/pandas vectorized operations over loops when possible
@@ -277,7 +277,7 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 - Embedding models loaded once and cached with threading locks
 - Redis caching prevents redundant vector searches
 - ES timeouts set conservatively to fail fast in development
-- **GPU Optimization**: Leverage RTX 24GB VRAM for batch embedding computations
+- **GPU Optimization**: Leverage RTX 3060 12GB VRAM for batch embedding computations
 - **Parallel Processing**: Utilize Threadripper 397x for CPU-intensive tasks (8-16 workers typical)
 - **Memory Management**: Design for large datasets with streaming to respect VRAM limits
 

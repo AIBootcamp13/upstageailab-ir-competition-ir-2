@@ -135,19 +135,19 @@ Example CLI usage
 - Dry run (just show planned actions):
 
 ```bash
-poetry run python scripts/maintenance/reindex_orchestrator.py --model "jhgan/ko-sroberta-multitask" --dry-run
+uv run python scripts/maintenance/reindex_orchestrator.py --model "jhgan/ko-sroberta-multitask" --dry-run
 ```
 
 - Full reindex and swap:
 
 ```bash
-poetry run python scripts/maintenance/reindex_orchestrator.py --model "jhgan/ko-sroberta-multitask" --batch-size 128
+uv run python scripts/maintenance/reindex_orchestrator.py --model "jhgan/ko-sroberta-multitask" --batch-size 128
 ```
 
 - Rollback alias to previous index:
 
 ```bash
-poetry run python scripts/maintenance/reindex_orchestrator.py rollback --to-index documents_v1_koembed-512
+uv run python scripts/maintenance/reindex_orchestrator.py rollback --to-index documents_v1_koembed-512
 ```
 
 Acceptance criteria

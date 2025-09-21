@@ -69,7 +69,7 @@ def run(query: str, index_name: str = "test", rerank_k: int = 5):
         )
         print("You can start services with: ./scripts/execution/run-local.sh start")
         print(
-            "You can index data with: PYTHONPATH=src poetry run python scripts/maintenance/reindex.py data/documents.jsonl"
+            "You can index data with: PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents.jsonl"
         )
 
 

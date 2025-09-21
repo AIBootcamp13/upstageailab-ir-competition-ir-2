@@ -6,7 +6,7 @@ This script fine-tunes the EleutherAI/polyglot-ko-1.3b model using the generated
 to improve dense retrieval alignment with sparse retrieval results.
 
 Usage:
-    PYTHONPATH=src poetry run python scripts/fine_tuning/fine_tune_embedding.py
+    PYTHONPATH=src uv run python scripts/fine_tuning/fine_tune_embedding.py
 """
 
 import os

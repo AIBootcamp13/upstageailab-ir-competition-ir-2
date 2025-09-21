@@ -80,12 +80,12 @@ All scripts should be run from the project root directory using Poetry for prope
 
 ```bash
 # General pattern
-PYTHONPATH=src poetry run python scripts/<submodule>/<script>.py [args]
+PYTHONPATH=src uv run python scripts/<submodule>/<script>.py [args]
 
 # Examples
-PYTHONPATH=src poetry run python scripts/evaluation/evaluate.py
-PYTHONPATH=src poetry run python scripts/indexing/switch_config.py korean
-PYTHONPATH=src poetry run python scripts/cli/cli_menu.py
+PYTHONPATH=src uv run python scripts/evaluation/evaluate.py
+PYTHONPATH=src uv run python scripts/indexing/switch_config.py korean
+PYTHONPATH=src uv run python scripts/cli/cli_menu.py
 ```
 
 ### Script Discovery
@@ -93,7 +93,7 @@ PYTHONPATH=src poetry run python scripts/cli/cli_menu.py
 Use the script listing tool to see all available scripts with descriptions:
 
 ```bash
-PYTHONPATH=src poetry run python scripts/list_scripts.py
+PYTHONPATH=src uv run python scripts/list_scripts.py
 ```
 
 ## Development Guidelines

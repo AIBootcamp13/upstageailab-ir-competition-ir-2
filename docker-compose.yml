@@ -1,0 +1,114 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.authc.api_key.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - ./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - elasticsearch_logs:/usr/share/elasticsearch/logs
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - ir-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.9.0
+    container_name: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - NODE_ENV=development
+    volumes:
+      - ./kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - ir-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7.2.0
+    container_name: redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+      - redis_logs:/var/log/redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ir-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  dev-container:
+    build: .
+    container_name: ubuntu-dev-container
+    working_dir: /workspaces
+    volumes:
+      # Mount your project directory with proper permissions
+      - .:/workspaces:cached
+      # Persist bash history
+      - bash_history:/home/vscode/.bash_history
+      # VS Code Server files
+      - vscode-server:/home/vscode/.vscode-server
+      # Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      # SSH port for VS Code Remote Development
+      - "2222:22"
+      # Add any other ports your application needs
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Seoul
+      # Docker environment
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      # Fix permission issues
+      - HOME=/home/vscode
+    networks:
+      - ir-dev-network
+    # Ensure proper file permissions
+    command: >
+      sh -c "
+        sudo chown vscode:vscode /workspaces &&
+        sudo chmod 755 /workspaces &&
+        exec /usr/sbin/sshd -D
+      "
+    restart: unless-stopped
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  elasticsearch_logs:
+    driver: local
+  redis_data:
+    driver: local
+  redis_logs:
+    driver: local
+  bash_history:
+  vscode-server:
+
+networks:
+  ir-dev-network:
+    driver: bridge

@@ -9,7 +9,7 @@ Comprehensive debugging script for RAG performance issues. Helps identify differ
 
 **Usage:**
 ```bash
-PYTHONPATH=src poetry run python scripts/debugging/debug_performance.py
+PYTHONPATH=src uv run python scripts/debugging/debug_performance.py
 ```
 
 ### `debug_submission_performance.md`

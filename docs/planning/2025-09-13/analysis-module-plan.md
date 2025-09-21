@@ -28,7 +28,7 @@
 - Domain classification accuracy: 72.22% (Ollama-generated validation sets)
 - Analysis execution time: < 0.01 seconds (negligible impact)
 - Cost savings: 100% reduction in AI API costs through local Ollama
-- Hardware utilization: RTX 24GB VRAM supporting efficient local inference
+- Hardware utilization: RTX 3060 12GB VRAM supporting efficient local inference
 - Test coverage: Core functionality validated with comprehensive metrics
 
 ---
@@ -333,7 +333,7 @@ class WandbAnalysisLogger:
 - **Phase 2 Complete**: Query Analysis Enhancement with Ollama integration and multi-domain classification
 - **Cost Optimization**: Achieved 100% reduction in AI API costs through local Ollama deployment
 - **Performance Validated**: 72.22% domain classification accuracy with local models
-- **Hardware Optimized**: RTX 24GB VRAM supporting efficient llama3.1:8b inference
+- **Hardware Optimized**: RTX 3060 12GB VRAM supporting efficient llama3.1:8b inference
 - **Framework Maturity**: Modular, extensible architecture ready for future enhancements
 
 ### 🚀 **Ready for Phase 3: Retrieval Quality Assessment**
@@ -358,7 +358,7 @@ class WandbAnalysisLogger:
 
 ### 💡 **Lessons Learned:**
 - Local AI models provide equivalent performance to API services at zero cost
-- Hardware acceleration (RTX 24GB) enables efficient local inference
+- Hardware acceleration (RTX 3060 12GB) enables efficient local inference
 - Modular fallback architecture ensures reliability
 - Poetry-based testing enables robust integration validation
 

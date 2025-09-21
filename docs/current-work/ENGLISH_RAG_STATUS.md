@@ -111,7 +111,7 @@ Successfully built and validated a complete English scientific RAG system capabl
 ### Run Validation
 ```bash
 cd /home/wb2x/workspace/information_retrieval_rag
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py \
+PYTHONPATH=src uv run python scripts/evaluation/validate_retrieval.py \
   --config-dir conf pipeline=qwen-full model.alpha=0.0 limit=5 evaluate.max_workers=1
 ```
 

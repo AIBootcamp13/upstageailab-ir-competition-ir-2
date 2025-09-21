@@ -65,7 +65,7 @@ docs/current-work/
 ### Quick Integration Demo
 ```bash
 cd /home/wb2x/workspace/information_retrieval_rag
-PYTHONPATH=src poetry run python scripts/integration_demo.py
+PYTHONPATH=src uv run python scripts/integration_demo.py
 ```
 
 **Output:**
@@ -86,7 +86,7 @@ PYTHONPATH=src poetry run python scripts/integration_demo.py
 
 ```bash
 # Start with query routing enhancement
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py \
+PYTHONPATH=src uv run python scripts/evaluation/validate_retrieval.py \
   --use_profiling_insights 1 \
   --test_query_routing 1
 ```
@@ -98,7 +98,7 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py \
 
 ```bash
 # Continue with quality analysis
-poetry run python scripts/data/profile_documents.py \
+uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl \
   --boilerplate_detection 1 \
   --minhash_near_duplicates 1
@@ -144,7 +144,7 @@ poetry run python scripts/data/profile_documents.py \
 ```bash
 # Verify everything is ready
 cd /home/wb2x/workspace/information_retrieval_rag
-PYTHONPATH=src poetry run python scripts/integration_demo.py
+PYTHONPATH=src uv run python scripts/integration_demo.py
 ls -la outputs/reports/data_profile/latest/
 ```
 

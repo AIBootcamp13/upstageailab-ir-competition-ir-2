@@ -3,7 +3,7 @@
 Create an Elasticsearch index with a proper dense_vector mapping for 'embeddings'.
 
 Usage:
-  poetry run python scripts/indexing/create_index_with_mapping.py --index <name> --dims <int> [--overwrite]
+  uv run python scripts/indexing/create_index_with_mapping.py --index <name> --dims <int> [--overwrite]
 
 This script ensures the 'embeddings' field can be used with cosineSimilarity in script_score queries.
 """

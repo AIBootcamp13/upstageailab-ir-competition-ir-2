@@ -13,7 +13,7 @@ Outputs are saved under outputs/reports/data_profile/<timestamp>/ for reuse,
 and a concise summary is printed to stdout.
 
 Usage (via Poetry):
-    poetry run python scripts/data/profile_documents.py --file_path data/documents.jsonl
+    uv run python scripts/data/profile_documents.py --file_path data/documents.jsonl
 
 Optional args:
     --out_dir outputs/reports/data_profile

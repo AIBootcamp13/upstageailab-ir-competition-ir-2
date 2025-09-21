@@ -193,7 +193,7 @@ The dataset covers diverse scientific domains:
 ## Validator
 Run the pre-flight validator before evaluation or reindexing:
 ```
-PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
 ```
 
 This dataset provides a rich foundation for scientific question answering in Korean, with comprehensive metadata and balanced domain coverage.</content>

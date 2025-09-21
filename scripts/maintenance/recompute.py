@@ -5,9 +5,9 @@ This script generates embeddings for multiple indexes using profiling data
 for optimization and quality enhancement.
 
 Usage:
-  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type english --model sentence-transformers/all-MiniLM-L6-v2
-  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type korean --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
-  PYTHONPATH=src poetry run python scripts/maintenance/recompute.py --index-type bilingual --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  PYTHONPATH=src uv run python scripts/maintenance/recompute.py --index-type english --model sentence-transformers/all-MiniLM-L6-v2
+  PYTHONPATH=src uv run python scripts/maintenance/recompute.py --index-type korean --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
+  PYTHONPATH=src uv run python scripts/maintenance/recompute.py --index-type bilingual --model snunlp/KR-SBERT-V40K-klueNLI-augSTS
 """
 
 import argparse

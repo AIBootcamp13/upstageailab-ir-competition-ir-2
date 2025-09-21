@@ -3,14 +3,16 @@
 # Each profile defines the complete setup for a specific embedding model and data configuration.
 
 korean:
-  description: "Korean setup using KR-SBERT (768d)"
+  description: "Korean setup using KURE-v1 (1024d) + Kiwi tokenizer"
   config:
     EMBEDDING_PROVIDER: "huggingface"
-    EMBEDDING_MODEL: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
-    EMBEDDING_DIMENSION: 768
-    INDEX_NAME: "docs-ko-krsbert-d768-20250917"
+    EMBEDDING_MODEL: "nlpai-lab/KURE-v1"
+    EMBEDDING_DIMENSION: 1024
+    INDEX_NAME: "docs-ko-kure-v1-d1024-20250917"
+    TOKENIZER: "kiwi"
+    KIWIPIEPY_MODEL: "kiwi"
     model:
-      embedding_model: "snunlp/KR-SBERT-V40K-klueNLI-augSTS"
+      embedding_model: "nlpai-lab/KURE-v1"
       alpha: 0.4
       bm25_k: 200
       rerank_k: 10
@@ -106,22 +108,22 @@ polyglot:
       enabled: false
   data_config: "ko"
 
-polyglot-3b:
-  description: "Polyglot-Ko-3.8B setup (3072d)"
+korean-advanced:
+  description: "Advanced Korean setup using KURE-v1 (1024d) + Kiwi tokenizer"
   config:
-    EMBEDDING_PROVIDER: "polyglot"
-    EMBEDDING_MODEL: "EleutherAI/polyglot-ko-3.8b"
-    EMBEDDING_DIMENSION: 3072
-    INDEX_NAME: "docs-ko-polyglot-3b-d3072-20250917"
-    POLYGLOT_MODEL: "EleutherAI/polyglot-ko-3.8b"
-    POLYGLOT_QUANTIZATION: "full"
-    POLYGLOT_BATCH_SIZE: 4
-    POLYGLOT_MAX_THREADS: 4
+    EMBEDDING_PROVIDER: "huggingface"
+    EMBEDDING_MODEL: "nlpai-lab/KURE-v1"
+    EMBEDDING_DIMENSION: 1024
+    INDEX_NAME: "docs-ko-kure-advanced-d1024-20250917"
+    TOKENIZER: "kiwi"
+    KIWIPIEPY_MODEL: "kiwi"
+    EMBEDDING_BATCH_SIZE: 8
+    EMBEDDING_MAX_LENGTH: 4096
     model:
-      embedding_model: "EleutherAI/polyglot-ko-3.8b"
-      alpha: 0.4
-      bm25_k: 200
-      rerank_k: 10
+      embedding_model: "nlpai-lab/KURE-v1"
+      alpha: 0.3
+      bm25_k: 300
+      rerank_k: 15
     translation:
       enabled: false
   data_config: "ko"

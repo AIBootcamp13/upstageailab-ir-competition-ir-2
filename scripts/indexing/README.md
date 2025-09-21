@@ -9,7 +9,7 @@ Script for indexing documents with embeddings into Elasticsearch.
 
 **Usage:**
 ```bash
-PYTHONPATH=src poetry run python scripts/indexing/index_with_embeddings.py <jsonl_file> <index_name>
+PYTHONPATH=src uv run python scripts/indexing/index_with_embeddings.py <jsonl_file> <index_name>
 ```
 
 **Parameters:**
@@ -22,13 +22,13 @@ Configuration switcher for Korean/English RAG setup. Helps switch between differ
 **Usage:**
 ```bash
 # Switch to Korean configuration
-PYTHONPATH=src poetry run python scripts/indexing/switch_config.py korean
+PYTHONPATH=src uv run python scripts/indexing/switch_config.py korean
 
 # Switch to English configuration
-PYTHONPATH=src poetry run python scripts/indexing/switch_config.py english
+PYTHONPATH=src uv run python scripts/indexing/switch_config.py english
 
 # Check current configuration
-PYTHONPATH=src poetry run python scripts/indexing/switch_config.py status
+PYTHONPATH=src uv run python scripts/indexing/switch_config.py status
 ```
 
 ### `validate_index_dimensions.py`
@@ -36,10 +36,10 @@ Pre-flight check to ensure your embedding provider dimension matches the Elastic
 
 Usage:
 ```bash
-PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index <INDEX_NAME> [--provider auto] [--expect-dims <int>] [--check-analyzer]
+PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index <INDEX_NAME> [--provider auto] [--expect-dims <int>] [--check-analyzer]
 
 # Example for current default (Polyglot-Ko 2048d):
-PYTHONPATH=src poetry run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
+PYTHONPATH=src uv run python scripts/indexing/validate_index_dimensions.py --index docs-ko-polyglot-1b-d2048-20250918 --check-analyzer
 ```
 
 ## Features

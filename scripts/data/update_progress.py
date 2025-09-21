@@ -4,8 +4,8 @@ Lightweight progress tracker to tick/untick checklist items in
 `docs/notes/strategies/profiling-progress.md`.
 
 Usage:
-  poetry run python scripts/data/update_progress.py --item "Phase 1: vocab overlap matrix" --done 1
-  poetry run python scripts/data/update_progress.py --item "Source glossary per src" --done 0
+  uv run python scripts/data/update_progress.py --item "Phase 1: vocab overlap matrix" --done 1
+  uv run python scripts/data/update_progress.py --item "Source glossary per src" --done 0
 
 Matching is fuzzy: it finds the first checklist line containing the provided phrase.
 """

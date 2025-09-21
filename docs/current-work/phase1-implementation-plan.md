@@ -232,16 +232,16 @@ def get_chunking_params(src: str) -> Dict[str, Any]:
 ### Unit Testing
 ```bash
 # Test token statistics computation
-PYTHONPATH=src poetry run python -m pytest tests/test_profiling_token_stats.py
+PYTHONPATH=src uv run python -m pytest tests/test_profiling_token_stats.py
 
 # Test vocabulary overlap calculation
-PYTHONPATH=src poetry run python -m pytest tests/test_vocab_overlap.py
+PYTHONPATH=src uv run python -m pytest tests/test_vocab_overlap.py
 ```
 
 ### Integration Testing
 ```bash
 # Full profiling run with all Phase 1 features
-poetry run python scripts/data/profile_documents.py \
+uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl \
   --out_dir outputs/reports/data_profile \
   --save 1 \
@@ -251,7 +251,7 @@ poetry run python scripts/data/profile_documents.py \
   --vocab_clustering 1
 
 # Validate outputs
-PYTHONPATH=src poetry run python scripts/evaluation/validate_profiling_outputs.py
+PYTHONPATH=src uv run python scripts/evaluation/validate_profiling_outputs.py
 ```
 
 ### Performance Benchmarks
@@ -338,7 +338,7 @@ PYTHONPATH=src poetry run python scripts/evaluation/validate_profiling_outputs.p
 ```bash
 # Ensure Poetry environment is active
 poetry install
-poetry run python --version  # Should be 3.10+
+uv run python --version  # Should be 3.10+
 
 # Test infrastructure
 ./scripts/execution/run-local.sh status

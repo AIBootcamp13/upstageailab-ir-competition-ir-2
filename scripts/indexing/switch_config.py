@@ -20,17 +20,17 @@ yaml_handler.preserve_quotes = True
 yaml_handler.indent(mapping=2, sequence=4, offset=2)
 
 # Profile configuration file path
-PROFILES_PATH = Path(__file__).parent / "conf" / "embedding_profiles.yaml"
-SETTINGS_PATH = Path(__file__).parent / "conf" / "settings.yaml"
+PROFILES_PATH = Path(__file__).parent.parent.parent / "conf" / "embedding_profiles.yaml"
+SETTINGS_PATH = Path(__file__).parent.parent.parent / "conf" / "settings.yaml"
 
 def load_profiles() -> Dict[str, Any]:
-    """Load all profiles from settings.yaml."""
-    if not SETTINGS_PATH.exists():
-        print("❌ settings.yaml not found.")
+    """Load all profiles from embedding_profiles.yaml."""
+    if not PROFILES_PATH.exists():
+        print(f"❌ embedding_profiles.yaml not found at {PROFILES_PATH}")
         return {}
-    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
+    with open(PROFILES_PATH, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
-    return data.get('profiles', {})
+    return data if data else {}
 
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""

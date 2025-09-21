@@ -9,7 +9,7 @@ Interactive CLI menu for common RAG operations and system management.
 
 **Usage:**
 ```bash
-PYTHONPATH=src poetry run python scripts/cli/cli_menu.py
+PYTHONPATH=src uv run python cli_menu.py
 ```
 
 ## Features

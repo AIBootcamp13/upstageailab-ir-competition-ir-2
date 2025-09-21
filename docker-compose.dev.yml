@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ir-rag-dev
+    volumes:
+      - .:/workspaces:cached
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    working_dir: /workspaces
+    environment:
+      - DISPLAY=${DISPLAY}
+      - UV_LINK_MODE=copy
+    ports:
+      - "8000:8000"   # FastAPI
+      - "8501:8501"   # Streamlit
+      - "5601:5601"   # Kibana
+      - "9200:9200"   # Elasticsearch
+      - "6379:6379"   # Redis
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    command: sleep infinity
+    profiles:
+      - dev
+
+  # Lightweight version without CUDA (for systems without NVIDIA GPU)
+  dev-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: ir-rag-dev-cpu
+    volumes:
+      - .:/workspaces:cached
+    working_dir: /workspaces
+    environment:
+      - UV_LINK_MODE=copy
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+    command: sleep infinity
+    profiles:
+      - cpu
+
+  # Production-ready container
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: ir-rag-prod
+    environment:
+      - ENV=production
+    ports:
+      - "8000:8000"
+    profiles:
+      - prod

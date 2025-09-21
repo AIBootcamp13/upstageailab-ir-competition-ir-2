@@ -15,10 +15,10 @@ Available Profiles:
 - polyglot-1b: Polyglot-Ko-1.3B setup (2048d)
 
 Usage Examples:
-  PYTHONPATH=src poetry run python cli.py config list
-  PYTHONPATH=src poetry run python cli.py config switch korean
-  PYTHONPATH=src poetry run python cli.py config validate
-  PYTHONPATH=src poetry run python cli.py status
+  PYTHONPATH=src uv run python cli.py config list
+  PYTHONPATH=src uv run python cli.py config switch korean
+  PYTHONPATH=src uv run python cli.py config validate
+  PYTHONPATH=src uv run python cli.py status
 
 For full documentation, see: docs/CLI_TOOL_README.md
 """
@@ -30,6 +30,7 @@ from typing import Optional
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))  # Add parent directory for switch_config
 
 import typer
 
@@ -213,22 +214,22 @@ def show_help():
 🚀 COMMON WORKFLOWS:
 
   # Check project status
-  PYTHONPATH=src poetry run python cli.py status
+  PYTHONPATH=src uv run python cli.py status
 
   # List all available profiles
-  PYTHONPATH=src poetry run python cli.py config list
+  PYTHONPATH=src uv run python cli.py config list
 
   # Switch to Korean configuration
-  PYTHONPATH=src poetry run python cli.py config switch korean
+  PYTHONPATH=src uv run python cli.py config switch korean
 
   # Validate current configuration
-  PYTHONPATH=src poetry run python cli.py config validate
+  PYTHONPATH=src uv run python cli.py config validate
 
   # Show current settings
-  PYTHONPATH=src poetry run python cli.py config show
+  PYTHONPATH=src uv run python cli.py config show
 
   # Setup project with specific profile
-  PYTHONPATH=src poetry run python cli.py setup --profile bilingual
+  PYTHONPATH=src uv run python cli.py setup --profile bilingual
 
 📖 FOR DETAILED DOCUMENTATION:
   See: docs/CLI_TOOL_README.md

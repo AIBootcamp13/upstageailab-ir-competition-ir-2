@@ -10,7 +10,7 @@
 - Created huggingface.py with full `BaseGenerator` implementation
 - Added support for both causal LM and seq2seq models (for different KLUE variants)
 - Implemented quantization support for memory efficiency (4-bit quantization)
-- Added proper device management (GPU/CPU) with RTX 3090 support
+- Added proper device management (GPU/CPU) with RTX 3060 support
 - Integrated Jinja2 template loading consistent with existing generators
 
 ### **3. Factory Function Updates** ✅
@@ -19,13 +19,13 @@
 
 ### **4. Dependencies & Resources** ✅
 - Added `accelerate` and `bitsandbytes` to pyproject.toml for GPU optimization
-- **GPU Verified**: RTX 3090 with 23.7GB VRAM - sufficient for KLUE-RoBERTa models
+- **GPU Verified**: RTX 3060 with 11.8GB VRAM - sufficient for KLUE-RoBERTa models
 - **Memory Management**: Quantization support reduces VRAM usage by ~75%
 
 ### **5. Testing & Validation** ✅
 - Created comprehensive test script test_huggingface_integration.py
 - **Test Results**:
-  - ✅ GPU resources detected (RTX 3090, 23.7GB)
+  - ✅ GPU resources detected (RTX 3060, 11.8GB)
   - ✅ Embeddings generation working with KLUE-RoBERTa-base
   - ✅ Text generation pipeline functional
 - Updated list_scripts.py with test script documentation
@@ -46,11 +46,11 @@
 **Configuration Usage:**
 ```bash
 # Use the KLUE-RoBERTa pipeline config
-poetry run python scripts/execution/run_rag.py pipeline=klue-roberta
+uv run python scripts/execution/run_rag.py pipeline=klue-roberta
 ```
 
 **Test Integration**
 Ran terminal command:
 ```bash
-cd /home/wb2x/workspace/information_retrieval_rag && poetry run python scripts/test_huggingface_integration.py
+cd /home/wb2x/workspace/information_retrieval_rag && uv run python scripts/test_huggingface_integration.py
 ```

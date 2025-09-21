@@ -1,0 +1,393 @@
+[2025-09-21 15:36:39] [INFO] No action specified. Use --help for usage information.
+[2025-09-21 15:36:50] [INFO] Executing module: system
+
+============================================================
+System Development Tools Setup
+============================================================
+
+[2025-09-21 15:36:50] [INFO] Step 1/3: Updating system packages
+[2025-09-21 15:36:50] [INFO] Updating package cache and upgrading existing packages...
+[2025-09-21 15:36:51] [ERROR] Failed to update package cache
+[2025-09-21 15:36:51] [ERROR] Failed to update system packages
+[2025-09-21 15:36:51] [ERROR] Module system failed with exit code 1
+[2025-09-21 15:36:57] [INFO] Executing module: system
+
+============================================================
+System Development Tools Setup
+============================================================
+
+[2025-09-21 15:36:57] [INFO] Step 1/3: Updating system packages
+[2025-09-21 15:36:57] [INFO] Updating package cache and upgrading existing packages...
+[2025-09-21 15:37:14] [INFO] Step 2/3: Installing packages (profile: minimal)
+[2025-09-21 15:37:14] [INFO] Installing essential packages (8 packages)
+[2025-09-21 15:37:14] [INFO] Using minimal installation profile
+[2025-09-21 15:37:14] [INFO] Total packages to install: 8
+[2025-09-21 15:37:14] [INFO] Installing 8 packages...
+[2025-09-21 15:37:14] [SUCCESS] Packages installed successfully
+[2025-09-21 15:37:14] [INFO] Installing pyenv build dependencies (for Python compilation)...
+[2025-09-21 15:37:25] [INFO] pyenv build dependencies installed.
+[2025-09-21 15:37:25] [INFO] Step 3/3: Basic system configuration
+[2025-09-21 15:37:27] [SUCCESS] System setup completed successfully!
+[2025-09-21 15:37:27] [INFO] Verification - checking key tools:
+[2025-09-21 15:37:27] [SUCCESS] Module system completed successfully
+[2025-09-21 15:37:57] [INFO] Executing module: locale
+
+============================================================
+Locale Configuration Setup
+============================================================
+
+
+------------------------------------------------------------
+Step 1/6: Installing locale packages
+------------------------------------------------------------
+
+[2025-09-21 15:37:57] [INFO] Installing locale support packages...
+[2025-09-21 15:37:57] [SUCCESS] All locale packages already installed
+
+------------------------------------------------------------
+Step 2/6: Installing font packages
+------------------------------------------------------------
+
+[2025-09-21 15:37:57] [INFO] Installing font packages for multilingual support...
+[2025-09-21 15:37:57] [INFO] Installing 5 packages...
+[2025-09-21 15:38:01] [SUCCESS] Packages installed successfully
+[2025-09-21 15:38:03] [SUCCESS] Font packages installed successfully
+
+------------------------------------------------------------
+Step 3/6: Generating system locales
+------------------------------------------------------------
+
+[2025-09-21 15:38:03] [INFO] Generating minimal locales: en_US.UTF-8 ko_KR.UTF-8
+[2025-09-21 15:38:03] [INFO] Generating only specified locales...
+[2025-09-21 15:38:05] [SUCCESS] Successfully generated 2 locales: en_US.UTF-8, ko_KR.UTF-8
+
+------------------------------------------------------------
+Step 4/6: Setting default locale
+------------------------------------------------------------
+
+[2025-09-21 15:38:05] [INFO] Setting default system locale to: en_US.UTF-8
+[2025-09-21 15:38:05] [COMMAND] update-locale LANG=en_US.UTF-8
+[2025-09-21 15:38:05] [SUCCESS] Default locale set successfully
+
+------------------------------------------------------------
+Step 5/6: Configuring locale environment
+------------------------------------------------------------
+
+[2025-09-21 15:38:05] [INFO] Configuring locale environment variables...
+[2025-09-21 15:38:05] [SUCCESS] Locale environment configured successfully
+
+------------------------------------------------------------
+Step 6/6: Verifying locale configuration
+------------------------------------------------------------
+
+[2025-09-21 15:38:05] [INFO] Verifying locale configuration...
+[2025-09-21 15:38:05] [WARN] Current LANG (C.UTF-8) differs from expected (en_US.UTF-8)
+[2025-09-21 15:38:05] [WARN] Locale changes will take effect after logout/restart
+[2025-09-21 15:38:05] [SUCCESS] Locale configuration verification completed
+[2025-09-21 15:38:05] [SUCCESS] Locale configuration completed successfully!
+
+============================================================
+Locale Configuration Summary
+============================================================
+
+[2025-09-21 15:38:05] [INFO] Important Notes:
+[2025-09-21 15:38:05] [SUCCESS] Module locale completed successfully
+[2025-09-21 15:38:07] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 15:38:07] [INFO] Running as root - installing environment managers system-wide
+[2025-09-21 15:38:07] [INFO] Selected environment managers: pyenv poetry
+[2025-09-21 15:38:07] [INFO] [pyenv] Target user: vscode (/home/vscode)
+[2025-09-21 15:38:07] [INFO] [pyenv] pyenv not found for vscode, proceeding with installation
+[2025-09-21 15:38:08] [INFO] [pyenv] Installing pyenv for vscode
+[2025-09-21 15:38:13] [INFO] [pyenv] Requested Python version(s): 3.10.18
+[2025-09-21 15:38:13] [INFO] [pyenv] Installing Python 3.10.18 for vscode
+[2025-09-21 15:39:08] [INFO] [pyenv] Python 3.10.18 installed (logs: /tmp/pyenv-build-3.10.18-1758436693.log)
+[2025-09-21 15:39:08] [SUCCESS] [pyenv] Installed for vscode
+[2025-09-21 15:39:08] [INFO] [poetry] Installing system-wide to /opt/pypoetry (group: vscode)
+[2025-09-21 15:39:13] [INFO] [poetry] Attempting official Poetry installer...
+[2025-09-21 15:39:24] [SUCCESS] [poetry] Official installer succeeded
+[2025-09-21 15:39:25] [SUCCESS] [poetry] Installed system-wide at /opt/pypoetry
+[2025-09-21 15:39:25] [INFO] Created global PATH profile at /etc/profile.d/ml-dev-tools.sh
+[2025-09-21 15:39:25] [INFO] Created global pyenv profile at /etc/profile.d/pyenv.sh
+[2025-09-21 15:39:25] [INFO] Summary of installed environment managers:
+[2025-09-21 15:39:25] [SUCCESS] Environment manager setup completed.
+[2025-09-21 15:39:25] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 15:39:34] [INFO] Executing module: git
+
+============================================================
+Git Configuration Setup
+============================================================
+
+
+------------------------------------------------------------
+Step 1/6: Validating git configuration
+------------------------------------------------------------
+
+[2025-09-21 15:39:34] [SUCCESS] Git config validated.
+
+------------------------------------------------------------
+Step 2/6: Verifying git installation
+------------------------------------------------------------
+
+[2025-09-21 15:39:34] [INFO] Verifying git installation...
+[2025-09-21 15:39:34] [INFO] Git version: git version 2.51.0
+[2025-09-21 15:39:34] [SUCCESS] Git installation verified
+
+------------------------------------------------------------
+Step 3/6: Configuring global git settings
+------------------------------------------------------------
+
+[2025-09-21 15:39:34] [INFO] Configuring global git settings for root user...
+[2025-09-21 15:39:34] [SUCCESS] Global git configuration completed
+
+------------------------------------------------------------
+Step 4/6: Configuring user git settings
+------------------------------------------------------------
+
+[2025-09-21 15:39:34] [INFO] Configuring user-specific git settings for vscode...
+[2025-09-21 15:39:34] [SUCCESS] User git configuration completed
+
+------------------------------------------------------------
+Step 5/6: Setting up git aliases
+------------------------------------------------------------
+
+[2025-09-21 15:39:34] [INFO] Setting up git aliases...
+[2025-09-21 15:39:35] [SUCCESS] Git aliases setup completed
+
+------------------------------------------------------------
+Step 6/6: Verifying git configuration
+------------------------------------------------------------
+
+[2025-09-21 15:39:35] [INFO] Verifying git configuration...
+[2025-09-21 15:39:35] [SUCCESS] User git name verified.
+[2025-09-21 15:39:35] [SUCCESS] User git email verified.
+[2025-09-21 15:39:35] [SUCCESS] Git configuration verification completed
+[2025-09-21 15:39:35] [SUCCESS] Git configuration completed successfully!
+[2025-09-21 15:39:35] [INFO] Displaying Git Info.
+[2025-09-21 15:39:35] [SUCCESS] Module git completed successfully
+[2025-09-21 15:39:52] [INFO] Executing module: sources
+
+============================================================
+APT Sources Configuration
+============================================================
+
+[2025-09-21 15:39:52] [ERROR] Unable to detect Ubuntu version
+[2025-09-21 15:39:52] [ERROR] Module sources failed with exit code 1
+[2025-09-21 17:11:23] [INFO] Executing module: ssh
+[2025-09-21 17:11:23] [ERROR] Function run_ssh not found in /workspaces/information_retrieval_rag_main/ml-dev-bootstrap/modules/ssh.sh
+[2025-09-21 17:17:42] [INFO] Executing module: ssh
+
+============================================================
+SSH Configuration Setup
+============================================================
+
+[2025-09-21 17:17:42] [INFO] [ssh] Setting up SSH for user: vscode (/home/vscode)
+[2025-09-21 17:17:42] [INFO] [ssh] Running SSH permissions fix...
+[2025-09-21 17:17:42] [INFO] [ssh] Checking for existing SSH keys...
+[2025-09-21 17:17:42] [INFO] [ssh] Generating ed25519 SSH key...
+[2025-09-21 17:17:42] [SUCCESS] [ssh] Generated ed25519 key: /home/vscode/.ssh/id_ed25519
+[2025-09-21 17:17:42] [INFO] [ssh] Generating rsa SSH key...
+[2025-09-21 17:17:42] [SUCCESS] [ssh] Generated rsa key: /home/vscode/.ssh/id_rsa
+[2025-09-21 17:17:42] [INFO] [ssh] Setting up SSH client configuration...
+[2025-09-21 17:17:42] [SUCCESS] [ssh] SSH config created at /home/vscode/.ssh/config
+[2025-09-21 17:17:42] [INFO] [ssh] Setting up SSH agent...
+[2025-09-21 17:17:42] [INFO] [ssh] Added SSH agent setup to /home/vscode/.bashrc
+[2025-09-21 17:17:42] [SUCCESS] [ssh] SSH agent setup configured
+[2025-09-21 17:17:43] [INFO] [ssh] Created known_hosts file
+[2025-09-21 17:17:43] [INFO] [ssh] Adding common host keys to known_hosts...
+[2025-09-21 17:17:43] [SUCCESS] [ssh] Known hosts setup completed
+[2025-09-21 17:17:43] [SUCCESS] [ssh] SSH setup completed for vscode
+[2025-09-21 17:17:43] [SUCCESS] Module ssh completed successfully
+[2025-09-21 17:50:54] [INFO] Executing module: ssh
+
+============================================================
+SSH Configuration Setup
+============================================================
+
+[2025-09-21 17:50:54] [INFO] [ssh] Setting up SSH for user: vscode (/home/vscode)
+[2025-09-21 17:50:54] [INFO] [ssh] Running SSH permissions fix...
+[2025-09-21 17:50:55] [INFO] [ssh] Checking for existing SSH keys...
+[2025-09-21 17:50:55] [INFO] [ssh] SSH key /home/vscode/.ssh/id_ed25519 already exists, skipping generation
+[2025-09-21 17:50:55] [INFO] [ssh] SSH key /home/vscode/.ssh/id_rsa already exists, skipping generation
+[2025-09-21 17:50:55] [INFO] [ssh] Backed up existing SSH config to /home/vscode/.ssh/config.backup
+[2025-09-21 17:50:55] [INFO] [ssh] Setting up SSH client configuration...
+[2025-09-21 17:50:55] [SUCCESS] [ssh] SSH config created at /home/vscode/.ssh/config
+[2025-09-21 17:50:55] [INFO] [ssh] Setting up SSH agent...
+[2025-09-21 17:50:55] [SUCCESS] [ssh] SSH agent setup configured
+[2025-09-21 17:50:55] [INFO] [ssh] Adding common host keys to known_hosts...
+[2025-09-21 17:50:55] [SUCCESS] [ssh] Known hosts setup completed
+[2025-09-21 17:50:55] [SUCCESS] [ssh] SSH setup completed for vscode
+[2025-09-21 17:50:55] [SUCCESS] Module ssh completed successfully
+[2025-09-21 20:25:10] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:25:10] [INFO] Running as user vscode - installing environment managers for current user
+[2025-09-21 20:25:10] [INFO] Selected environment managers: poetry
+[2025-09-21 20:25:10] [INFO] [poetry] Skipping Poetry (INSTALL_POETRY=no)
+[2025-09-21 20:25:10] [INFO] poetry skipped by configuration
+[2025-09-21 20:25:10] [WARN] Not running as root - skipping global PATH profile creation
+[2025-09-21 20:25:10] [INFO] Consider running with sudo for system-wide PATH setup
+[2025-09-21 20:25:10] [WARN] Not running as root - skipping global pyenv profile creation
+[2025-09-21 20:25:10] [INFO] pyenv will be initialized per-user in their shell profile
+[2025-09-21 20:25:10] [INFO] No environment managers were installed.
+[2025-09-21 20:25:10] [INFO] Skipped: poetry
+[2025-09-21 20:25:10] [WARN] Nothing to do: selected managers were skipped by configuration.
+[2025-09-21 20:25:10] [ERROR] Module envmgr failed with exit code 1
+[2025-09-21 20:25:21] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:25:21] [INFO] Running as root - installing environment managers system-wide
+[2025-09-21 20:25:21] [INFO] Selected environment managers: pyenv
+[2025-09-21 20:25:21] [INFO] [pyenv] Target user: vscode (/home/vscode)
+[2025-09-21 20:25:22] [INFO] [pyenv] pyenv already installed for vscode
+[2025-09-21 20:25:22] [INFO] [pyenv] Python 3.10.18 already installed for vscode
+[2025-09-21 20:25:22] [INFO] Created global PATH profile at /etc/profile.d/ml-dev-tools.sh
+[2025-09-21 20:25:22] [INFO] Created global pyenv profile at /etc/profile.d/pyenv.sh
+[2025-09-21 20:25:22] [INFO] Summary of installed environment managers:
+[2025-09-21 20:25:22] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:25:22] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 20:29:25] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:29:25] [INFO] Running as user vscode - installing environment managers for current user
+[2025-09-21 20:29:25] [INFO] Selected environment managers: uv
+[2025-09-21 20:29:25] [WARN] [uv] System install requested but not running as root; falling back to user install
+[2025-09-21 20:29:25] [INFO] [uv] Installing for user: vscode (/home/vscode)
+[2025-09-21 20:29:25] [INFO] [uv] Installing UV for vscode...
+[2025-09-21 20:29:25] [ERROR] [uv] Installation failed for vscode
+[2025-09-21 20:29:25] [WARN] Not running as root - skipping global PATH profile creation
+[2025-09-21 20:29:25] [INFO] Consider running with sudo for system-wide PATH setup
+[2025-09-21 20:29:25] [WARN] Not running as root - skipping global pyenv profile creation
+[2025-09-21 20:29:25] [INFO] pyenv will be initialized per-user in their shell profile
+[2025-09-21 20:29:25] [INFO] No environment managers were installed.
+[2025-09-21 20:29:25] [ERROR] Environment manager setup failed: uv
+[2025-09-21 20:29:25] [ERROR] Module envmgr failed with exit code 1
+[2025-09-21 20:33:24] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:33:24] [INFO] Running as root - installing environment managers system-wide
+[2025-09-21 20:33:24] [INFO] Selected environment managers: uv
+[2025-09-21 20:33:24] [INFO] [uv] Installing system-wide to /opt/uv (group: vscode)
+[2025-09-21 20:33:25] [INFO] [uv] Installing UV using official installer...
+[2025-09-21 20:33:27] [SUCCESS] [uv] Official installer succeeded
+[2025-09-21 20:33:27] [SUCCESS] [uv] Installed system-wide at /opt/uv
+[2025-09-21 20:33:27] [INFO] Created global PATH profile at /etc/profile.d/ml-dev-tools.sh
+[2025-09-21 20:33:27] [INFO] Created global pyenv profile at /etc/profile.d/pyenv.sh
+[2025-09-21 20:33:27] [INFO] Summary of installed environment managers:
+[2025-09-21 20:33:27] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:33:27] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 20:33:43] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:33:43] [INFO] Running as root - installing environment managers system-wide
+[2025-09-21 20:33:43] [INFO] Selected environment managers: uv
+[2025-09-21 20:33:43] [INFO] [uv] Installing system-wide to /opt/uv (group: vscode)
+[2025-09-21 20:33:45] [INFO] [uv] Installing UV using official installer...
+[2025-09-21 20:33:47] [SUCCESS] [uv] Official installer succeeded
+[2025-09-21 20:33:47] [SUCCESS] [uv] Installed system-wide at /opt/uv
+[2025-09-21 20:33:47] [INFO] Created global PATH profile at /etc/profile.d/ml-dev-tools.sh
+[2025-09-21 20:33:47] [INFO] Created global pyenv profile at /etc/profile.d/pyenv.sh
+[2025-09-21 20:33:47] [INFO] Summary of installed environment managers:
+[2025-09-21 20:33:47] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:33:47] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 20:34:21] [ERROR] Unknown module: uv
+[2025-09-21 20:34:21] [INFO] Available Modules:
+[2025-09-21 20:34:36] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:34:36] [INFO] Running as root - installing environment managers system-wide
+[2025-09-21 20:34:36] [INFO] Selected environment managers: pyenv
+[2025-09-21 20:34:36] [INFO] [pyenv] Target user: vscode (/home/vscode)
+[2025-09-21 20:34:36] [INFO] [pyenv] pyenv already installed for vscode
+[2025-09-21 20:34:37] [INFO] [pyenv] Python 3.10.18 already installed for vscode
+[2025-09-21 20:34:37] [INFO] Created global PATH profile at /etc/profile.d/ml-dev-tools.sh
+[2025-09-21 20:34:37] [INFO] Created global pyenv profile at /etc/profile.d/pyenv.sh
+[2025-09-21 20:34:37] [INFO] Summary of installed environment managers:
+[2025-09-21 20:34:37] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:34:37] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 20:37:02] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:37:02] [INFO] Running as user vscode - installing environment managers for current user
+[2025-09-21 20:37:02] [INFO] Selected environment managers: uv
+[2025-09-21 20:37:02] [WARN] [uv] System install requested but not running as root; falling back to user install
+[2025-09-21 20:37:02] [INFO] [uv] Installing for user: vscode (/home/vscode)
+[2025-09-21 20:37:02] [INFO] [uv] UV already installed for vscode
+[2025-09-21 20:37:02] [WARN] Not running as root - skipping global PATH profile creation
+[2025-09-21 20:37:02] [INFO] Consider running with sudo for system-wide PATH setup
+[2025-09-21 20:37:02] [WARN] Not running as root - skipping global pyenv profile creation
+[2025-09-21 20:37:02] [INFO] pyenv will be initialized per-user in their shell profile
+[2025-09-21 20:37:02] [INFO] Summary of installed environment managers:
+[2025-09-21 20:37:02] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:37:02] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 20:39:02] [INFO] Executing module: envmgr
+
+============================================================
+Python Environment Manager Setup
+============================================================
+
+[2025-09-21 20:39:02] [INFO] Running as user vscode - installing environment managers for current user
+[2025-09-21 20:39:02] [INFO] Selected environment managers: uv
+[2025-09-21 20:39:02] [WARN] [uv] System install requested but not running as root; falling back to user install
+[2025-09-21 20:39:02] [INFO] [uv] Installing for user: vscode (/home/vscode)
+[2025-09-21 20:39:02] [INFO] [uv] UV already installed for vscode
+[2025-09-21 20:39:02] [WARN] Not running as root - skipping global PATH profile creation
+[2025-09-21 20:39:02] [INFO] Consider running with sudo for system-wide PATH setup
+[2025-09-21 20:39:02] [WARN] Not running as root - skipping global pyenv profile creation
+[2025-09-21 20:39:02] [INFO] pyenv will be initialized per-user in their shell profile
+[2025-09-21 20:39:02] [INFO] Summary of installed environment managers:
+[2025-09-21 20:39:02] [SUCCESS] Environment manager setup completed.
+[2025-09-21 20:39:02] [SUCCESS] Module envmgr completed successfully
+[2025-09-21 21:20:55] [INFO] Executing all modules in order (skipping envmgr and ssh by default)...
+[2025-09-21 21:20:55] [INFO] Executing module: system
+
+============================================================
+System Development Tools Setup
+============================================================
+
+[2025-09-21 21:20:55] [INFO] Step 1/3: Updating system packages
+[2025-09-21 21:20:55] [INFO] Updating package cache and upgrading existing packages...
+[2025-09-21 21:23:00] [INFO] Executing module: ssh
+
+============================================================
+SSH Configuration Setup
+============================================================
+
+[2025-09-21 21:23:00] [INFO] [ssh] Setting up SSH for user: vscode (/home/vscode)
+[2025-09-21 21:23:00] [INFO] [ssh] Running SSH permissions fix...
+[2025-09-21 21:23:00] [INFO] [ssh] Checking for existing SSH keys...
+[2025-09-21 21:23:00] [INFO] [ssh] SSH key /home/vscode/.ssh/id_ed25519 already exists, skipping generation
+[2025-09-21 21:23:00] [INFO] [ssh] SSH key /home/vscode/.ssh/id_rsa already exists, skipping generation
+[2025-09-21 21:23:00] [INFO] [ssh] Setting up SSH client configuration...
+[2025-09-21 21:23:00] [SUCCESS] [ssh] SSH config created at /home/vscode/.ssh/config
+[2025-09-21 21:23:00] [INFO] [ssh] Setting up SSH agent...
+[2025-09-21 21:23:00] [SUCCESS] [ssh] SSH agent setup configured
+[2025-09-21 21:23:00] [INFO] [ssh] Adding common host keys to known_hosts...
+[2025-09-21 21:23:00] [SUCCESS] [ssh] Known hosts setup completed
+[2025-09-21 21:23:00] [SUCCESS] [ssh] SSH setup completed for vscode
+[2025-09-21 21:23:00] [SUCCESS] Module ssh completed successfully

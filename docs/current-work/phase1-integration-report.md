@@ -145,7 +145,7 @@ def optimize_batch_size(token_stats):
 ### Phase 2 Preparation (Quality & Deduplication)
 ```bash
 # Recommended Phase 2 features
-poetry run python scripts/data/profile_documents.py \
+uv run python scripts/data/profile_documents.py \
   --file_path data/documents.jsonl \
   --boilerplate_detection 1 \
   --minhash_near_duplicates 1 \
@@ -160,7 +160,7 @@ poetry run python scripts/data/profile_documents.py \
 ### Performance Validation
 ```bash
 # Test integration impact
-PYTHONPATH=src poetry run python scripts/evaluation/validate_retrieval.py \
+PYTHONPATH=src uv run python scripts/evaluation/validate_retrieval.py \
   --use_profiling_insights 1 \
   --test_query_routing 1 \
   --test_chunking_optimization 1
@@ -220,7 +220,7 @@ outputs/reports/data_profile/latest/
 ### Quick Wins
 ```bash
 # Immediate integration test
-PYTHONPATH=src poetry run python -c "
+PYTHONPATH=src uv run python -c "
 from outputs.reports.data_profile.latest.src_clusters_by_vocab import clusters
 print(f'Found {len(clusters)} domain clusters for query routing')
 "

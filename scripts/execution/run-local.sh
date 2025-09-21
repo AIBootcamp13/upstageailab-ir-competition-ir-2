@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Lightweight helper to download, start, stop, and inspect local non-root Elasticsearch
-# and Redis distributions inside the repository.
+# Lightweight helper to download, start, stop, and inspect local
+# Elasticsearch, Kibana, and Redis distributions inside the repository.
 # Usage: scripts/execution/run-local.sh [start|stop|status|help] [-v]
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -12,11 +12,14 @@ REDIS_VERSION=${REDIS_VERSION:-7.2.0}
 ES_DIR="$ROOT_DIR/elasticsearch-$ES_VERSION"
 REDIS_DIR="$ROOT_DIR/redis-$REDIS_VERSION"
 KIBANA_VERSION=${KIBANA_VERSION:-8.9.0}
-KIBANA_DIR="$ROOT_DIR/.local_kibana/kibana-$KIBANA_VERSION"
+KIBANA_DIR="$ROOT_DIR/kibana-$KIBANA_VERSION"
 PIDFILE_KIBANA="$KIBANA_DIR/run/kibana.pid"
 
 PIDFILE_ES="$ES_DIR/run/elasticsearch.pid"
 PIDFILE_REDIS="$REDIS_DIR/run/redis.pid"
+
+# Add binaries to PATH for convenience
+export PATH="$ES_DIR/bin:$KIBANA_DIR/bin:$PATH"
 
 verb=0
 action="${1:-help}"
@@ -35,7 +38,12 @@ download_es(){
   TAR_NAME="elasticsearch-${ES_VERSION}-linux-x86_64.tar.gz"
   URL="https://artifacts.elastic.co/downloads/elasticsearch/${TAR_NAME}"
   echo "Downloading Elasticsearch $ES_VERSION..."
-  curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+  if [ -f "/tmp/$TAR_NAME" ]; then
+    echo "Resuming partial download..."
+    curl -fSL -C - "$URL" -o "/tmp/$TAR_NAME"
+  else
+    curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+  fi
   tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR"
   rm -f "/tmp/$TAR_NAME"
   echo "Downloaded to $ES_DIR"
@@ -52,7 +60,12 @@ download_redis(){
   TAR_NAME="redis-$REDIS_VERSION.tar.gz"
   URL="http://download.redis.io/releases/$TAR_NAME"
   echo "Downloading Redis $REDIS_VERSION..."
-  curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+  if [ -f "/tmp/$TAR_NAME" ]; then
+    echo "Resuming partial download..."
+    curl -fSL -C - "$URL" -o "/tmp/$TAR_NAME"
+  else
+    curl -fSL "$URL" -o "/tmp/$TAR_NAME"
+  fi
   tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR"
   rm -f "/tmp/$TAR_NAME"
   echo "Downloaded to $REDIS_DIR"
@@ -64,198 +77,111 @@ ensure_dirs(){
 }
 
 start_es(){
-  if [ -f "$PIDFILE_ES" ] && kill -0 "$(cat "$PIDFILE_ES")" >/dev/null 2>&1; then
-    echo "Elasticsearch already running (pid $(cat $PIDFILE_ES))"; return 0
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
   fi
-  if [ ! -d "$ES_DIR" ]; then download_es; fi
-  ensure_dirs
-  if ! grep -q '^discovery.type' "$ES_DIR/config/elasticsearch.yml" 2>/dev/null; then
-    cat >> "$ES_DIR/config/elasticsearch.yml" <<'EOF'
-network.host: 127.0.0.1
-http.port: 9200
-discovery.type: single-node
-# Disable security for local dev
-xpack.security.enabled: false
-EOF
-  fi
-  echo "Starting Elasticsearch (logs -> $ES_DIR/logs)"
-  export ES_JAVA_OPTS="-Xms512m -Xmx512m"
-  nohup "$ES_DIR/bin/elasticsearch" > "$ES_DIR/logs/es.stdout.log" 2> "$ES_DIR/logs/es.stderr.log" &
-  echo $! > "$PIDFILE_ES"
-  sleep 1
-}
-
-download_kibana(){
-  if [ -d "$KIBANA_DIR" ]; then log "Kibana dir exists: $KIBANA_DIR"; return 0; fi
-  EXISTING_KIBANA_DIR=$(ls -d "$ROOT_DIR"/.local_kibana/kibana-* 2>/dev/null | head -1 || true)
-  if [ -n "$EXISTING_KIBANA_DIR" ]; then
-    KIBANA_DIR="$EXISTING_KIBANA_DIR"
-    log "Using existing Kibana dir: $KIBANA_DIR"
+  if docker ps --filter "name=elasticsearch" --filter "status=running" | grep -q elasticsearch; then
+    echo "Elasticsearch already running (Docker container)"
     return 0
   fi
-  TAR_NAME="kibana-${KIBANA_VERSION}-linux-x86_64.tar.gz"
-  URL="https://artifacts.elastic.co/downloads/kibana/${TAR_NAME}"
-  echo "Downloading Kibana $KIBANA_VERSION..."
-  mkdir -p "$ROOT_DIR/.local_kibana"
-  curl -fSL "$URL" -o "/tmp/$TAR_NAME"
-  tar -xzf "/tmp/$TAR_NAME" -C "$ROOT_DIR/.local_kibana"
-  rm -f "/tmp/$TAR_NAME"
-  # Move extracted dir to expected name if necessary
-  MOVED_DIR=$(ls -d "$ROOT_DIR/.local_kibana/kibana-*" 2>/dev/null | head -1 || true)
-  if [ -n "$MOVED_DIR" ]; then
-    KIBANA_DIR="$MOVED_DIR"
-  fi
-  echo "Downloaded to $KIBANA_DIR"
+  echo "Starting Elasticsearch via Docker Compose..."
+  docker-compose up -d elasticsearch
 }
 
 start_redis(){
-    # Add this check at the top
-  if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
-    if ! command -v make >/dev/null || ! command -v gcc >/dev/null; then
-      echo "Error: 'make' and 'gcc' are required to build Redis from source." >&2
-      echo "Please install them (e.g., 'sudo apt-get install build-essential') and try again." >&2
-      exit 1
-    fi
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
   fi
-
-  if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
-    echo "Redis already running (pid $(cat $PIDFILE_REDIS))"; return 0
+  if docker ps --filter "name=redis" --filter "status=running" | grep -q redis; then
+    echo "Redis already running (Docker container)"
+    return 0
   fi
-  if [ ! -d "$REDIS_DIR" ]; then download_redis; fi
-  # build if needed
-  if [ ! -f "$REDIS_DIR/src/redis-server" ]; then
-    echo "Building Redis (requires make & gcc)"
-    (cd "$REDIS_DIR" && make -j$(nproc))
-  fi
-  ensure_dirs
-  echo "Starting Redis (logs -> $REDIS_DIR/logs)"
-  nohup "$REDIS_DIR/src/redis-server" --dir "$REDIS_DIR/data" --maxmemory 256mb --maxmemory-policy allkeys-lru > "$REDIS_DIR/logs/redis.stdout.log" 2> "$REDIS_DIR/logs/redis.stderr.log" &
-  echo $! > "$PIDFILE_REDIS"
-  sleep 1
+  echo "Starting Redis via Docker Compose..."
+  docker-compose up -d redis
 }
 
 start_kibana(){
-  if [ -f "$PIDFILE_KIBANA" ] && kill -0 "$(cat "$PIDFILE_KIBANA")" >/dev/null 2>&1; then
-    echo "Kibana already running (pid $(cat $PIDFILE_KIBANA))"; return 0
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
   fi
-  if [ ! -d "$KIBANA_DIR" ]; then download_kibana; fi
-  mkdir -p "$KIBANA_DIR/run" "$KIBANA_DIR/logs"
-  # Create minimal kibana.yml for local ES if not present
-  if [ ! -f "$KIBANA_DIR/config/kibana.yml" ]; then
-    cat > "$KIBANA_DIR/config/kibana.yml" <<'EOF'
-server.port: 5601
-server.host: "127.0.0.1"
-elasticsearch.hosts: ["http://127.0.0.1:9200"]
-# Disable security for local dev convenience (only do this on dev hosts)
-xpack.security.enabled: false
-EOF
+  if docker ps --filter "name=kibana" --filter "status=running" | grep -q kibana; then
+    echo "Kibana already running (Docker container)"
+    return 0
   fi
-  echo "Starting Kibana (logs -> $KIBANA_DIR/logs)"
-  export NODE_OPTIONS="--max-old-space-size=2048"
-  nohup "$KIBANA_DIR/bin/kibana" > "$KIBANA_DIR/logs/kibana.log" 2>&1 &
-  echo $! > "$PIDFILE_KIBANA"
-  sleep 1
+  echo "Starting Kibana via Docker Compose..."
+  docker-compose up -d kibana
 }
 
 stop_es(){
-stop_kibana(){
-  if [ -f "$PIDFILE_KIBANA" ]; then
-    pid=$(cat "$PIDFILE_KIBANA")
-    echo "Stopping Kibana pid $pid"
-    kill "$pid" || true
-    rm -f "$PIDFILE_KIBANA"
-  else
-    echo "No Kibana pidfile; attempting pkill for $KIBANA_DIR"
-    pkill -f "$KIBANA_DIR" || true
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
   fi
-}
-  if [ -f "$PIDFILE_ES" ]; then
-    pid=$(cat "$PIDFILE_ES")
-    echo "Stopping Elasticsearch pid $pid"
-    kill "$pid" || true
-    rm -f "$PIDFILE_ES"
+  if docker ps --filter "name=elasticsearch" | grep -q elasticsearch; then
+    echo "Stopping Elasticsearch Docker container..."
+    docker-compose stop elasticsearch
   else
-    echo "No ES pidfile; attempting pkill for $ES_DIR"
-    pkill -f "$ES_DIR" || true
+    echo "No Elasticsearch Docker container found"
   fi
 }
 
 stop_redis(){
-  if [ -f "$PIDFILE_REDIS" ]; then
-    pid=$(cat "$PIDFILE_REDIS")
-    echo "Stopping Redis pid $pid"
-    kill "$pid" || true
-    rm -f "$PIDFILE_REDIS"
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
+  fi
+  if docker ps --filter "name=redis" | grep -q redis; then
+    echo "Stopping Redis Docker container..."
+    docker-compose stop redis
   else
-    echo "No Redis pidfile; attempting pkill for $REDIS_DIR"
-    pkill -f "$REDIS_DIR" || true
+    echo "No Redis Docker container found"
+  fi
+}
+
+stop_kibana(){
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Error: Docker is not installed or not available"
+    return 1
+  fi
+  if docker ps --filter "name=kibana" | grep -q kibana; then
+    echo "Stopping Kibana Docker container..."
+    docker-compose stop kibana
+  else
+    echo "No Kibana Docker container found"
   fi
 }
 
 status(){
   echo "Elasticsearch:"
-  if [ -f "$PIDFILE_ES" ] && kill -0 "$(cat "$PIDFILE_ES")" >/dev/null 2>&1; then
-    echo "  running pid $(cat $PIDFILE_ES)"
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=elasticsearch" --filter "status=running" | grep -q elasticsearch; then
+    echo "  running (Docker container)"
+  elif curl -s --max-time 5 http://elasticsearch:9200/_cluster/health >/dev/null 2>&1; then
+    echo "  running (accessible on elasticsearch:9200)"
   else
-    # Try to detect Elasticsearch by process name or listening port as a fallback
-    es_pid=$(pgrep -f "$ES_DIR" | head -n1 || true)
-    if [ -n "$es_pid" ]; then
-      echo "  running pid $es_pid (no pidfile)"
-    else
-      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':9200'; then
-        # attempt to extract pid from ss output
-        listener_pid=$(ss -ltnp 2>/dev/null | grep ':9200' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
-        if [ -n "$listener_pid" ]; then
-          echo "  running pid $listener_pid (listening on 9200)"
-        else
-          echo "  running (listening on 9200)"
-        fi
-      else
-        echo "  not running (no pid or process dead)"
-      fi
-    fi
+    echo "  not running"
   fi
+
   echo "Redis:"
-  if [ -f "$PIDFILE_REDIS" ] && kill -0 "$(cat "$PIDFILE_REDIS")" >/dev/null 2>&1; then
-    echo "  running pid $(cat $PIDFILE_REDIS)"
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=redis" --filter "status=running" | grep -q redis; then
+    echo "  running (Docker container)"
+  elif redis-cli -h redis -p 6379 ping 2>/dev/null | grep -q PONG; then
+    echo "  running (accessible on redis:6379)"
+  elif uv run python -c "import redis; redis.Redis(host='redis', port=6379).ping()" 2>/dev/null; then
+    echo "  running (accessible on redis:6379 via Python)"
   else
-    # Try to detect redis by process name or listening port as a fallback
-    redis_pid=$(pgrep -x redis-server | head -n1 || true)
-    if [ -n "$redis_pid" ]; then
-      echo "  running pid $redis_pid (process exists)"
-    else
-      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':6379'; then
-        listener_pid=$(ss -ltnp 2>/dev/null | grep ':6379' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
-        if [ -n "$listener_pid" ]; then
-          echo "  running pid $listener_pid (listening on 6379)"
-        else
-          echo "  running (listening on 6379)"
-        fi
-      else
-        echo "  not running (no pid or process dead)"
-      fi
-    fi
+    echo "  not running"
   fi
+
   echo "Kibana:"
-  if [ -f "$PIDFILE_KIBANA" ] && kill -0 "$(cat "$PIDFILE_KIBANA")" >/dev/null 2>&1; then
-    echo "  running pid $(cat $PIDFILE_KIBANA)"
+  if command -v docker >/dev/null 2>&1 && docker ps --filter "name=kibana" --filter "status=running" | grep -q kibana; then
+    echo "  running (Docker container)"
+  elif curl -s --max-time 5 http://kibana:5601/api/status >/dev/null 2>&1; then
+    echo "  running (accessible on kibana:5601)"
   else
-    # Try to detect Kibana by process name or listening port as a fallback
-    kibana_pid=$(pgrep -f "$KIBANA_DIR" | head -n1 || true)
-    if [ -n "$kibana_pid" ]; then
-      echo "  running pid $kibana_pid (process exists)"
-    else
-      if command -v ss >/dev/null 2>&1 && ss -ltnp 2>/dev/null | grep -q ':5601'; then
-        listener_pid=$(ss -ltnp 2>/dev/null | grep ':5601' | sed -n '1p' | awk -F',' '{print $2}' | sed 's/.*pid=\([0-9]*\).*/\1/' | sed 's/[^0-9]*//g')
-        if [ -n "$listener_pid" ]; then
-          echo "  running pid $listener_pid (listening on 5601)"
-        else
-          echo "  running (listening on 5601)"
-        fi
-      else
-        echo "  not running (no pid or process dead)"
-      fi
-    fi
+    echo "  not running"
   fi
 }
 
@@ -264,7 +190,7 @@ case "$action" in
     start_es
     start_redis
     start_kibana
-    echo "Started. Use 'scripts/execution/run-local.sh status' to check."
+    echo "Started services via Docker Compose. Use 'scripts/execution/run-local.sh status' to check."
     ;;
   stop)
     stop_redis
@@ -279,14 +205,21 @@ case "$action" in
 Usage: scripts/execution/run-local.sh [start|stop|status|help]
 
 Commands:
-  start   Download (if needed) and start local ES and Redis under the repo (no sudo).
-  stop    Stop local ES and Redis started by this script.
-  status  Show pidfiles and running state.
+  start   Start Elasticsearch, Redis, and Kibana via Docker Compose
+  stop    Stop the Docker containers
+  status  Show status of Docker containers and service accessibility
   help    Show this message.
 
+Requirements:
+- Docker and Docker Compose must be installed
+- Services will be accessible at:
+  * Elasticsearch: http://localhost:9200
+  * Kibana: http://localhost:5601
+  * Redis: localhost:6379
+
 Notes:
-- You may need to run 'sudo sysctl -w vm.max_map_count=262144' once on the host for Elasticsearch to run.
-- ES data will be under elasticsearch-<version>/data; Redis data under redis-<version>/data.
+- If Docker is not available, status will check service accessibility via ports
+- Data is persisted in Docker named volumes
 EOF
     ;;
   *)

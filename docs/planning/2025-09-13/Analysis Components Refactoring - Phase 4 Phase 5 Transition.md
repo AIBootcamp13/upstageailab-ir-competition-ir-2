@@ -55,7 +55,7 @@ src/ir_core/analysis/components/
 
 **✅ Import Tests Passed:**
 ```bash
-poetry run python -c "from ir_core.analysis.components import MetricCalculator, QueryBatchProcessor, ErrorAnalyzer, ResultAggregator; print('✅ All component imports successful')"
+uv run python -c "from ir_core.analysis.components import MetricCalculator, QueryBatchProcessor, ErrorAnalyzer, ResultAggregator; print('✅ All component imports successful')"
 ```
 
 **✅ Core Integration Verified:**

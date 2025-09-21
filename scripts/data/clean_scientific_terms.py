@@ -12,11 +12,11 @@ Features:
 
 Examples:
   # Clean the curated terms in-place
-  poetry run python scripts/data/clean_scientific_terms.py \
+  uv run python scripts/data/clean_scientific_terms.py \
     --input conf/scientific_terms.json --in-place 1
 
   # Clean, keep multi-word phrases, and write to a new file
-  poetry run python scripts/data/clean_scientific_terms.py \
+  uv run python scripts/data/clean_scientific_terms.py \
     --input conf/scientific_terms.json --output conf/scientific_terms.cleaned.json \
     --keep-multiword 1
 
