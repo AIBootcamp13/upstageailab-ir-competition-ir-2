@@ -211,7 +211,10 @@ class Menu:
             'list all scripts', 'show current configuration',
             'check current configuration', 'validate retrieval (openai)', 'validate retrieval (qwen2:7b full)',
             'validate retrieval (llama3.1:8b full)', 'validate retrieval (ollama hybrid)',
-            'validate retrieval (custom)', 'multi-run experiments', 'test huggingface integration'
+            'validate retrieval (custom)', 'multi-run experiments', 'test huggingface integration',
+            'generate submission (openai)', 'generate submission (qwen2:7b full)', 'generate submission (llama3.1:8b full)',
+            'generate submission (ollama hybrid)', 'generate submission (custom output)', 'quick generate (jsonl)',
+            'quick generate (jsonl - alternative)', 'create validation set', 'trim submission'
         ]
 
         command_name = command.get("name", "").lower()

@@ -161,13 +161,13 @@ class ConfigurationMenu(BaseMenuModule):
         """
         return [
             "# Switch to Korean configuration",
-            "PYTHONPATH=src python switch_config.py korean",
+            "PYTHONPATH=src uv run python switch_config.py korean",
             "",
             "# Switch to English configuration",
-            "PYTHONPATH=src python switch_config.py english",
+            "PYTHONPATH=src uv run python switch_config.py english",
             "",
             "# Show current configuration",
-            "PYTHONPATH=src python switch_config.py show",
+            "PYTHONPATH=src uv run python switch_config.py show",
             "",
             "# Create index after configuration switch",
             "PYTHONPATH=src uv run python scripts/maintenance/reindex.py data/documents_ko.jsonl --index documents_ko_with_embeddings_new",

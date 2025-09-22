@@ -19,9 +19,28 @@ yaml_handler = YAML()
 yaml_handler.preserve_quotes = True
 yaml_handler.indent(mapping=2, sequence=4, offset=2)
 
-# Profile configuration file path
-PROFILES_PATH = Path(__file__).parent.parent.parent / "conf" / "embedding_profiles.yaml"
-SETTINGS_PATH = Path(__file__).parent.parent.parent / "conf" / "settings.yaml"
+def _add_src_to_path():
+    """Add src directory to sys.path for imports."""
+    scripts_dir = Path(__file__).parent
+    repo_dir = scripts_dir.parent
+    src_dir = repo_dir / "src"
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
+
+# Add src to path for imports
+_add_src_to_path()
+
+# Import centralized path utilities
+from ir_core.utils.path_utils import (
+    get_project_root, get_conf_path, get_settings_path,
+    get_embedding_profiles_path, get_data_config_path
+)
+
+# Legacy constants for backward compatibility (now use path_utils)
+PROJECT_ROOT = get_project_root()
+PROFILES_PATH = get_embedding_profiles_path()
+SETTINGS_PATH = get_settings_path()
+DATA_CONFIG_DIR = get_conf_path() / "data"
 
 def load_profiles() -> Dict[str, Any]:
     """Load all profiles from embedding_profiles.yaml."""
@@ -34,8 +53,7 @@ def load_profiles() -> Dict[str, Any]:
 
 def load_settings() -> Dict[str, Any]:
     """Load current settings from settings.yaml"""
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'r', encoding='utf-8') as f:
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # Use OmegaConf to resolve environment variables
@@ -49,8 +67,7 @@ def load_settings() -> Dict[str, Any]:
 
 def load_settings_preserve_format():
     """Load settings while preserving YAML structure and comments"""
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'r', encoding='utf-8') as f:
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
         return yaml_handler.load(f)
 
 def load_model_config() -> Dict[str, Any]:
@@ -67,17 +84,15 @@ def save_model_config(config: Dict[str, Any]) -> None:
 
 def save_settings(settings: Dict[str, Any]) -> None:
     """Save settings to settings.yaml while preserving formatting and comments"""
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-
     # Load the current file with ruamel.yaml to preserve structure
-    with open(settings_file, 'r', encoding='utf-8') as f:
+    with open(SETTINGS_PATH, 'r', encoding='utf-8') as f:
         current_data = yaml_handler.load(f)
 
     # Update only the specific settings that need to change
     _update_nested_dict(current_data, settings)
 
     # Write back with preserved formatting
-    with open(settings_file, 'w', encoding='utf-8') as f:
+    with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
 def load_data_config() -> Dict[str, Any]:
@@ -100,7 +115,7 @@ def load_data_config() -> Dict[str, Any]:
         data_config_name = 'science_qa_ko'
 
     # Load the data config file
-    data_config_file = Path(__file__).parent / "conf" / "data" / f"{data_config_name}.yaml"
+    data_config_file = DATA_CONFIG_DIR / f"{data_config_name}.yaml"
     if data_config_file.exists():
         with open(data_config_file, 'r', encoding='utf-8') as f:
             return yaml_handler.load(f)
@@ -212,8 +227,7 @@ def update_data_config(language):
                 break
 
     # Save with preserved formatting
-    settings_file = Path(__file__).parent / "conf" / "settings.yaml"
-    with open(settings_file, 'w', encoding='utf-8') as f:
+    with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
         yaml_handler.dump(current_data, f)
 
 def show_current_config():

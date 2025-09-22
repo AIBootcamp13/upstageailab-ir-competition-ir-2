@@ -316,7 +316,7 @@ python -c "import sys; print(sys.path)"
 # Should include the project root
 
 # Or run with explicit path
-PYTHONPATH=/path/to/project/src python -m pytest tests/
+PYTHONPATH=/path/to/project/src uv run python -m pytest tests/
 ```
 
 #### 3. GPU not available in Docker

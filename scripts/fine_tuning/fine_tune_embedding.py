@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Fine-tune Polyglot-Ko Embedding Model for Scientific Document Retrieval (Memory-Efficient Version)
+Fine-tune KURE-v1 Embedding Model for Scientific Document Retrieval (Memory-Efficient Version)
 
-This script fine-tunes the EleutherAI/polyglot-ko-1.3b model using the generated metadata
+This script fine-tunes the nlpai-lab/KURE-v1 model using enhanced evaluation data
 to improve dense retrieval alignment with sparse retrieval results.
+
+Supports both document format (with hypothetical_questions) and eval_enhanced format
+(with ideal_context and hard_negative_context).
 
 Usage:
     PYTHONPATH=src uv run python scripts/fine_tuning/fine_tune_embedding.py
@@ -23,6 +26,9 @@ class StreamingJsonlDataset(Dataset):
     """
     An iterable dataset that reads from a JSONL file line by line.
     This avoids loading the entire dataset into memory.
+
+    Supports both document format (with hypothetical_questions) and
+    eval_enhanced format (with ideal_context and hard_negative_context).
     """
     def __init__(self, jsonl_path: str):
         self.file_path = jsonl_path
@@ -30,18 +36,31 @@ class StreamingJsonlDataset(Dataset):
         # This is a quick pass and doesn't load content into memory.
         print("Counting examples in dataset...")
         self._len = 0
+        self.is_eval_enhanced = False
+
         with open(self.file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.strip():
                     try:
                         doc = json.loads(line)
-                        # Count how many valid question-passage pairs we can create
-                        for question in doc.get('hypothetical_questions', []):
-                            if question and len(question.strip()) > 10:
-                                self._len += 1
+                        # Check if this is eval_enhanced format
+                        if 'ideal_context' in doc and 'hard_negative_context' in doc:
+                            self.is_eval_enhanced = True
+                            # Count positive examples (query + ideal_context)
+                            if doc.get('ideal_context') and len(doc['ideal_context']) > 0:
+                                self._len += len(doc['ideal_context'])
+                            # Count negative examples (query + hard_negative_context)
+                            if doc.get('hard_negative_context') and len(doc['hard_negative_context']) > 0:
+                                self._len += len(doc['hard_negative_context'])
+                        else:
+                            # Original format with hypothetical_questions
+                            for question in doc.get('hypothetical_questions', []):
+                                if question and len(question.strip()) > 10:
+                                    self._len += 1
                     except json.JSONDecodeError:
-                        print(f"Warning: Skipping malformed JSON line.")
+                        print("Warning: Skipping malformed JSON line.")
         print(f"Found {self._len} total examples.")
+        print(f"Dataset format: {'eval_enhanced' if self.is_eval_enhanced else 'documents'}")
 
     def __len__(self):
         return self._len
@@ -54,15 +73,36 @@ class StreamingJsonlDataset(Dataset):
 
                 try:
                     doc = json.loads(line)
-                    content = doc.get('content', '')
-                    summary = doc.get('summary', '')
-                    hypothetical_questions = doc.get('hypothetical_questions', [])
 
-                    passage = summary if summary else content[:512]
+                    if self.is_eval_enhanced:
+                        # Handle eval_enhanced format
+                        query = doc.get('query', '').strip()
+                        if not query:
+                            continue
 
-                    for question in hypothetical_questions:
-                        if question and len(question.strip()) > 10:
-                            yield InputExample(texts=[question.strip(), passage], label=1.0)
+                        # Positive examples: query + ideal_context
+                        ideal_context = doc.get('ideal_context', [])
+                        for context in ideal_context:
+                            if context and len(context.strip()) > 10:
+                                yield InputExample(texts=[query, context.strip()], label=1.0)
+
+                        # Negative examples: query + hard_negative_context
+                        hard_negative_context = doc.get('hard_negative_context', [])
+                        for context in hard_negative_context:
+                            if context and len(context.strip()) > 10:
+                                yield InputExample(texts=[query, context.strip()], label=0.0)
+                    else:
+                        # Handle original document format
+                        content = doc.get('content', '')
+                        summary = doc.get('summary', '')
+                        hypothetical_questions = doc.get('hypothetical_questions', [])
+
+                        passage = summary or content[:512]
+
+                        for question in hypothetical_questions:
+                            if question and len(question.strip()) > 10:
+                                yield InputExample(texts=[question.strip(), passage], label=1.0)
+
                 except json.JSONDecodeError:
                     # Silently skip malformed lines during iteration
                     continue
@@ -115,6 +155,10 @@ def fine_tune_model(
 
     # 4. Create the SentenceTransformer model from our modules
     model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+    
+    # Force CPU usage to avoid CUDA issues
+    model.to('cpu')
+    print("Model forced to CPU to avoid CUDA compatibility issues.")
 
     print("Model loaded successfully.")
     print("Training data: Streaming dataset (size determined at runtime)")
@@ -145,7 +189,13 @@ def fine_tune_model(
             if (i + 1) % chunk_size == 0:
                 print(f"Training on chunk ending at example {i + 1}...")
                 chunk_dataset = ChunkDataset(all_examples)
-                chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)
+                # Use pin_memory=false since we're on CPU
+                chunk_dataloader = DataLoader(
+                    chunk_dataset, 
+                    shuffle=True, 
+                    batch_size=batch_size,
+                    pin_memory=False
+                )
 
                 model.fit(
                     train_objectives=[(chunk_dataloader, train_loss)],
@@ -165,7 +215,13 @@ def fine_tune_model(
         if all_examples:
             print(f"Training on final chunk of {len(all_examples)} examples for this epoch...")
             chunk_dataset = ChunkDataset(all_examples)
-            chunk_dataloader = DataLoader(chunk_dataset, shuffle=True, batch_size=batch_size)
+            # Use pin_memory=false since we're on CPU
+            chunk_dataloader = DataLoader(
+                chunk_dataset, 
+                shuffle=True, 
+                batch_size=batch_size,
+                pin_memory=False
+            )
 
             model.fit(
                 train_objectives=[(chunk_dataloader, train_loss)],
@@ -201,12 +257,21 @@ def main():
 
     data_path = getattr(data_cfg, 'documents_path', 'data/documents_ko_with_metadata.jsonl')
 
+    # For fine-tuning, use the enhanced evaluation dataset instead of documents
+    enhanced_eval_path = 'data/eval_enhanced.jsonl'
+    if Path(enhanced_eval_path).exists():
+        data_path = enhanced_eval_path
+        print(f"Using enhanced evaluation dataset: {data_path}")
+    else:
+        print(f"Enhanced dataset not found, using documents: {data_path}")
+
     print("=== Embedding Model Fine-tuning Pipeline ===")
     print(f"Base model: {base_model}")
     print(f"Data file: {data_path}")
     print(f"Output directory: {output_dir}")
     print(f"Epochs: {epochs}")
     print(f"Batch size: {batch_size}")
+    print("Device: CPU (forced for compatibility)")
     print()
 
     if not Path(data_path).exists():

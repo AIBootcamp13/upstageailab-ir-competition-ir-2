@@ -87,7 +87,7 @@ multirun/
 # WanDB
 wandb/
 multirun/
-
+models/
 # Kibana
 .local_kibana
 

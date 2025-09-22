@@ -4,8 +4,11 @@ server.name: kibana
 server.host: "0.0.0.0"
 server.port: 5601
 
-# Elasticsearch connection will be set via environment variable ELASTICSEARCH_HOSTS
-# elasticsearch.hosts: ["http://elasticsearch:9200"]
+# Elasticsearch connection - direct connection for external Docker setup
+elasticsearch.hosts: ["http://localhost:9200"]
+
+# Encrypted Saved Objects encryption key (required for Kibana to function)
+xpack.encryptedSavedObjects.encryptionKey: "fhjskloppd678ehkdfdllfkrrygmzmxpq"
 
 # Basic settings only - let Kibana handle defaults in development mode
 logging.root.level: info

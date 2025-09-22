@@ -4,10 +4,10 @@ Generate hypothetical questions/answers (HyDE-like) using the configured LLM and
 `prompts/question_generation/question_generation_v1.jinja2` outside evaluation mode.
 
 Usage examples:
-  PYTHONPATH=src python scripts/tools/generate_hyde.py \
+  PYTHONPATH=src uv run python scripts/tools/generate_hyde.py \
     --input data/eval.jsonl --output outputs/hypotheticals.jsonl --limit 50
 
-  PYTHONPATH=src python scripts/tools/generate_hyde.py \
+  PYTHONPATH=src uv run python scripts/tools/generate_hyde.py \
     --query "광합성 과정의 핵심 단계는?" --output outputs/hypotheticals.jsonl
 
 Notes:

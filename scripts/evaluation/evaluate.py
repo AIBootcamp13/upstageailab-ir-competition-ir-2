@@ -216,8 +216,16 @@ def run(cfg: DictConfig) -> None:
 
     eval_items = list(read_jsonl(cfg.data.evaluation_path))
     if cfg.limit:
-        print(f"평가를 처음 {cfg.limit}개 항목으로 제한합니다.")
-        eval_items = eval_items[: cfg.limit]
+        if isinstance(cfg.limit, float) and 0 < cfg.limit < 1:
+            # Treat as fraction
+            limit_count = int(len(eval_items) * cfg.limit)
+            print(f"평가를 처음 {limit_count}개 항목으로 제한합니다 (전체의 {cfg.limit} 비율).")
+            eval_items = eval_items[:limit_count]
+        else:
+            # Treat as absolute number
+            limit_count = int(cfg.limit)
+            print(f"평가를 처음 {limit_count}개 항목으로 제한합니다.")
+            eval_items = eval_items[:limit_count]
 
     print(f"{len(eval_items)}개의 평가 쿼리를 처리합니다...")
 
